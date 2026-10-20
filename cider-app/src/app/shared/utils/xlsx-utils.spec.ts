@@ -53,4 +53,29 @@ describe('XlsxUtils', () => {
         expect(csv).toContain('""color"":""#FFF""');
     });
 
+
+    it('should export and re-import entities, keeping accents and numbers', async () => {
+        const columns: EntityField<any>[] = [
+            { field: 'name', header: 'Name', type: FieldType.text },
+            { field: 'cost', header: 'Cost', type: FieldType.numeric },
+            { field: 'text', header: 'Text', type: FieldType.text }
+        ];
+        const records = [
+            { name: 'Pomme dorée', cost: 3, text: 'Piochez une carte, "deux" si été' },
+            { name: 'Château', cost: 12, text: 'Défaussez ; gagnez 2 €' }
+        ];
+        const lookups = new Map<EntityService<any, string | number>, Map<string | number, string>>();
+
+        const csv = XlsxUtils.entityExport(columns, lookups, records);
+        const file = new File([csv], 'cards.csv', { type: 'text/csv' });
+        const imported: any[] = await XlsxUtils.entityImport(columns, lookups, file);
+
+        expect(imported.length).toBe(2);
+        expect(imported[0].name).toBe('Pomme dorée');
+        expect(imported[0].text).toBe('Piochez une carte, "deux" si été');
+        expect(Number(imported[1].cost)).toBe(12);
+        expect(imported[1].name).toBe('Château');
+        expect(imported[1].text).toBe('Défaussez ; gagnez 2 €');
+    });
+
 });
