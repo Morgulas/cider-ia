@@ -32,6 +32,26 @@ export class AppComponent implements OnInit {
 
     // this.setUpAnalytics();
     this.initTranslateService();
+    this.requestPersistentStorage();
+  }
+
+  /**
+   * Projects live only in this browser's IndexedDB. Without persistent storage the
+   * browser may evict them when disk space runs low; ask it to keep them.
+   * Chrome and Edge decide silently, Firefox may ask the user.
+   */
+  private requestPersistentStorage() {
+    if (!navigator.storage?.persist || !navigator.storage?.persisted) {
+      return;
+    }
+    navigator.storage.persisted().then(persisted => persisted
+      ? true
+      : navigator.storage.persist()
+    ).then(granted => {
+      console.log(`Persistent storage ${granted ? 'granted' : 'not granted'}`);
+    }).catch(() => {
+      // storage API unavailable (private window, insecure context): nothing to do
+    });
   }
 
   // private setUpAnalytics() {
