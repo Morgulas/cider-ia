@@ -4,7 +4,24 @@ export interface PublicUser {
   username: string;
   isAdmin: boolean;
   disabled: boolean;
+  /** AI features allowed for this account */
+  aiEnabled: boolean;
+  /** images the account may generate per month */
+  aiMonthlyImages: number;
+  /** images generated this month (administration list only) */
+  aiImagesThisMonth?: number;
   createdAt: string;
+}
+
+/** What the logged-in user can do with AI */
+export interface AiStatus {
+  imageProviders: { id: string; label: string }[];
+  defaultImageProvider: string | null;
+  aspectRatios: string[];
+  maxImagesPerRequest: number;
+  enabled: boolean;
+  monthlyImages: number;
+  imagesThisMonth: number;
 }
 
 /** A project saved on the server */

@@ -61,6 +61,29 @@ Dans Dockhand, les variables de `.env.example` se renseignent dans les variables
 - La copie de travail est marquée avec son propriétaire (utilisateur et projet) : rien n'est jamais envoyé au serveur si elle ne correspond pas au projet en cours.
 - À la déconnexion, la copie de travail est effacée du navigateur. Si une session expire et qu'une autre personne se connecte sur le même poste, le projet du premier utilisateur est fermé.
 
+## IA : illustrations de cartes
+
+Le serveur peut générer les illustrations des cartes avec **OpenAI**, **Google Gemini** ou un **ComfyUI** local. Un service est disponible dès que sa clé (ou son URL) est renseignée ; avec plusieurs services, l'utilisateur choisit dans la fenêtre de génération, `CIDER_IMAGE_PROVIDER` fixant celui proposé par défaut.
+
+| Variable | Défaut | Rôle |
+| --- | --- | --- |
+| `CIDER_IMAGE_PROVIDER` | *(premier configuré)* | Service par défaut : `openai`, `gemini` ou `comfyui` |
+| `CIDER_AI_DEFAULT_MONTHLY_IMAGES` | `50` | Quota mensuel donné aux nouveaux comptes |
+| `CIDER_AI_TIMEOUT_SECONDS` | `180` | Délai maximal d'une génération (rester sous 300 s, délai de nginx) |
+| `OPENAI_API_KEY` / `OPENAI_IMAGE_MODEL` / `OPENAI_IMAGE_QUALITY` | — / `gpt-image-2` / `medium` | OpenAI ; qualité `low`, `medium` ou `high` |
+| `GEMINI_API_KEY` / `GEMINI_IMAGE_MODEL` | — / `gemini-3.1-flash-image` | Google Gemini |
+| `COMFYUI_URL` / `COMFYUI_CHECKPOINT` / `COMFYUI_WORKFLOW_FILE` | — / `sd_xl_base_1.0.safetensors` / — | ComfyUI local, ex. `http://192.168.1.20:8188` |
+
+Les noms de modèles évoluent vite : ils sont modifiables sans toucher au code.
+
+**Accès** : l'IA est désactivée pour chaque compte par défaut. Dans **Utilisateurs**, l'administrateur l'active compte par compte et clique sur le compteur `x / y images` pour changer le quota mensuel (mois calendaire UTC ; `0` bloque la génération). Une génération échouée n'est pas décomptée ; un utilisateur ne peut lancer qu'une génération à la fois.
+
+**Utilisation** : dans la vue **Cartes** (miniatures), survoler une carte et cliquer sur ✨. On décrit un style commun au projet (mémorisé), le sujet est pré-rempli depuis le nom et la description de la carte. L'image choisie est enregistrée comme ressource **nommée comme la carte** : un modèle qui affiche `{{index assets card.name}}` la montre aussitôt.
+
+**Coûts et confidentialité** : OpenAI et Gemini facturent chaque image (le quota sert aussi de garde-fou budgétaire) et reçoivent le texte de la demande. Les clés restent dans le conteneur `api` et ne sont jamais transmises au navigateur. ComfyUI reste entièrement local.
+
+**Workflow ComfyUI personnalisé** : exporter le workflow au format API (*Export (API)*), le placer dans le dossier de données et indiquer son chemin dans le conteneur (`COMFYUI_WORKFLOW_FILE=/data/comfyui-workflow.json`). Les valeurs suivantes y sont remplacées : `{{prompt}}`, `{{negative_prompt}}`, `{{seed}}`, `{{width}}`, `{{height}}`, `{{batch_size}}`, `{{checkpoint}}`. Sans fichier, un workflow SDXL simple est utilisé.
+
 ## Sécurité
 
 - **Servir l'application en HTTPS** (via un reverse proxy) dès qu'elle est accessible hors du réseau local : identifiants et cookie de session circulent sinon en clair. Mettre alors `CIDER_COOKIE_SECURE=true`.

@@ -18,7 +18,7 @@ Concevez de belles cartes de jeu avec la puissance et la simplicité de `HTML`, 
 
 </div>
 
-> **Fork `cider-ia`** — fork de [Oatear Cider](https://github.com/oatear/cider) en version web uniquement (la version desktop/Electron a été retirée), auquel on ajoute des fonctionnalités d'IA.
+> **Fork `cider-ia`** — fork de [Oatear Cider](https://github.com/oatear/cider) en version web uniquement (la version desktop/Electron a été retirée), auquel on ajoute des fonctionnalités d'IA. Première fonctionnalité : **génération d'illustrations de cartes** (OpenAI, Gemini ou ComfyUI local), activée par compte avec quota mensuel — voir [docker/README.md](docker/README.md#ia--illustrations-de-cartes).
 
 ---
 

@@ -8,6 +8,10 @@ export interface UserRecord {
   passwordHash: string;
   isAdmin: boolean;
   disabled: boolean;
+  /** AI features (image generation) allowed for this account */
+  aiEnabled: boolean;
+  /** images this account may generate per calendar month */
+  aiMonthlyImages: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,8 +22,12 @@ export interface PublicUser {
   username: string;
   isAdmin: boolean;
   disabled: boolean;
+  aiEnabled: boolean;
+  aiMonthlyImages: number;
   createdAt: string;
 }
+
+export type UserChanges = Partial<Pick<UserRecord, 'passwordHash' | 'isAdmin' | 'disabled' | 'aiEnabled' | 'aiMonthlyImages'>>;
 
 interface UsersFile {
   version: 1;
@@ -40,6 +48,8 @@ export function toPublicUser(user: UserRecord): PublicUser {
     username: user.username,
     isAdmin: user.isAdmin,
     disabled: user.disabled,
+    aiEnabled: user.aiEnabled,
+    aiMonthlyImages: user.aiMonthlyImages,
     createdAt: user.createdAt,
   };
 }
@@ -52,13 +62,18 @@ export class UserStore {
   private readonly file: string;
   private readonly queue = new SerialQueue();
 
-  constructor(dataDir: string) {
+  /** defaultMonthlyImages: AI image quota of new accounts and of accounts saved before AI existed */
+  constructor(dataDir: string, private readonly defaultMonthlyImages = 50) {
     this.file = path.join(dataDir, 'users.json');
   }
 
   async load(): Promise<void> {
     const content = await readJson<UsersFile>(this.file, { version: 1, users: [] });
-    this.users = content.users ?? [];
+    this.users = (content.users ?? []).map(user => ({
+      ...user,
+      aiEnabled: user.aiEnabled === true,
+      aiMonthlyImages: typeof user.aiMonthlyImages === 'number' ? user.aiMonthlyImages : this.defaultMonthlyImages,
+    }));
   }
 
   private save(): Promise<void> {
@@ -109,6 +124,8 @@ export class UserStore {
         passwordHash,
         isAdmin,
         disabled: false,
+        aiEnabled: false,
+        aiMonthlyImages: this.defaultMonthlyImages,
         createdAt: now,
         updatedAt: now,
       };
@@ -121,7 +138,7 @@ export class UserStore {
   /**
    * Updates a user. Refuses any change that would leave no active administrator.
    */
-  update(id: string, changes: Partial<Pick<UserRecord, 'passwordHash' | 'isAdmin' | 'disabled'>>): Promise<UserRecord> {
+  update(id: string, changes: UserChanges): Promise<UserRecord> {
     return this.queue.run(async () => {
       const user = this.get(id);
       if (!user) {

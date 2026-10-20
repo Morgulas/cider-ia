@@ -7,7 +7,12 @@ import { ServerConfig } from './config.js';
 import { checkPasswordRules, hashPassword, verifyPassword } from './passwords.js';
 import { ProjectStore, ProjectStoreError } from './store/projects.js';
 import { SessionStore } from './store/sessions.js';
-import { toPublicUser, UserRecord, UserStore, UserStoreError } from './store/users.js';
+import { toPublicUser, UserChanges, UserRecord, UserStore, UserStoreError } from './store/users.js';
+import { AiUsageStore, QuotaExceededError } from './store/ai-usage.js';
+import {
+  ASPECT_RATIOS, AspectRatio, ImageProvider, ImageProviderError, MAX_IMAGES_PER_REQUEST, PROMPT_MAX_LENGTH
+} from './ai/image-provider.js';
+import { createImageProviders, defaultImageProvider } from './ai/providers/index.js';
 
 export const SESSION_COOKIE = 'cider_session';
 /** Every request that changes something must carry this header (CSRF protection) */
@@ -35,9 +40,13 @@ export interface CiderApp {
   users: UserStore;
   sessions: SessionStore;
   projects: ProjectStore;
+  aiUsage: AiUsageStore;
   /** code required to create the first administrator */
   setupToken: string;
 }
+
+/** Highest monthly image quota an administrator can give */
+const MAX_MONTHLY_IMAGES = 100000;
 
 /** Start of a Dexie export: {"formatName":"dexie" (spaces allowed) */
 const DEXIE_EXPORT_START = /^\s*\{\s*"formatName"\s*:\s*"dexie"/;
@@ -63,13 +72,22 @@ function looksLikeDexieExport(body: Buffer): boolean {
   return end >= 0 && body[end] === 0x7d; // '}': the upload was not cut short
 }
 
-export async function buildApp(config: ServerConfig): Promise<CiderApp> {
+/**
+ * imageProviders: replaces the providers built from the configuration (tests).
+ */
+export async function buildApp(config: ServerConfig, options: { imageProviders?: ImageProvider[] } = {}): Promise<CiderApp> {
   await fs.mkdir(config.dataDir, { recursive: true });
-  const users = new UserStore(config.dataDir);
+  const users = new UserStore(config.dataDir, config.ai.defaultMonthlyImages);
   const sessions = new SessionStore(config.dataDir, config.sessionDays);
   const projects = new ProjectStore(config.dataDir);
+  const aiUsage = new AiUsageStore(config.dataDir);
   await users.load();
   await sessions.load();
+  await aiUsage.load();
+  const imageProviders = options.imageProviders ?? createImageProviders(config.ai);
+  const defaultProvider = defaultImageProvider(imageProviders, config.ai.defaultImageProvider);
+  /** users with a generation in progress: one at a time per user */
+  const generating = new Set<string>();
   decoyHash ??= hashPassword('decoy-password-for-timing');
 
   // code needed to create the first administrator: only someone who can read the
@@ -94,8 +112,18 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
   if (users.count() === 0 && !config.setupToken) {
     app.log.warn(`No account yet. Setup code for the first administrator: ${setupToken}`);
   }
+  app.log.info(imageProviders.length > 0
+    ? `Image providers: ${imageProviders.map(provider => provider.id).join(', ')} (default: ${defaultProvider?.id})`
+    : 'No image provider configured: AI image generation is off');
 
   app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => {
+    if (error instanceof QuotaExceededError) {
+      return reply.status(429).send({ error: error.message, remaining: error.remaining });
+    }
+    if (error instanceof ImageProviderError) {
+      request.log.warn(`image generation failed: ${error.message}`);
+      return reply.status(error.status).send({ error: error.message });
+    }
     if (error instanceof HttpError || error instanceof UserStoreError || error instanceof ProjectStoreError) {
       const status = error.status;
       const body: Record<string, unknown> = { error: error.message };
@@ -230,7 +258,9 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
 
   app.get('/api/users', async (request) => {
     requireAdmin(request);
-    return { users: users.list().map(toPublicUser) };
+    return {
+      users: users.list().map(user => ({ ...toPublicUser(user), aiImagesThisMonth: aiUsage.used(user.id) })),
+    };
   });
 
   app.post('/api/users', async (request) => {
@@ -244,10 +274,13 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
     return { user: toPublicUser(user) };
   });
 
-  /** Resets a password, grants or removes administrator rights, disables or enables an account */
+  /**
+   * Resets a password, grants or removes administrator rights, disables or enables
+   * an account, enables AI features and sets the monthly image quota
+   */
   app.patch<{ Params: { id: string } }>('/api/users/:id', async (request) => {
     const admin = requireAdmin(request);
-    const { password, isAdmin, disabled } = body(request);
+    const { password, isAdmin, disabled, aiEnabled, aiMonthlyImages } = body(request);
     const target = users.get(request.params.id);
     if (!target) {
       throw new HttpError(404, 'user not found');
@@ -255,7 +288,7 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
     if (target.id === admin.id && (isAdmin === false || disabled === true)) {
       throw new HttpError(409, 'you cannot remove your own administrator rights or disable your own account');
     }
-    const changes: Partial<Pick<UserRecord, 'passwordHash' | 'isAdmin' | 'disabled'>> = {};
+    const changes: UserChanges = {};
     if (password !== undefined) {
       const passwordProblem = checkPasswordRules(password);
       if (passwordProblem) {
@@ -269,12 +302,21 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
     if (typeof disabled === 'boolean') {
       changes.disabled = disabled;
     }
+    if (typeof aiEnabled === 'boolean') {
+      changes.aiEnabled = aiEnabled;
+    }
+    if (aiMonthlyImages !== undefined) {
+      if (!Number.isInteger(aiMonthlyImages) || (aiMonthlyImages as number) < 0 || (aiMonthlyImages as number) > MAX_MONTHLY_IMAGES) {
+        throw new HttpError(400, `the monthly image quota must be a whole number from 0 to ${MAX_MONTHLY_IMAGES}`);
+      }
+      changes.aiMonthlyImages = aiMonthlyImages as number;
+    }
     const user = await users.update(target.id, changes);
     if (changes.passwordHash || changes.disabled) {
       // an administrator resetting their own password stays logged in here
       await sessions.revokeUser(user.id, user.id === admin.id ? request.cookies[SESSION_COOKIE] : undefined);
     }
-    return { user: toPublicUser(user) };
+    return { user: { ...toPublicUser(user), aiImagesThisMonth: aiUsage.used(user.id) } };
   });
 
   /** Deletes an account and all of its projects */
@@ -286,6 +328,7 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
     await users.delete(request.params.id);
     await sessions.revokeUser(request.params.id);
     await projects.deleteAll(request.params.id);
+    await aiUsage.forget(request.params.id);
     return { ok: true };
   });
 
@@ -343,5 +386,88 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
     return { project };
   });
 
-  return { app, users, sessions, projects, setupToken };
+  /*********************************************************************
+   * AI: image generation
+   *********************************************************************/
+
+  /** What the logged-in user can do with AI: providers, access, quota */
+  app.get('/api/ai/status', async (request) => {
+    const user = requireUser(request);
+    return {
+      imageProviders: imageProviders.map(provider => ({ id: provider.id, label: provider.label })),
+      defaultImageProvider: defaultProvider?.id ?? null,
+      aspectRatios: ASPECT_RATIOS,
+      maxImagesPerRequest: MAX_IMAGES_PER_REQUEST,
+      enabled: user.aiEnabled,
+      monthlyImages: user.aiMonthlyImages,
+      imagesThisMonth: aiUsage.used(user.id),
+    };
+  });
+
+  /**
+   * Generates images from a text. The images are counted against the user's
+   * monthly quota (given back if the generation fails) and returned in base64:
+   * nothing is stored on the server, the user chooses what to keep.
+   */
+  app.post('/api/ai/images', async (request) => {
+    const user = requireUser(request);
+    if (!user.aiEnabled) {
+      throw new HttpError(403, 'AI features are not enabled for this account (ask an administrator)');
+    }
+    const { prompt, aspectRatio, count, provider: providerId } = body(request);
+    if (typeof prompt !== 'string' || prompt.trim() === '') {
+      throw new HttpError(400, 'a description of the image is required');
+    }
+    if (prompt.length > PROMPT_MAX_LENGTH) {
+      throw new HttpError(400, `the description must have at most ${PROMPT_MAX_LENGTH} characters`);
+    }
+    const ratio = (aspectRatio ?? '1:1') as AspectRatio;
+    if (!ASPECT_RATIOS.includes(ratio)) {
+      throw new HttpError(400, `the aspect ratio must be one of ${ASPECT_RATIOS.join(', ')}`);
+    }
+    const imageCount = count ?? 1;
+    if (!Number.isInteger(imageCount) || (imageCount as number) < 1 || (imageCount as number) > MAX_IMAGES_PER_REQUEST) {
+      throw new HttpError(400, `the number of images must be from 1 to ${MAX_IMAGES_PER_REQUEST}`);
+    }
+    const provider = providerId === undefined || providerId === null
+      ? defaultProvider
+      : imageProviders.find(candidate => candidate.id === providerId);
+    if (!provider) {
+      throw new HttpError(providerId ? 400 : 503, providerId
+        ? 'unknown image provider'
+        : 'no image provider is configured on this server');
+    }
+    if (generating.has(user.id)) {
+      throw new HttpError(429, 'an image generation is already in progress for this account');
+    }
+
+    generating.add(user.id);
+    const requested = imageCount as number;
+    try {
+      await aiUsage.reserve(user.id, requested, user.aiMonthlyImages);
+      const started = Date.now();
+      let images;
+      try {
+        images = (await provider.generate({ prompt: prompt.trim(), aspectRatio: ratio, count: requested },
+          AbortSignal.timeout(config.ai.timeoutMs))).slice(0, requested);
+      } catch (error) {
+        await aiUsage.release(user.id, requested);
+        throw error;
+      }
+      if (images.length < requested) {
+        await aiUsage.release(user.id, requested - images.length);
+      }
+      request.log.info(`user ${user.username} generated ${images.length} image(s) with ${provider.id} in ${Date.now() - started} ms`);
+      return {
+        provider: provider.id,
+        images: images.map(image => ({ mimeType: image.mimeType, data: image.data.toString('base64') })),
+        imagesThisMonth: aiUsage.used(user.id),
+        monthlyImages: user.aiMonthlyImages,
+      };
+    } finally {
+      generating.delete(user.id);
+    }
+  });
+
+  return { app, users, sessions, projects, aiUsage, setupToken };
 }

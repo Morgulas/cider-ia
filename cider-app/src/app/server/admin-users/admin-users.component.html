@@ -22,6 +22,7 @@
         <th>{{ 'server.admin.username' | translate }}</th>
         <th>{{ 'server.admin.role' | translate }}</th>
         <th>{{ 'server.admin.status' | translate }}</th>
+        <th>{{ 'server.admin.ai' | translate }}</th>
         <th>{{ 'server.admin.created' | translate }}</th>
         <th></th>
       </tr>
@@ -38,6 +39,16 @@
         <td>
           <p-tag [severity]="user.disabled ? 'danger' : 'success'"
             [value]="(user.disabled ? 'server.admin.disabled' : 'server.admin.active') | translate" />
+        </td>
+        <td>
+          <div class="ai-cell">
+            <p-toggleswitch [ngModel]="user.aiEnabled" (ngModelChange)="setAiEnabled(user, $event)"
+              [ariaLabel]="('server.admin.ai-enabled' | translate) + ' : ' + user.username" [disabled]="busy()" />
+            <button type="button" class="link-button" (click)="openQuotaDialog(user)"
+              [pTooltip]="'server.admin.ai-quota-edit' | translate">
+              {{ 'server.admin.ai-usage' | translate: { used: user.aiImagesThisMonth ?? 0, total: user.aiMonthlyImages } }}
+            </button>
+          </div>
         </td>
         <td>{{ user.createdAt | date: 'mediumDate' }}</td>
         <td class="row-actions">
@@ -92,6 +103,18 @@
     <small class="muted">{{ 'server.login.password-rules' | translate }}</small>
     <p-button type="submit" [label]="'server.admin.reset-password' | translate"
       [disabled]="!passwordForm.valid || busy()" [loading]="busy()" />
+  </form>
+</p-dialog>
+
+<p-dialog [header]="('server.admin.ai-quota-title' | translate) + ' : ' + (quotaTarget?.username ?? '')"
+  [(visible)]="quotaDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <form class="dialog-form" (ngSubmit)="saveQuota()" #quotaForm="ngForm">
+    <label for="ai-quota">{{ 'server.admin.ai-quota' | translate }}</label>
+    <p-inputnumber inputId="ai-quota" name="quota" [(ngModel)]="quotaValue" [min]="0" [max]="100000"
+      [useGrouping]="false" required />
+    <small class="muted">{{ 'server.admin.ai-quota-help' | translate }}</small>
+    <p-button type="submit" [label]="'server.admin.ai-quota-save' | translate" [disabled]="!quotaForm.valid || busy()"
+      [loading]="busy()" />
   </form>
 </p-dialog>
 

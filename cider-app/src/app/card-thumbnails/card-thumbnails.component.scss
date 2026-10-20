@@ -74,3 +74,26 @@
         border: none;
     }
 }
+.card-item {
+  position: relative;
+
+  .ai-button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  &:hover .ai-button,
+  .ai-button:focus-within {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .card-item .ai-button {
+    opacity: 1;
+  }
+}

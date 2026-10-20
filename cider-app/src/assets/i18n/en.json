@@ -284,7 +284,15 @@
             "create": "Create",
             "is-admin": "Administrator",
             "you": "you",
-            "password-reset-done": "Password changed; the user's sessions were closed."
+            "password-reset-done": "Password changed; the user's sessions were closed.",
+            "ai": "AI",
+            "ai-enabled": "AI enabled",
+            "ai-usage": "{{used}} / {{total}} images",
+            "ai-quota-edit": "Change the monthly quota",
+            "ai-quota-title": "AI quota",
+            "ai-quota": "Images per month",
+            "ai-quota-help": "Counted per calendar month (UTC). 0 blocks generation.",
+            "ai-quota-save": "Save"
         },
         "account": {
             "title": "My account",
@@ -311,6 +319,29 @@
             "close-failed": "The open project has changes that could not be saved.",
             "pending-other": "Changes to the project \"{{name}}\" made in this browser were not saved. Open that project first to save them.",
             "copy-replaced": "The project was closed: another tab of this browser opened a project."
+        },
+        "ai": {
+            "dialog-title": "AI illustration",
+            "style": "Project style",
+            "style-placeholder": "e.g. watercolor, dark fantasy, soft light",
+            "style-help": "Remembered for this project so that every card shares the same look.",
+            "subject": "Subject",
+            "no-text": "No text in the image",
+            "aspect-ratio": "Format",
+            "count": "Images",
+            "provider": "Service",
+            "quota": "{{remaining}} of {{total}} images left this month",
+            "unavailable": "AI image generation is not available for your account.",
+            "generate": "Generate",
+            "generating": "Generating, this can take a minute…",
+            "results-empty": "The proposals will appear here.",
+            "choose": "Choose an image",
+            "asset-name": "Asset name",
+            "asset-replace": "An asset with this name exists and will be replaced.",
+            "asset-help": "Named after the card, the image appears in templates that show the asset matching the card name.",
+            "replace": "Replace",
+            "save": "Save as asset",
+            "generation-failed": "The generation failed."
         }
     }
 }

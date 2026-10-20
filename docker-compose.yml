@@ -38,6 +38,23 @@ services:
       CIDER_SETUP_TOKEN: ${CIDER_SETUP_TOKEN:-}
       # "true" quand l'application est servie en HTTPS (cookie de session Secure)
       CIDER_COOKIE_SECURE: ${CIDER_COOKIE_SECURE:-auto}
+      # --- IA : génération d'images (un service est actif dès que sa clé ou son URL est renseignée)
+      # service proposé par défaut : openai, gemini ou comfyui
+      CIDER_IMAGE_PROVIDER: ${CIDER_IMAGE_PROVIDER:-}
+      # quota mensuel attribué aux nouveaux comptes (modifiable par compte dans l'administration)
+      CIDER_AI_DEFAULT_MONTHLY_IMAGES: ${CIDER_AI_DEFAULT_MONTHLY_IMAGES:-50}
+      # délai maximal d'une génération, en secondes (moins de 300)
+      CIDER_AI_TIMEOUT_SECONDS: ${CIDER_AI_TIMEOUT_SECONDS:-180}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_IMAGE_MODEL: ${OPENAI_IMAGE_MODEL:-gpt-image-2}
+      OPENAI_IMAGE_QUALITY: ${OPENAI_IMAGE_QUALITY:-medium}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_IMAGE_MODEL: ${GEMINI_IMAGE_MODEL:-gemini-3.1-flash-image}
+      # ComfyUI local, ex. http://192.168.1.20:8188
+      COMFYUI_URL: ${COMFYUI_URL:-}
+      COMFYUI_CHECKPOINT: ${COMFYUI_CHECKPOINT:-sd_xl_base_1.0.safetensors}
+      # workflow personnalisé (format API), placé dans le dossier de données, ex. /data/comfyui-workflow.json
+      COMFYUI_WORKFLOW_FILE: ${COMFYUI_WORKFLOW_FILE:-}
     volumes:
       # dossier de l'hôte où sont stockés comptes et projets
       - ${CIDER_DATA_PATH:-./data}:/data

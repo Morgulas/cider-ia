@@ -16,7 +16,9 @@ export class UsersApiService {
     return (await firstValueFrom(this.http.post<{ user: PublicUser }>('/api/users', { username, password, isAdmin }))).user;
   }
 
-  async update(id: string, changes: { password?: string; isAdmin?: boolean; disabled?: boolean }): Promise<PublicUser> {
+  async update(id: string, changes: {
+    password?: string; isAdmin?: boolean; disabled?: boolean; aiEnabled?: boolean; aiMonthlyImages?: number;
+  }): Promise<PublicUser> {
     return (await firstValueFrom(this.http.patch<{ user: PublicUser }>(`/api/users/${id}`, changes))).user;
   }
 

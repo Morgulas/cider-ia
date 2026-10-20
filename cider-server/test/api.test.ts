@@ -66,6 +66,7 @@ describe('cider-server API', () => {
     config = {
       dataDir, host: '127.0.0.1', port: 0, sessionDays: 30, maxProjectMb: 1, maxProjectsPerUser: 3,
       setupToken: '', cookieSecure: 'auto', logLevel: 'silent', trustedProxies: ['loopback', '172.16.0.0/12'],
+      ai: { defaultImageProvider: '', timeoutMs: 10000, defaultMonthlyImages: 50 },
     };
     server = await buildApp(config);
   });

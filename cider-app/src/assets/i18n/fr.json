@@ -241,7 +241,15 @@
             "create": "Créer",
             "is-admin": "Administrateur",
             "you": "vous",
-            "password-reset-done": "Mot de passe modifié ; les sessions de l'utilisateur ont été fermées."
+            "password-reset-done": "Mot de passe modifié ; les sessions de l'utilisateur ont été fermées.",
+            "ai": "IA",
+            "ai-enabled": "IA activée",
+            "ai-usage": "{{used}} / {{total}} images",
+            "ai-quota-edit": "Modifier le quota mensuel",
+            "ai-quota-title": "Quota IA",
+            "ai-quota": "Images par mois",
+            "ai-quota-help": "Compté par mois calendaire (UTC). 0 bloque la génération.",
+            "ai-quota-save": "Enregistrer"
         },
         "account": {
             "title": "Mon compte",
@@ -268,6 +276,29 @@
             "close-failed": "Le projet ouvert a des modifications qui n'ont pas pu être enregistrées.",
             "pending-other": "Des modifications du projet « {{name}} » faites dans ce navigateur n'ont pas été enregistrées. Ouvrez d'abord ce projet pour les enregistrer.",
             "copy-replaced": "Le projet a été fermé : un autre onglet de ce navigateur a ouvert un projet."
+        },
+        "ai": {
+            "dialog-title": "Illustration IA",
+            "style": "Style du projet",
+            "style-placeholder": "ex. aquarelle, dark fantasy, lumière douce",
+            "style-help": "Mémorisé pour ce projet afin que toutes les cartes aient le même rendu.",
+            "subject": "Sujet",
+            "no-text": "Pas de texte dans l'image",
+            "aspect-ratio": "Format",
+            "count": "Images",
+            "provider": "Service",
+            "quota": "{{remaining}} image(s) restante(s) sur {{total}} ce mois-ci",
+            "unavailable": "La génération d'images IA n'est pas disponible pour votre compte.",
+            "generate": "Générer",
+            "generating": "Génération en cours, cela peut prendre une minute…",
+            "results-empty": "Les propositions apparaîtront ici.",
+            "choose": "Choisissez une image",
+            "asset-name": "Nom de la ressource",
+            "asset-replace": "Une ressource porte déjà ce nom : elle sera remplacée.",
+            "asset-help": "Nommée comme la carte, l'image s'affiche dans les modèles qui montrent la ressource portant le nom de la carte.",
+            "replace": "Remplacer",
+            "save": "Enregistrer comme ressource",
+            "generation-failed": "La génération a échoué."
         }
     }
 }

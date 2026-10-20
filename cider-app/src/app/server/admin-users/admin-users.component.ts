@@ -13,6 +13,8 @@ import { Password } from 'primeng/password';
 import { TableModule } from 'primeng/table';
 import { Tag } from 'primeng/tag';
 import { Tooltip } from 'primeng/tooltip';
+import { ToggleSwitch } from 'primeng/toggleswitch';
+import { InputNumber } from 'primeng/inputnumber';
 import { AuthService } from '../auth.service';
 import { apiErrorMessage, PublicUser } from '../server.types';
 import { TopbarComponent } from '../topbar/topbar.component';
@@ -25,7 +27,7 @@ import { UsersApiService } from '../users-api.service';
   styleUrl: './admin-users.component.scss',
   providers: [ConfirmationService],
   imports: [TopbarComponent, FormsModule, TableModule, Button, Checkbox, Dialog, InputText, Password, Message, Tag,
-    Tooltip, ConfirmDialog, DatePipe, TranslatePipe]
+    Tooltip, ToggleSwitch, InputNumber, ConfirmDialog, DatePipe, TranslatePipe]
 })
 export class AdminUsersComponent implements OnInit {
   private readonly api = inject(UsersApiService);
@@ -47,6 +49,10 @@ export class AdminUsersComponent implements OnInit {
   protected passwordDialogVisible = false;
   protected passwordTarget: PublicUser | null = null;
   protected resetPassword = '';
+
+  protected quotaDialogVisible = false;
+  protected quotaTarget: PublicUser | null = null;
+  protected quotaValue: number | null = null;
 
   async ngOnInit(): Promise<void> {
     await this.refresh();
@@ -113,6 +119,24 @@ export class AdminUsersComponent implements OnInit {
       this.passwordDialogVisible = false;
     }
     this.resetPassword = '';
+  }
+
+  protected setAiEnabled(user: PublicUser, enabled: boolean): void {
+    void this.run(() => this.api.update(user.id, { aiEnabled: enabled }));
+  }
+
+  protected openQuotaDialog(user: PublicUser): void {
+    this.quotaTarget = user;
+    this.quotaValue = user.aiMonthlyImages;
+    this.quotaDialogVisible = true;
+  }
+
+  protected async saveQuota(): Promise<void> {
+    const target = this.quotaTarget;
+    const quota = this.quotaValue;
+    if (target && quota !== null && await this.run(() => this.api.update(target.id, { aiMonthlyImages: quota }))) {
+      this.quotaDialogVisible = false;
+    }
   }
 
   protected toggleAdmin(user: PublicUser): void {

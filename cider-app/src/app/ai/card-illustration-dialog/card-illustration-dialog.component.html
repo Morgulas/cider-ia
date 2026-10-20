@@ -1,0 +1,90 @@
+<p-dialog [header]="('server.ai.dialog-title' | translate) + (card()?.name ? ' : ' + card()!.name : '')"
+  [visible]="visible()" (visibleChange)="visible.set($event)" (onShow)="onShow()" (onHide)="onHide()"
+  [modal]="true" [style]="{ width: '760px', maxWidth: '95vw' }" [dismissableMask]="!generating()">
+  <div class="layout">
+    <form class="settings" (ngSubmit)="generate()" #form="ngForm">
+      <label for="ai-style">{{ 'server.ai.style' | translate }}</label>
+      <textarea pTextarea id="ai-style" name="style" rows="2" [(ngModel)]="style" maxlength="1000"
+        [placeholder]="'server.ai.style-placeholder' | translate" aria-describedby="ai-style-help"></textarea>
+      <small id="ai-style-help" class="muted">{{ 'server.ai.style-help' | translate }}</small>
+
+      <label for="ai-subject">{{ 'server.ai.subject' | translate }}</label>
+      <textarea pTextarea id="ai-subject" name="subject" rows="4" [(ngModel)]="subject" required maxlength="2500"></textarea>
+
+      <div class="checkbox">
+        <p-checkbox inputId="ai-no-text" name="noText" [(ngModel)]="noText" [binary]="true" />
+        <label for="ai-no-text">{{ 'server.ai.no-text' | translate }}</label>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="ai-ratio">{{ 'server.ai.aspect-ratio' | translate }}</label>
+          <p-select inputId="ai-ratio" name="aspectRatio" [options]="ratioOptions()" optionLabel="label"
+            optionValue="value" [(ngModel)]="aspectRatio" />
+        </div>
+        <div class="field">
+          <label for="ai-count">{{ 'server.ai.count' | translate }}</label>
+          <p-select inputId="ai-count" name="count" [options]="countOptions()" optionLabel="label"
+            optionValue="value" [(ngModel)]="count" />
+        </div>
+        @if ((ai.status()?.imageProviders?.length ?? 0) > 1) {
+          <div class="field grow">
+            <label for="ai-provider">{{ 'server.ai.provider' | translate }}</label>
+            <p-select inputId="ai-provider" name="provider" [options]="ai.status()!.imageProviders" optionLabel="label"
+              optionValue="id" [(ngModel)]="provider" />
+          </div>
+        }
+      </div>
+
+      <p class="muted quota">
+        {{ 'server.ai.quota' | translate: { remaining: remaining(), total: ai.status()?.monthlyImages ?? 0 } }}
+      </p>
+
+      @if (!ai.imagesAvailable()) {
+        <p-message severity="warn" [text]="'server.ai.unavailable' | translate" />
+      }
+
+      <p-button type="submit" icon="pi pi-sparkles" [label]="'server.ai.generate' | translate" [loading]="generating()"
+        [disabled]="!form.valid || generating() || !ai.imagesAvailable() || remaining() < count" />
+    </form>
+
+    <section class="results" [attr.aria-busy]="generating()">
+      @if (generating()) {
+        <p-progressbar mode="indeterminate" [style]="{ height: '6px' }" />
+        <p class="muted">{{ 'server.ai.generating' | translate }}</p>
+      } @else if (proposals().length === 0) {
+        <p class="muted empty">{{ 'server.ai.results-empty' | translate }}</p>
+      } @else {
+        <div class="grid">
+          @for (proposal of proposals(); track proposal.url; let i = $index) {
+            <button type="button" class="proposal" [class.selected]="selected() === i" (click)="select(i)"
+              [attr.aria-pressed]="selected() === i" [attr.aria-label]="('server.ai.choose' | translate) + ' ' + (i + 1)">
+              <img [src]="proposal.url" alt="" />
+            </button>
+          }
+        </div>
+      }
+
+      @if (error()) {
+        <p-message severity="error" [text]="error()!" />
+      }
+
+      @if (proposals().length > 0) {
+        <div class="save">
+          <label for="ai-asset-name">{{ 'server.ai.asset-name' | translate }}</label>
+          <input pInputText id="ai-asset-name" name="assetName" [(ngModel)]="assetName" (ngModelChange)="checkExistingAsset()"
+            aria-describedby="ai-asset-help" />
+          <small id="ai-asset-help" class="muted">
+            @if (existingAsset()) {
+              {{ 'server.ai.asset-replace' | translate }}
+            } @else {
+              {{ 'server.ai.asset-help' | translate }}
+            }
+          </small>
+          <p-button icon="pi pi-check" [label]="(existingAsset() ? 'server.ai.replace' : 'server.ai.save') | translate"
+            [disabled]="selected() === null || saving() || !assetName.trim()" [loading]="saving()" (onClick)="save()" />
+        </div>
+      }
+    </section>
+  </div>
+</p-dialog>

@@ -15,15 +15,22 @@ import { DataView as DataView_1 } from 'primeng/dataview';
 import { CardPreviewComponent } from '../card-preview/card-preview.component';
 import { AsyncPipe } from '@angular/common';
 import { EntityPipe } from '../data-services/pipes/entity.pipe';
+import { Button } from 'primeng/button';
+import { Tooltip } from 'primeng/tooltip';
+import { AiService } from '../ai/ai.service';
+import { CardIllustrationDialogComponent } from '../ai/card-illustration-dialog/card-illustration-dialog.component';
 
 @Component({
     selector: 'app-card-thumbnails',
     templateUrl: './card-thumbnails.component.html',
     styleUrls: ['./card-thumbnails.component.scss'],
-    imports: [Bind, Card_1, SelectButton, FormsModule, IconField, InputText, InputIcon, DataView_1, CardPreviewComponent, AsyncPipe, EntityPipe, TranslatePipe]
+    imports: [Bind, Card_1, SelectButton, FormsModule, IconField, InputText, InputIcon, DataView_1, CardPreviewComponent, AsyncPipe, EntityPipe, TranslatePipe, Button, Tooltip, CardIllustrationDialogComponent]
 })
 export class CardThumbnailsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly ai = inject(AiService);
+  protected illustrationVisible = false;
+  protected illustrationCard: Card | null = null;
   @ViewChild('dv') dv!: DataView;
   thumbnailCards: Card[] = [];
   zoomLevel = 0.3;
@@ -53,6 +60,7 @@ export class CardThumbnailsComponent implements OnInit {
 
   ngOnInit(): void {
     this.refreshCards();
+    void this.ai.refreshStatus();
     this.cardsService.getFields().then(fields => {
       this.filterFields = fields.map(field => field.field).join(',');
     });
@@ -86,6 +94,12 @@ export class CardThumbnailsComponent implements OnInit {
 
   filter(input: any) {
     (this.dv as any).filter(input.target.value, 'contains');
+  }
+
+
+  protected openIllustration(card: Card): void {
+    this.illustrationCard = card;
+    this.illustrationVisible = true;
   }
 
 }

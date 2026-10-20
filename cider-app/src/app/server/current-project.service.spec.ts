@@ -15,8 +15,8 @@ describe('CurrentProjectService', () => {
   const meta = (id: string, revision: number): ProjectMeta => ({
     id, name: `Projet ${id}`, createdAt: '', updatedAt: '', revision, size: 0
   });
-  const userA: PublicUser = { id: 'ua', username: 'alice', isAdmin: false, disabled: false, createdAt: '' };
-  const userB: PublicUser = { id: 'ub', username: 'bob', isAdmin: false, disabled: false, createdAt: '' };
+  const userA: PublicUser = { id: 'ua', username: 'alice', isAdmin: false, disabled: false, aiEnabled: false, aiMonthlyImages: 0, createdAt: '' };
+  const userB: PublicUser = { id: 'ub', username: 'bob', isAdmin: false, disabled: false, aiEnabled: false, aiMonthlyImages: 0, createdAt: '' };
 
   let service: CurrentProjectService;
   let changes: Subject<unknown>;
