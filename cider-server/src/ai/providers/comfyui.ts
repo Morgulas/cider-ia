@@ -81,7 +81,9 @@ export class ComfyUiImageProvider implements ImageProvider {
   constructor(private readonly config: ComfyUiConfig, private readonly pollIntervalMs = 1000) { }
 
   private loadWorkflow(): Promise<Workflow> {
-    this.workflow ??= this.config.workflowFile
+    this.workflow ??= this.config.workflow
+      ? Promise.resolve(JSON.parse(this.config.workflow) as Workflow)
+      : this.config.workflowFile
       ? fs.readFile(this.config.workflowFile, 'utf8').then(text => JSON.parse(text) as Workflow)
       : Promise.resolve(DEFAULT_COMFYUI_WORKFLOW);
     return this.workflow;

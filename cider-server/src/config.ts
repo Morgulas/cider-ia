@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { DEFAULT_PROMPT_TEMPLATE } from './ai/prompt.js';
 
 export interface OpenAiImageConfig {
   apiKey: string;
@@ -20,6 +21,8 @@ export interface ComfyUiConfig {
   url: string;
   /** workflow in ComfyUI API format, with {{prompt}}, {{width}}... placeholders; built-in one if empty */
   workflowFile: string;
+  /** workflow given in the administration page (JSON text), used instead of workflowFile */
+  workflow?: string;
   checkpoint: string;
   negativePrompt: string;
 }
@@ -31,6 +34,8 @@ export interface AiConfig {
   timeoutMs: number;
   /** monthly image quota given to accounts that have no quota set */
   defaultMonthlyImages: number;
+  /** text framing every illustration request, see ai/prompt.ts */
+  promptTemplate: string;
   openai?: OpenAiImageConfig;
   gemini?: GeminiImageConfig;
   comfyui?: ComfyUiConfig;
@@ -81,6 +86,17 @@ function env(name: string): string {
   return (process.env[name] ?? '').trim();
 }
 
+export const AI_DEFAULTS = {
+  timeoutSeconds: 180,
+  defaultMonthlyImages: 50,
+  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-image-2', quality: 'medium' },
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-3.1-flash-image' },
+  comfyui: {
+    checkpoint: 'sd_xl_base_1.0.safetensors',
+    negativePrompt: 'text, letters, watermark, signature, frame, border, blurry, low quality',
+  },
+};
+
 /** Image providers: a provider is available when its key (or URL) is set */
 export function loadAiConfig(): AiConfig {
   const openAiKey = env('OPENAI_API_KEY');
@@ -88,24 +104,26 @@ export function loadAiConfig(): AiConfig {
   const comfyUrl = env('COMFYUI_URL');
   return {
     defaultImageProvider: env('CIDER_IMAGE_PROVIDER').toLowerCase(),
-    timeoutMs: intFromEnv('CIDER_AI_TIMEOUT_SECONDS', 180, 10) * 1000,
-    defaultMonthlyImages: intFromEnv('CIDER_AI_DEFAULT_MONTHLY_IMAGES', 50, 0),
+    timeoutMs: intFromEnv('CIDER_AI_TIMEOUT_SECONDS', AI_DEFAULTS.timeoutSeconds, 10) * 1000,
+    defaultMonthlyImages: intFromEnv('CIDER_AI_DEFAULT_MONTHLY_IMAGES', AI_DEFAULTS.defaultMonthlyImages, 0),
+    // \n in the variable stands for a line break
+    promptTemplate: env('CIDER_AI_PROMPT_TEMPLATE').replace(/\\n/g, '\n') || DEFAULT_PROMPT_TEMPLATE,
     openai: openAiKey ? {
       apiKey: openAiKey,
-      baseUrl: (env('OPENAI_BASE_URL') || 'https://api.openai.com/v1').replace(/\/+$/, ''),
-      model: env('OPENAI_IMAGE_MODEL') || 'gpt-image-2',
-      quality: env('OPENAI_IMAGE_QUALITY') || 'medium',
+      baseUrl: (env('OPENAI_BASE_URL') || AI_DEFAULTS.openai.baseUrl).replace(/\/+$/, ''),
+      model: env('OPENAI_IMAGE_MODEL') || AI_DEFAULTS.openai.model,
+      quality: env('OPENAI_IMAGE_QUALITY') || AI_DEFAULTS.openai.quality,
     } : undefined,
     gemini: geminiKey ? {
       apiKey: geminiKey,
-      baseUrl: (env('GEMINI_BASE_URL') || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, ''),
-      model: env('GEMINI_IMAGE_MODEL') || 'gemini-3.1-flash-image',
+      baseUrl: (env('GEMINI_BASE_URL') || AI_DEFAULTS.gemini.baseUrl).replace(/\/+$/, ''),
+      model: env('GEMINI_IMAGE_MODEL') || AI_DEFAULTS.gemini.model,
     } : undefined,
     comfyui: comfyUrl ? {
       url: comfyUrl.replace(/\/+$/, ''),
       workflowFile: env('COMFYUI_WORKFLOW_FILE'),
-      checkpoint: env('COMFYUI_CHECKPOINT') || 'sd_xl_base_1.0.safetensors',
-      negativePrompt: env('COMFYUI_NEGATIVE_PROMPT') || 'text, letters, watermark, signature, frame, border, blurry, low quality',
+      checkpoint: env('COMFYUI_CHECKPOINT') || AI_DEFAULTS.comfyui.checkpoint,
+      negativePrompt: env('COMFYUI_NEGATIVE_PROMPT') || AI_DEFAULTS.comfyui.negativePrompt,
     } : undefined,
   };
 }

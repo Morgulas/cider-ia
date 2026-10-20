@@ -65,10 +65,15 @@ Dans Dockhand, les variables de `.env.example` se renseignent dans les variables
 
 Le serveur peut générer les illustrations des cartes avec **OpenAI**, **Google Gemini** ou un **ComfyUI** local. Un service est disponible dès que sa clé (ou son URL) est renseignée ; avec plusieurs services, l'utilisateur choisit dans la fenêtre de génération, `CIDER_IMAGE_PROVIDER` fixant celui proposé par défaut.
 
+**Tout se règle aussi depuis l'interface** : menu **Paramètres IA** (administrateurs). Services, clés, modèles, qualité, délai, quota des nouveaux comptes, workflow ComfyUI et **modèle de prompt**. Les variables ci-dessous ne sont que les valeurs de départ : ce qui est modifié dans l'interface est enregistré dans `ai-settings.json` (dossier de données) et prend le dessus, sans redémarrage. Le bouton « Revenir aux valeurs Docker » efface ces réglages. Les clés saisies dans l'interface sont stockées en clair dans ce fichier (lisible uniquement par le serveur) et ne sont jamais réaffichées : protéger le dossier de données en conséquence.
+
+**Modèle de prompt** : texte envoyé au service pour chaque illustration, qui oriente toutes les générations (type d'image, cadrage, contraintes). Variables disponibles : `{{subject}}` (obligatoire, le sujet saisi), `{{style}}` (style du projet), `{{card_name}}` (nom de la carte), `{{no_text}}` (consigne « pas de texte » si la case est cochée). Une ligne dont toutes les variables sont vides est retirée. La fenêtre de génération affiche le prompt final avant l'envoi.
+
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
 | `CIDER_IMAGE_PROVIDER` | *(premier configuré)* | Service par défaut : `openai`, `gemini` ou `comfyui` |
 | `CIDER_AI_DEFAULT_MONTHLY_IMAGES` | `50` | Quota mensuel donné aux nouveaux comptes |
+| `CIDER_AI_PROMPT_TEMPLATE` | *(modèle intégré)* | Modèle de prompt de départ ; `\n` pour un retour à la ligne |
 | `CIDER_AI_TIMEOUT_SECONDS` | `180` | Délai maximal d'une génération (rester sous 300 s, délai de nginx) |
 | `OPENAI_API_KEY` / `OPENAI_IMAGE_MODEL` / `OPENAI_IMAGE_QUALITY` | — / `gpt-image-2` / `medium` | OpenAI ; qualité `low`, `medium` ou `high` |
 | `GEMINI_API_KEY` / `GEMINI_IMAGE_MODEL` | — / `gemini-3.1-flash-image` | Google Gemini |

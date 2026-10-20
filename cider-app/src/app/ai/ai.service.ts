@@ -1,10 +1,16 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { AiStatus } from '../server/server.types';
+import { AiSettingsResponse, AiStatus } from '../server/server.types';
 
 export interface ImageGenerationRequest {
-  prompt: string;
+  /** what the image shows; framed by the administrator's prompt template */
+  subject: string;
+  /** project style */
+  style?: string;
+  cardName?: string;
+  /** asks for an image without text (default) */
+  noText?: boolean;
   aspectRatio: string;
   count: number;
   /** provider id; the server's default when omitted */
@@ -13,6 +19,8 @@ export interface ImageGenerationRequest {
 
 export interface ImageGenerationResult {
   provider: string;
+  /** prompt actually sent to the service */
+  prompt: string;
   images: Blob[];
   imagesThisMonth: number;
   monthlyImages: number;
@@ -47,6 +55,7 @@ export class AiService {
   async generateImages(request: ImageGenerationRequest): Promise<ImageGenerationResult> {
     const result = await firstValueFrom(this.http.post<{
       provider: string;
+      prompt: string;
       images: { mimeType: string; data: string }[];
       imagesThisMonth: number;
       monthlyImages: number;
@@ -57,10 +66,26 @@ export class AiService {
     }
     return {
       provider: result.provider,
+      prompt: result.prompt,
       images: result.images.map(image => AiService.base64ToBlob(image.data, image.mimeType)),
       imagesThisMonth: result.imagesThisMonth,
       monthlyImages: result.monthlyImages,
     };
+  }
+
+  /** AI settings (administrators) */
+  getSettings(): Promise<AiSettingsResponse> {
+    return firstValueFrom(this.http.get<AiSettingsResponse>('/api/ai/settings'));
+  }
+
+  /** Changes AI settings (administrators); only the fields given change */
+  updateSettings(changes: Record<string, unknown>): Promise<AiSettingsResponse> {
+    return firstValueFrom(this.http.patch<AiSettingsResponse>('/api/ai/settings', changes));
+  }
+
+  /** Forgets the settings of the administration page: back to the Docker variables */
+  resetSettings(): Promise<AiSettingsResponse> {
+    return firstValueFrom(this.http.delete<AiSettingsResponse>('/api/ai/settings'));
   }
 
   private static base64ToBlob(base64: string, mimeType: string): Blob {

@@ -36,6 +36,12 @@
         }
       </div>
 
+      <details class="preview">
+        <summary>{{ 'server.ai.prompt-preview' | translate }}</summary>
+        <pre>{{ promptPreview() }}</pre>
+        <small class="muted">{{ 'server.ai.prompt-preview-help' | translate }}</small>
+      </details>
+
       <p class="muted quota">
         {{ 'server.ai.quota' | translate: { remaining: remaining(), total: ai.status()?.monthlyImages ?? 0 } }}
       </p>

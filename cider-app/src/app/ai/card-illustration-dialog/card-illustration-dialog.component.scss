@@ -107,3 +107,24 @@ textarea {
     align-self: flex-end;
   }
 }
+
+.preview {
+  font-size: 0.85rem;
+
+  summary {
+    cursor: pointer;
+    color: var(--p-text-muted-color);
+  }
+
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0.5rem 0 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    background: var(--p-content-hover-background);
+    font-family: inherit;
+    max-height: 12rem;
+    overflow: auto;
+  }
+}

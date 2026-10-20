@@ -22,6 +22,29 @@ export interface AiStatus {
   enabled: boolean;
   monthlyImages: number;
   imagesThisMonth: number;
+  /** administrator's text framing every request, with {{subject}}, {{style}}... */
+  promptTemplate: string;
+  noTextInstruction: string;
+}
+
+/** AI settings as shown to administrators: effective values, keys reduced to a hint */
+export interface AiSettingsView {
+  defaultImageProvider: string;
+  timeoutSeconds: number;
+  defaultMonthlyImages: number;
+  promptTemplate: string;
+  openai: { enabled: boolean; apiKeySet: boolean; apiKeyHint: string; baseUrl: string; model: string; quality: string };
+  gemini: { enabled: boolean; apiKeySet: boolean; apiKeyHint: string; baseUrl: string; model: string };
+  comfyui: {
+    enabled: boolean; url: string; checkpoint: string; negativePrompt: string; workflow: string; workflowFile: string;
+  };
+  customized: boolean;
+}
+
+export interface AiSettingsResponse {
+  settings: AiSettingsView;
+  activeProviders: string[];
+  placeholders: string[];
 }
 
 /** A project saved on the server */

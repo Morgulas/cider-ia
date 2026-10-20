@@ -1,0 +1,198 @@
+<app-topbar />
+<main class="page">
+  <div class="page-header">
+    <div>
+      <h1>{{ 'server.ai-settings.title' | translate }}</h1>
+      <p class="muted">{{ 'server.ai-settings.subtitle' | translate }}</p>
+    </div>
+    <p-button [label]="'server.ai-settings.reset' | translate" icon="pi pi-replay" severity="secondary" [outlined]="true"
+      [disabled]="busy() || !form?.customized" (onClick)="resetAll()" />
+  </div>
+
+  @if (error()) {
+    <p-message severity="error" [text]="error()!" styleClass="block-message" />
+  }
+  @if (info()) {
+    <p-message severity="success" [text]="info()!" styleClass="block-message" />
+  }
+
+  @if (form; as f) {
+    <form (ngSubmit)="save()" class="sections">
+      <!-- general -->
+      <section class="panel">
+        <h2>{{ 'server.ai-settings.general' | translate }}</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="default-provider">{{ 'server.ai-settings.default-provider' | translate }}</label>
+            <p-select inputId="default-provider" name="defaultImageProvider" [options]="defaultProviderOptions()"
+              optionLabel="label" optionValue="value" [(ngModel)]="f.defaultImageProvider" />
+          </div>
+          <div class="field">
+            <label for="default-quota">{{ 'server.ai-settings.default-quota' | translate }}</label>
+            <p-inputnumber inputId="default-quota" name="defaultMonthlyImages" [(ngModel)]="f.defaultMonthlyImages"
+              [min]="0" [max]="100000" [useGrouping]="false" />
+            <small class="muted">{{ 'server.ai-settings.default-quota-help' | translate }}</small>
+          </div>
+          <div class="field">
+            <label for="timeout">{{ 'server.ai-settings.timeout' | translate }}</label>
+            <p-inputnumber inputId="timeout" name="timeoutSeconds" [(ngModel)]="f.timeoutSeconds" [min]="10" [max]="290"
+              [useGrouping]="false" suffix=" s" />
+          </div>
+        </div>
+      </section>
+
+      <!-- prompt template -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>{{ 'server.ai-settings.template' | translate }}</h2>
+          <p-button [label]="'server.ai-settings.template-default' | translate" icon="pi pi-undo" [text]="true"
+            size="small" [disabled]="busy()" (onClick)="defaultTemplate()" />
+        </div>
+        <p class="muted">{{ 'server.ai-settings.template-help' | translate }}</p>
+        <textarea #templateArea pTextarea id="prompt-template" name="promptTemplate" rows="6" maxlength="4000"
+          [(ngModel)]="f.promptTemplate" [attr.aria-label]="'server.ai-settings.template' | translate"></textarea>
+        <div class="placeholders">
+          <span class="muted">{{ 'server.ai-settings.insert' | translate }}</span>
+          @for (name of placeholders; track name) {
+            <button type="button" class="chip" (click)="insertPlaceholder(templateArea, name)">
+              <code>{{ token(name) }}</code>
+              <span>{{ 'server.ai-settings.placeholder-' + name | translate }}</span>
+            </button>
+          }
+        </div>
+        @if (missingSubject()) {
+          <p-message severity="warn" [text]="'server.ai-settings.template-needs-subject' | translate" />
+        }
+        <details class="example">
+          <summary>{{ 'server.ai-settings.example' | translate }}</summary>
+          <pre>{{ templateExample() }}</pre>
+        </details>
+      </section>
+
+      <!-- OpenAI -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>OpenAI</h2>
+          <p-tag [severity]="isActive('openai') ? 'success' : 'secondary'"
+            [value]="(isActive('openai') ? 'server.ai-settings.active' : 'server.ai-settings.inactive') | translate" />
+          <span class="fill"></span>
+          <label class="switch" for="openai-enabled">{{ 'server.ai-settings.enabled' | translate }}</label>
+          <p-toggleswitch inputId="openai-enabled" name="openaiEnabled" [(ngModel)]="f.openai.enabled" />
+        </div>
+        <div class="grid">
+          <div class="field wide">
+            <label for="openai-key">{{ 'server.ai-settings.api-key' | translate }}</label>
+            <p-password inputId="openai-key" name="openaiKey" [(ngModel)]="newKeys.openai" [feedback]="false"
+              [toggleMask]="true" autocomplete="off" [fluid]="true"
+              [placeholder]="f.openai.apiKeySet ? ('server.ai-settings.key-saved' | translate: { hint: f.openai.apiKeyHint }) : ('server.ai-settings.key-none' | translate)" />
+            <div class="key-actions">
+              @if (f.openai.apiKeySet) {
+                <p-button [label]="'server.ai-settings.remove-key' | translate" [text]="true" size="small"
+                  severity="danger" [disabled]="busy()" (onClick)="removeKey('openai')" />
+              }
+              <p-button [label]="'server.ai-settings.docker-key' | translate" [text]="true" size="small"
+                [disabled]="busy()" (onClick)="useDockerKey('openai')" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="openai-model">{{ 'server.ai-settings.model' | translate }}</label>
+            <input pInputText id="openai-model" name="openaiModel" [(ngModel)]="f.openai.model" />
+          </div>
+          <div class="field">
+            <label for="openai-quality">{{ 'server.ai-settings.quality' | translate }}</label>
+            <p-select inputId="openai-quality" name="openaiQuality" [options]="qualityOptions" optionLabel="label"
+              optionValue="value" [(ngModel)]="f.openai.quality" />
+          </div>
+          <div class="field wide">
+            <label for="openai-url">{{ 'server.ai-settings.base-url' | translate }}</label>
+            <input pInputText id="openai-url" name="openaiUrl" [(ngModel)]="f.openai.baseUrl" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Gemini -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Google Gemini</h2>
+          <p-tag [severity]="isActive('gemini') ? 'success' : 'secondary'"
+            [value]="(isActive('gemini') ? 'server.ai-settings.active' : 'server.ai-settings.inactive') | translate" />
+          <span class="fill"></span>
+          <label class="switch" for="gemini-enabled">{{ 'server.ai-settings.enabled' | translate }}</label>
+          <p-toggleswitch inputId="gemini-enabled" name="geminiEnabled" [(ngModel)]="f.gemini.enabled" />
+        </div>
+        <div class="grid">
+          <div class="field wide">
+            <label for="gemini-key">{{ 'server.ai-settings.api-key' | translate }}</label>
+            <p-password inputId="gemini-key" name="geminiKey" [(ngModel)]="newKeys.gemini" [feedback]="false"
+              [toggleMask]="true" autocomplete="off" [fluid]="true"
+              [placeholder]="f.gemini.apiKeySet ? ('server.ai-settings.key-saved' | translate: { hint: f.gemini.apiKeyHint }) : ('server.ai-settings.key-none' | translate)" />
+            <div class="key-actions">
+              @if (f.gemini.apiKeySet) {
+                <p-button [label]="'server.ai-settings.remove-key' | translate" [text]="true" size="small"
+                  severity="danger" [disabled]="busy()" (onClick)="removeKey('gemini')" />
+              }
+              <p-button [label]="'server.ai-settings.docker-key' | translate" [text]="true" size="small"
+                [disabled]="busy()" (onClick)="useDockerKey('gemini')" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="gemini-model">{{ 'server.ai-settings.model' | translate }}</label>
+            <input pInputText id="gemini-model" name="geminiModel" [(ngModel)]="f.gemini.model" />
+          </div>
+          <div class="field wide">
+            <label for="gemini-url">{{ 'server.ai-settings.base-url' | translate }}</label>
+            <input pInputText id="gemini-url" name="geminiUrl" [(ngModel)]="f.gemini.baseUrl" />
+          </div>
+        </div>
+      </section>
+
+      <!-- ComfyUI -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>ComfyUI</h2>
+          <p-tag [severity]="isActive('comfyui') ? 'success' : 'secondary'"
+            [value]="(isActive('comfyui') ? 'server.ai-settings.active' : 'server.ai-settings.inactive') | translate" />
+          <span class="fill"></span>
+          <label class="switch" for="comfyui-enabled">{{ 'server.ai-settings.enabled' | translate }}</label>
+          <p-toggleswitch inputId="comfyui-enabled" name="comfyuiEnabled" [(ngModel)]="f.comfyui.enabled" />
+        </div>
+        <div class="grid">
+          <div class="field wide">
+            <label for="comfyui-url">{{ 'server.ai-settings.comfyui-url' | translate }}</label>
+            <input pInputText id="comfyui-url" name="comfyuiUrl" [(ngModel)]="f.comfyui.url"
+              placeholder="http://192.168.1.20:8188" />
+          </div>
+          <div class="field wide">
+            <label for="comfyui-checkpoint">{{ 'server.ai-settings.checkpoint' | translate }}</label>
+            <input pInputText id="comfyui-checkpoint" name="comfyuiCheckpoint" [(ngModel)]="f.comfyui.checkpoint" />
+          </div>
+          <div class="field wide">
+            <label for="comfyui-negative">{{ 'server.ai-settings.negative-prompt' | translate }}</label>
+            <textarea pTextarea id="comfyui-negative" name="comfyuiNegative" rows="2" [(ngModel)]="f.comfyui.negativePrompt"></textarea>
+          </div>
+          <div class="field wide">
+            <label for="comfyui-workflow">{{ 'server.ai-settings.workflow' | translate }}</label>
+            <textarea pTextarea id="comfyui-workflow" name="comfyuiWorkflow" rows="5" class="code"
+              [(ngModel)]="f.comfyui.workflow" [placeholder]="'server.ai-settings.workflow-placeholder' | translate"></textarea>
+            <small class="muted">
+              {{ 'server.ai-settings.workflow-help' | translate }}
+              @if (f.comfyui.workflowFile && !f.comfyui.workflow) {
+                {{ 'server.ai-settings.workflow-file' | translate: { file: f.comfyui.workflowFile } }}
+              }
+            </small>
+          </div>
+        </div>
+      </section>
+
+      <div class="save-bar">
+        <small class="muted">{{ 'server.ai-settings.storage-note' | translate }}</small>
+        <p-button type="submit" icon="pi pi-check" [label]="'server.ai-settings.save' | translate"
+          [disabled]="busy() || !hasChanges()" [loading]="busy()" />
+      </div>
+    </form>
+  } @else if (loading()) {
+    <p class="muted">{{ 'server.ai-settings.loading' | translate }}</p>
+  }
+</main>
+
+<p-confirmDialog [style]="{ width: '450px' }" />

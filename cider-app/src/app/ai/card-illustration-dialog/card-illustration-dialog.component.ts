@@ -16,7 +16,7 @@ import { CurrentProjectService } from '../../server/current-project.service';
 import { apiErrorMessage } from '../../server/server.types';
 import StringUtils from '../../shared/utils/string-utils';
 import { AiService } from '../ai.service';
-import { buildIllustrationPrompt, suggestedSubject } from '../illustration-prompt';
+import { renderPrompt, suggestedSubject } from '../illustration-prompt';
 
 interface Proposal {
   blob: Blob;
@@ -96,7 +96,10 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     this.saveStyle();
     try {
       const result = await this.ai.generateImages({
-        prompt: buildIllustrationPrompt(this.style, this.subject, this.noText),
+        subject: this.subject,
+        style: this.style,
+        cardName: this.card()?.name ?? '',
+        noText: this.noText,
         aspectRatio: this.aspectRatio,
         count: this.count,
         provider: this.provider ?? undefined,
@@ -109,6 +112,20 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     } finally {
       this.generating.set(false);
     }
+  }
+
+  /** The prompt that will be sent: the administrator's template filled with the fields */
+  protected promptPreview(): string {
+    const status = this.ai.status();
+    if (!status) {
+      return '';
+    }
+    return renderPrompt(status.promptTemplate, {
+      subject: this.subject,
+      style: this.style,
+      card_name: this.card()?.name ?? '',
+      no_text: this.noText ? status.noTextInstruction : '',
+    });
   }
 
   protected select(index: number): void {

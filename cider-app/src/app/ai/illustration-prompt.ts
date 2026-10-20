@@ -1,21 +1,39 @@
 import { Card } from '../data-services/types/card.type';
 
-/** Sentence added to ask for a clean illustration, the card template providing the frame and texts */
-export const NO_TEXT_INSTRUCTION = 'No text, letters, numbers, card frame or border in the image.';
+/** Placeholders of the prompt template (same list as the server) */
+export const PROMPT_PLACEHOLDERS = ['style', 'subject', 'card_name', 'no_text'] as const;
+export type PromptValues = Partial<Record<(typeof PROMPT_PLACEHOLDERS)[number], string>>;
 
 /** Subject suggested for a card's illustration: its name and, if any, its description */
 export function suggestedSubject(card: Card): string {
   const values = card as unknown as Record<string, unknown>;
   const description = typeof values['description'] === 'string' ? values['description'].trim() : '';
   const name = (card.name ?? '').trim();
-  return [name ? `Illustration of "${name}" for a card game.` : 'Illustration for a card game.', description]
-    .filter(part => part !== '')
-    .join(' ');
+  return [name ? `"${name}".` : '', description].filter(part => part !== '').join(' ');
 }
 
-/** The text sent to the image service: the project style, then the subject */
-export function buildIllustrationPrompt(style: string, subject: string, noText: boolean): string {
-  return [style.trim() ? `Style: ${style.trim()}` : '', subject.trim(), noText ? NO_TEXT_INSTRUCTION : '']
-    .filter(part => part !== '')
-    .join('\n\n');
+const PLACEHOLDER = /\{\{\s*([a-z_]+)\s*\}\}/g;
+
+/**
+ * Fills the prompt template, as the server does: a line whose placeholders are
+ * all empty is left out. Used to preview the prompt sent to the image service.
+ */
+export function renderPrompt(template: string, values: PromptValues): string {
+  const lines = template.split(/\r?\n/).flatMap(line => {
+    let placeholders = 0;
+    let filled = 0;
+    const rendered = line.replace(PLACEHOLDER, (match, name: string) => {
+      if (!(PROMPT_PLACEHOLDERS as readonly string[]).includes(name)) {
+        return match;
+      }
+      placeholders++;
+      const value = (values[name as keyof PromptValues] ?? '').trim();
+      if (value) {
+        filled++;
+      }
+      return value;
+    });
+    return placeholders > 0 && filled === 0 ? [] : [rendered.trimEnd()];
+  });
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }

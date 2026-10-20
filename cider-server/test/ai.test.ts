@@ -10,6 +10,8 @@ import { ComfyUiImageProvider, DEFAULT_COMFYUI_WORKFLOW, fillWorkflow } from '..
 import { GeminiImageProvider } from '../src/ai/providers/gemini.js';
 import { OpenAiImageProvider } from '../src/ai/providers/openai.js';
 import { AiUsageStore, QuotaExceededError } from '../src/store/ai-usage.js';
+import { applySettingsChanges, effectiveAiConfig } from '../src/store/ai-settings.js';
+import { DEFAULT_PROMPT_TEMPLATE, NO_TEXT_INSTRUCTION, renderPrompt } from '../src/ai/prompt.js';
 import { FakeImageServices, TINY_PNG, TINY_PNG_BASE64 } from './fake-image-services.js';
 
 const signal = () => AbortSignal.timeout(5000);
@@ -80,6 +82,15 @@ describe('image providers', () => {
     assert.ok(fake.requests.slice(before).some(r => r.url.startsWith('/comfy/view?filename=cider_1.png')));
   });
 
+  it('ComfyUI: uses the workflow given in the administration page', async () => {
+    const before = fake.requests.length;
+    const workflow = JSON.stringify({ ...DEFAULT_COMFYUI_WORKFLOW, '6': { class_type: 'CLIPTextEncode', inputs: { text: 'custom: {{prompt}}', clip: ['4', 1] } } });
+    const provider = new ComfyUiImageProvider({ url: `${fake.baseUrl}/comfy`, workflowFile: '/missing.json', workflow, checkpoint: 'c', negativePrompt: '' }, 10);
+    await provider.generate({ prompt: 'a plum', aspectRatio: '1:1', count: 1 }, signal());
+    const queued = fake.requests.slice(before).find(r => r.url === '/comfy/prompt')!;
+    assert.equal(queued.body.prompt['6'].inputs.text, 'custom: a plum');
+  });
+
   it('ComfyUI: reports a failed workflow', async () => {
     fake.comfyError = true;
     const provider = new ComfyUiImageProvider({ url: `${fake.baseUrl}/comfy`, workflowFile: '', checkpoint: 'c', negativePrompt: '' }, 10);
@@ -117,6 +128,55 @@ describe('image helpers', () => {
       assert.ok(width * height > 900000 && width * height < 1100000, ratio);
       assert.equal(width % 64, 0);
     }
+  });
+});
+
+describe('prompt template', () => {
+  it('fills the placeholders and drops the lines left empty', () => {
+    const template = 'Card art.\nStyle: {{style}}\n{{subject}}\nCard: {{card_name}}\n{{no_text}}\n{{unknown}}';
+    assert.equal(renderPrompt(template, { subject: ' A dragon ', style: 'watercolor', no_text: 'No text.' }),
+      'Card art.\nStyle: watercolor\nA dragon\nNo text.\n{{unknown}}');
+    assert.equal(renderPrompt(DEFAULT_PROMPT_TEMPLATE, { subject: 'An elf' }).endsWith('An elf'), true);
+  });
+});
+
+describe('AI settings', () => {
+  const base = {
+    defaultImageProvider: '', timeoutMs: 180000, defaultMonthlyImages: 50, promptTemplate: '{{subject}}',
+    openai: { apiKey: 'sk-env', baseUrl: 'https://api.openai.com/v1', model: 'gpt-image-2', quality: 'medium' },
+  };
+
+  it('overrides the Docker values field by field', () => {
+    const settings = applySettingsChanges({}, { openai: { model: 'gpt-image-1.5' }, gemini: { apiKey: 'g-ui' }, timeoutSeconds: 60 });
+    const config = effectiveAiConfig(base, settings);
+    assert.equal(config.openai?.apiKey, 'sk-env');
+    assert.equal(config.openai?.model, 'gpt-image-1.5');
+    assert.equal(config.gemini?.apiKey, 'g-ui');
+    assert.equal(config.gemini?.model, 'gemini-3.1-flash-image');
+    assert.equal(config.timeoutMs, 60000);
+    assert.equal(config.comfyui, undefined);
+  });
+
+  it('turns a provider off when disabled or when its key is removed', () => {
+    assert.equal(effectiveAiConfig(base, applySettingsChanges({}, { openai: { enabled: false } })).openai, undefined);
+    assert.equal(effectiveAiConfig(base, applySettingsChanges({}, { openai: { apiKey: '' } })).openai, undefined);
+  });
+
+  it('puts a field back to its Docker value with null', () => {
+    const changed = applySettingsChanges({}, { promptTemplate: 'Art: {{subject}}', openai: { model: 'm', quality: 'high' } });
+    const back = applySettingsChanges(changed, { promptTemplate: null, openai: { model: null } });
+    assert.deepEqual(back, { openai: { quality: 'high' } });
+    assert.deepEqual(applySettingsChanges(back, { openai: { quality: null } }), {});
+  });
+
+  it('rejects invalid values', () => {
+    assert.throws(() => applySettingsChanges({}, { timeoutSeconds: 400 }), /timeoutSeconds/);
+    assert.throws(() => applySettingsChanges({}, { openai: { quality: 'ultra' } }), /quality/);
+    assert.throws(() => applySettingsChanges({}, { comfyui: { url: 'ftp://x' } }), /http/);
+    assert.throws(() => applySettingsChanges({}, { comfyui: { workflow: '{not json' } }), /JSON/);
+    assert.throws(() => applySettingsChanges({}, { comfyui: { workflow: '{"1":{}}' } }), /\{\{prompt\}\}/);
+    assert.throws(() => applySettingsChanges({}, { promptTemplate: 'no subject here' }), /\{\{subject\}\}/);
+    assert.throws(() => applySettingsChanges({}, { defaultImageProvider: 'midjourney' }), /defaultImageProvider/);
   });
 });
 
@@ -165,7 +225,7 @@ describe('AI API', () => {
     await fake.start();
     dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cider-ai-test-'));
     const ai: AiConfig = {
-      defaultImageProvider: 'openai', timeoutMs: 5000, defaultMonthlyImages: 3,
+      defaultImageProvider: 'openai', timeoutMs: 5000, defaultMonthlyImages: 3, promptTemplate: '{{subject}}',
       openai: { apiKey: 'sk-test', baseUrl: `${fake.baseUrl}/openai/v1`, model: 'gpt-image-2', quality: 'low' },
       gemini: { apiKey: 'g-test', baseUrl: `${fake.baseUrl}/gemini/v1beta`, model: 'gemini-3.1-flash-image' },
     };
@@ -198,9 +258,9 @@ describe('AI API', () => {
   });
 
   it('refuses generation until an administrator enables AI for the account', async () => {
-    const refused = await call('POST', '/api/ai/images', userCookie, { prompt: 'an apple' });
+    const refused = await call('POST', '/api/ai/images', userCookie, { subject: 'an apple' });
     assert.equal(refused.status, 403);
-    assert.equal((await call('POST', '/api/ai/images', undefined, { prompt: 'an apple' })).status, 401);
+    assert.equal((await call('POST', '/api/ai/images', undefined, { subject: 'an apple' })).status, 401);
   });
 
   it('lets only administrators change AI access and quotas', async () => {
@@ -214,29 +274,29 @@ describe('AI API', () => {
   });
 
   it('validates the request', async () => {
-    assert.equal((await call('POST', '/api/ai/images', userCookie, { prompt: '  ' })).status, 400);
-    assert.equal((await call('POST', '/api/ai/images', userCookie, { prompt: 'x'.repeat(4001) })).status, 400);
-    assert.equal((await call('POST', '/api/ai/images', userCookie, { prompt: 'x', aspectRatio: '5:7' })).status, 400);
-    assert.equal((await call('POST', '/api/ai/images', userCookie, { prompt: 'x', count: 5 })).status, 400);
-    assert.equal((await call('POST', '/api/ai/images', userCookie, { prompt: 'x', provider: 'nope' })).status, 400);
+    assert.equal((await call('POST', '/api/ai/images', userCookie, { subject: '  ' })).status, 400);
+    assert.equal((await call('POST', '/api/ai/images', userCookie, { subject: 'x'.repeat(4001) })).status, 400);
+    assert.equal((await call('POST', '/api/ai/images', userCookie, { subject: 'x', aspectRatio: '5:7' })).status, 400);
+    assert.equal((await call('POST', '/api/ai/images', userCookie, { subject: 'x', count: 5 })).status, 400);
+    assert.equal((await call('POST', '/api/ai/images', userCookie, { subject: 'x', provider: 'nope' })).status, 400);
   });
 
   it('generates images with the default or the chosen provider and counts them', async () => {
-    const generated = await call('POST', '/api/ai/images', userCookie, { prompt: 'an apple', aspectRatio: '3:4', count: 1 });
+    const generated = await call('POST', '/api/ai/images', userCookie, { subject: 'an apple', aspectRatio: '3:4', count: 1 });
     assert.equal(generated.status, 200);
     assert.equal(generated.json.provider, 'openai');
     assert.equal(generated.json.images.length, 1);
     assert.equal(generated.json.images[0].mimeType, 'image/png');
     assert.equal(generated.json.images[0].data, TINY_PNG_BASE64);
     assert.equal(generated.json.imagesThisMonth, 1);
-    const withGemini = await call('POST', '/api/ai/images', userCookie, { prompt: 'a pear', count: 1, provider: 'gemini' });
+    const withGemini = await call('POST', '/api/ai/images', userCookie, { subject: 'a pear', count: 1, provider: 'gemini' });
     assert.equal(withGemini.json.provider, 'gemini');
     assert.equal(withGemini.json.imagesThisMonth, 2);
   });
 
   it('gives back the images of a failed generation', async () => {
     fake.openAiFailure = { status: 500, body: { error: { message: 'server overloaded' } } };
-    const failed = await call('POST', '/api/ai/images', userCookie, { prompt: 'an apple', count: 1 });
+    const failed = await call('POST', '/api/ai/images', userCookie, { subject: 'an apple', count: 1 });
     fake.openAiFailure = undefined;
     assert.equal(failed.status, 502);
     assert.match(failed.json.error, /server overloaded/);
@@ -244,7 +304,7 @@ describe('AI API', () => {
   });
 
   it('refuses a request beyond the monthly quota', async () => {
-    const tooMany = await call('POST', '/api/ai/images', userCookie, { prompt: 'an apple', count: 2 });
+    const tooMany = await call('POST', '/api/ai/images', userCookie, { subject: 'an apple', count: 2 });
     assert.equal(tooMany.status, 429);
     assert.equal(tooMany.json.remaining, 1);
   });
@@ -253,8 +313,8 @@ describe('AI API', () => {
     await call('PATCH', `/api/users/${userId}`, adminCookie, { aiMonthlyImages: 10 });
     fake.openAiDelayMs = 300;
     const [first, second] = await Promise.all([
-      call('POST', '/api/ai/images', userCookie, { prompt: 'one', count: 1 }),
-      new Promise(resolve => setTimeout(resolve, 50)).then(() => call('POST', '/api/ai/images', userCookie, { prompt: 'two', count: 1 })),
+      call('POST', '/api/ai/images', userCookie, { subject: 'one', count: 1 }),
+      new Promise(resolve => setTimeout(resolve, 50)).then(() => call('POST', '/api/ai/images', userCookie, { subject: 'two', count: 1 })),
     ]);
     fake.openAiDelayMs = 0;
     assert.equal(first.status, 200);
@@ -268,12 +328,55 @@ describe('AI API', () => {
     assert.equal(maker.aiMonthlyImages, 10);
   });
 
+  it('frames the subject with the prompt template', async () => {
+    const before = fake.requests.length;
+    const settings = await call('PATCH', '/api/ai/settings', adminCookie,
+      { promptTemplate: 'Card art.\nStyle: {{style}}\n{{subject}}\n{{no_text}}' });
+    assert.equal(settings.status, 200);
+    const generated = await call('POST', '/api/ai/images', userCookie, { subject: 'A pear', style: 'ink', count: 1 });
+    assert.equal(generated.status, 200);
+    const expected = `Card art.\nStyle: ink\nA pear\n${NO_TEXT_INSTRUCTION}`;
+    assert.equal(generated.json.prompt, expected);
+    assert.equal(fake.requests.slice(before).find(r => r.url.startsWith('/openai'))!.body.prompt, expected);
+    const plain = await call('POST', '/api/ai/images', userCookie, { subject: 'A plum', noText: false, count: 1 });
+    assert.equal(plain.json.prompt, 'Card art.\nA plum');
+    assert.equal((await call('GET', '/api/ai/status', userCookie)).json.promptTemplate, 'Card art.\nStyle: {{style}}\n{{subject}}\n{{no_text}}');
+  });
+
+  it('lets administrators change the providers without showing the keys', async () => {
+    assert.equal((await call('GET', '/api/ai/settings', userCookie)).status, 403);
+    assert.equal((await call('PATCH', '/api/ai/settings', userCookie, { timeoutSeconds: 60 })).status, 403);
+    const view = await call('GET', '/api/ai/settings', adminCookie);
+    assert.equal(view.status, 200);
+    assert.equal(view.json.settings.openai.apiKeySet, true);
+    assert.equal(view.json.settings.openai.apiKeyHint, '…test');
+    assert.equal(JSON.stringify(view.json).includes('sk-test'), false);
+    assert.equal((await call('PATCH', '/api/ai/settings', adminCookie, { timeoutSeconds: 1 })).status, 400);
+
+    const changed = await call('PATCH', '/api/ai/settings', adminCookie,
+      { defaultImageProvider: 'gemini', openai: { enabled: false }, defaultMonthlyImages: 7 });
+    assert.deepEqual(changed.json.activeProviders, ['gemini']);
+    const status = await call('GET', '/api/ai/status', userCookie);
+    assert.deepEqual(status.json.imageProviders.map((p: { id: string }) => p.id), ['gemini']);
+    assert.equal(status.json.defaultImageProvider, 'gemini');
+    const created = await call('POST', '/api/users', adminCookie, { username: 'newcomer', password: 'newcomer-password' });
+    assert.equal(created.json.user.aiMonthlyImages, 7);
+    assert.equal((await call('POST', '/api/ai/images', userCookie, { subject: 'x', provider: 'openai' })).status, 400);
+
+    const stored = JSON.parse(await fs.readFile(path.join(dataDir, 'ai-settings.json'), 'utf8'));
+    assert.equal(stored.settings.openai.enabled, false);
+
+    const reset = await call('DELETE', '/api/ai/settings', adminCookie);
+    assert.deepEqual(reset.json.activeProviders, ['openai', 'gemini']);
+    assert.equal(reset.json.settings.customized, false);
+  });
+
   it('answers 503 when no provider is configured', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cider-ai-none-'));
     const bare = await buildApp({
       dataDir: dir, host: '127.0.0.1', port: 0, sessionDays: 30, maxProjectMb: 1, maxProjectsPerUser: 10,
       setupToken: 'code', cookieSecure: 'auto', logLevel: 'silent', trustedProxies: ['loopback'],
-      ai: { defaultImageProvider: '', timeoutMs: 5000, defaultMonthlyImages: 5 },
+      ai: { defaultImageProvider: '', timeoutMs: 5000, defaultMonthlyImages: 5, promptTemplate: '{{subject}}' },
     });
     const setup = await bare.app.inject({
       method: 'POST', url: '/api/auth/setup', headers: { [CSRF_HEADER]: '1', 'content-type': 'application/json' },
@@ -283,7 +386,7 @@ describe('AI API', () => {
     const headers = { [CSRF_HEADER]: '1', cookie: `${SESSION_COOKIE}=${cookie}`, 'content-type': 'application/json' };
     const me = setup.json().user.id;
     await bare.app.inject({ method: 'PATCH', url: `/api/users/${me}`, headers, payload: JSON.stringify({ aiEnabled: true }) });
-    const response = await bare.app.inject({ method: 'POST', url: '/api/ai/images', headers, payload: JSON.stringify({ prompt: 'x' }) });
+    const response = await bare.app.inject({ method: 'POST', url: '/api/ai/images', headers, payload: JSON.stringify({ subject: 'x' }) });
     assert.equal(response.statusCode, 503);
     await bare.app.close();
     await fs.rm(dir, { recursive: true, force: true });

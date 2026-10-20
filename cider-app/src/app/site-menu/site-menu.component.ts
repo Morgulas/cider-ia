@@ -116,6 +116,11 @@ export class SiteMenuComponent implements OnInit {
                   visible: user?.isAdmin === true,
                   command: () => this.router.navigateByUrl('/admin/users')
                 }, {
+                  label: this.translate.instant('server.topbar.ai-settings'),
+                  icon: 'pi pi-pw pi-sparkles',
+                  visible: user?.isAdmin === true,
+                  command: () => this.router.navigateByUrl('/admin/ai')
+                }, {
                   separator: true
                 }, {
                   label: this.translate.instant('server.topbar.logout'),

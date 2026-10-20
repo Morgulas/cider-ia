@@ -9,6 +9,8 @@ import { ProjectStore, ProjectStoreError } from './store/projects.js';
 import { SessionStore } from './store/sessions.js';
 import { toPublicUser, UserChanges, UserRecord, UserStore, UserStoreError } from './store/users.js';
 import { AiUsageStore, QuotaExceededError } from './store/ai-usage.js';
+import { AiSettingsError, AiSettingsStore, effectiveAiConfig, settingsView } from './store/ai-settings.js';
+import { NO_TEXT_INSTRUCTION, PROMPT_PLACEHOLDERS, renderPrompt } from './ai/prompt.js';
 import {
   ASPECT_RATIOS, AspectRatio, ImageProvider, ImageProviderError, MAX_IMAGES_PER_REQUEST, PROMPT_MAX_LENGTH
 } from './ai/image-provider.js';
@@ -41,6 +43,7 @@ export interface CiderApp {
   sessions: SessionStore;
   projects: ProjectStore;
   aiUsage: AiUsageStore;
+  aiSettings: AiSettingsStore;
   /** code required to create the first administrator */
   setupToken: string;
 }
@@ -77,15 +80,28 @@ function looksLikeDexieExport(body: Buffer): boolean {
  */
 export async function buildApp(config: ServerConfig, options: { imageProviders?: ImageProvider[] } = {}): Promise<CiderApp> {
   await fs.mkdir(config.dataDir, { recursive: true });
-  const users = new UserStore(config.dataDir, config.ai.defaultMonthlyImages);
+  const aiSettings = new AiSettingsStore(config.dataDir);
+  await aiSettings.load();
+  /** AI configuration in force: Docker variables, overridden by the administration page */
+  let ai = effectiveAiConfig(config.ai, aiSettings.get());
+  const users = new UserStore(config.dataDir, () => ai.defaultMonthlyImages);
   const sessions = new SessionStore(config.dataDir, config.sessionDays);
   const projects = new ProjectStore(config.dataDir);
   const aiUsage = new AiUsageStore(config.dataDir);
   await users.load();
   await sessions.load();
   await aiUsage.load();
-  const imageProviders = options.imageProviders ?? createImageProviders(config.ai);
-  const defaultProvider = defaultImageProvider(imageProviders, config.ai.defaultImageProvider);
+  let imageProviders = options.imageProviders ?? createImageProviders(ai);
+  let defaultProvider = defaultImageProvider(imageProviders, ai.defaultImageProvider);
+  const describeProviders = () => imageProviders.length > 0
+    ? `Image providers: ${imageProviders.map(provider => provider.id).join(', ')} (default: ${defaultProvider?.id})`
+    : 'No image provider configured: AI image generation is off';
+  /** new settings from the administration page: providers rebuilt, running generations finish with the old ones */
+  const applyAiSettings = () => {
+    ai = effectiveAiConfig(config.ai, aiSettings.get());
+    imageProviders = options.imageProviders ?? createImageProviders(ai);
+    defaultProvider = defaultImageProvider(imageProviders, ai.defaultImageProvider);
+  };
   /** users with a generation in progress: one at a time per user */
   const generating = new Set<string>();
   decoyHash ??= hashPassword('decoy-password-for-timing');
@@ -112,9 +128,7 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
   if (users.count() === 0 && !config.setupToken) {
     app.log.warn(`No account yet. Setup code for the first administrator: ${setupToken}`);
   }
-  app.log.info(imageProviders.length > 0
-    ? `Image providers: ${imageProviders.map(provider => provider.id).join(', ')} (default: ${defaultProvider?.id})`
-    : 'No image provider configured: AI image generation is off');
+  app.log.info(describeProviders());
 
   app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => {
     if (error instanceof QuotaExceededError) {
@@ -124,7 +138,7 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
       request.log.warn(`image generation failed: ${error.message}`);
       return reply.status(error.status).send({ error: error.message });
     }
-    if (error instanceof HttpError || error instanceof UserStoreError || error instanceof ProjectStoreError) {
+    if (error instanceof HttpError || error instanceof AiSettingsError || error instanceof UserStoreError || error instanceof ProjectStoreError) {
       const status = error.status;
       const body: Record<string, unknown> = { error: error.message };
       if (error instanceof ProjectStoreError && error.revision !== undefined) {
@@ -401,11 +415,49 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
       enabled: user.aiEnabled,
       monthlyImages: user.aiMonthlyImages,
       imagesThisMonth: aiUsage.used(user.id),
+      promptTemplate: ai.promptTemplate,
+      noTextInstruction: NO_TEXT_INSTRUCTION,
+    };
+  });
+
+  /** AI settings for the administration page (keys reduced to a hint) */
+  app.get('/api/ai/settings', async (request) => {
+    requireAdmin(request);
+    return {
+      settings: settingsView(config.ai, aiSettings.get()),
+      activeProviders: imageProviders.map(provider => provider.id),
+      placeholders: PROMPT_PLACEHOLDERS,
+    };
+  });
+
+  app.patch('/api/ai/settings', async (request) => {
+    const admin = requireAdmin(request);
+    await aiSettings.update(body(request));
+    applyAiSettings();
+    request.log.info(`AI settings changed by ${admin.username}. ${describeProviders()}`);
+    return {
+      settings: settingsView(config.ai, aiSettings.get()),
+      activeProviders: imageProviders.map(provider => provider.id),
+      placeholders: PROMPT_PLACEHOLDERS,
+    };
+  });
+
+  /** Forgets the administration settings: back to the Docker variables */
+  app.delete('/api/ai/settings', async (request) => {
+    const admin = requireAdmin(request);
+    await aiSettings.reset();
+    applyAiSettings();
+    request.log.info(`AI settings reset by ${admin.username}. ${describeProviders()}`);
+    return {
+      settings: settingsView(config.ai, aiSettings.get()),
+      activeProviders: imageProviders.map(provider => provider.id),
+      placeholders: PROMPT_PLACEHOLDERS,
     };
   });
 
   /**
-   * Generates images from a text. The images are counted against the user's
+   * Generates images from the description of the subject, framed by the prompt
+   * template of the administration page (with the project style and the card name). The images are counted against the user's
    * monthly quota (given back if the generation fails) and returned in base64:
    * nothing is stored on the server, the user chooses what to keep.
    */
@@ -414,13 +466,21 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
     if (!user.aiEnabled) {
       throw new HttpError(403, 'AI features are not enabled for this account (ask an administrator)');
     }
-    const { prompt, aspectRatio, count, provider: providerId } = body(request);
-    if (typeof prompt !== 'string' || prompt.trim() === '') {
+    const { subject, style, cardName, noText, aspectRatio, count, provider: providerId } = body(request);
+    if (typeof subject !== 'string' || subject.trim() === '') {
       throw new HttpError(400, 'a description of the image is required');
     }
-    if (prompt.length > PROMPT_MAX_LENGTH) {
-      throw new HttpError(400, `the description must have at most ${PROMPT_MAX_LENGTH} characters`);
+    for (const [name, value] of [['subject', subject], ['style', style], ['cardName', cardName]] as const) {
+      if (value !== undefined && (typeof value !== 'string' || value.length > PROMPT_MAX_LENGTH)) {
+        throw new HttpError(400, `${name} must be a text of at most ${PROMPT_MAX_LENGTH} characters`);
+      }
     }
+    const prompt = renderPrompt(ai.promptTemplate, {
+      subject,
+      style: style as string | undefined,
+      card_name: cardName as string | undefined,
+      no_text: noText === false ? '' : NO_TEXT_INSTRUCTION,
+    });
     const ratio = (aspectRatio ?? '1:1') as AspectRatio;
     if (!ASPECT_RATIOS.includes(ratio)) {
       throw new HttpError(400, `the aspect ratio must be one of ${ASPECT_RATIOS.join(', ')}`);
@@ -448,8 +508,8 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
       const started = Date.now();
       let images;
       try {
-        images = (await provider.generate({ prompt: prompt.trim(), aspectRatio: ratio, count: requested },
-          AbortSignal.timeout(config.ai.timeoutMs))).slice(0, requested);
+        images = (await provider.generate({ prompt, aspectRatio: ratio, count: requested },
+          AbortSignal.timeout(ai.timeoutMs))).slice(0, requested);
       } catch (error) {
         await aiUsage.release(user.id, requested);
         throw error;
@@ -460,6 +520,7 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
       request.log.info(`user ${user.username} generated ${images.length} image(s) with ${provider.id} in ${Date.now() - started} ms`);
       return {
         provider: provider.id,
+        prompt,
         images: images.map(image => ({ mimeType: image.mimeType, data: image.data.toString('base64') })),
         imagesThisMonth: aiUsage.used(user.id),
         monthlyImages: user.aiMonthlyImages,
@@ -469,5 +530,5 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
     }
   });
 
-  return { app, users, sessions, projects, aiUsage, setupToken };
+  return { app, users, sessions, projects, aiUsage, aiSettings, setupToken };
 }

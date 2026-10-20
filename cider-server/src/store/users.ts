@@ -63,16 +63,19 @@ export class UserStore {
   private readonly queue = new SerialQueue();
 
   /** defaultMonthlyImages: AI image quota of new accounts and of accounts saved before AI existed */
-  constructor(dataDir: string, private readonly defaultMonthlyImages = 50) {
+  constructor(dataDir: string, defaultMonthlyImages: number | (() => number) = 50) {
     this.file = path.join(dataDir, 'users.json');
+    this.defaultQuota = typeof defaultMonthlyImages === 'function' ? defaultMonthlyImages : () => defaultMonthlyImages;
   }
+
+  private readonly defaultQuota: () => number;
 
   async load(): Promise<void> {
     const content = await readJson<UsersFile>(this.file, { version: 1, users: [] });
     this.users = (content.users ?? []).map(user => ({
       ...user,
       aiEnabled: user.aiEnabled === true,
-      aiMonthlyImages: typeof user.aiMonthlyImages === 'number' ? user.aiMonthlyImages : this.defaultMonthlyImages,
+      aiMonthlyImages: typeof user.aiMonthlyImages === 'number' ? user.aiMonthlyImages : this.defaultQuota(),
     }));
   }
 
@@ -125,7 +128,7 @@ export class UserStore {
         isAdmin,
         disabled: false,
         aiEnabled: false,
-        aiMonthlyImages: this.defaultMonthlyImages,
+        aiMonthlyImages: this.defaultQuota(),
         createdAt: now,
         updatedAt: now,
       };

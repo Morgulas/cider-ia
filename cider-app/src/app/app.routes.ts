@@ -16,6 +16,7 @@ export const routes: Routes = [
   { path: 'setup', loadComponent: () => import('./server/login/login.component').then(m => m.LoginComponent), canActivate: [guestGuard], data: { mode: 'setup' } },
   { path: 'projects', loadComponent: () => import('./server/projects-page/projects-page.component').then(m => m.ProjectsPageComponent), canActivate: [authGuard] },
   { path: 'account', loadComponent: () => import('./server/account/account.component').then(m => m.AccountComponent), canActivate: [authGuard] },
+  { path: 'admin/ai', loadComponent: () => import('./server/admin-ai/admin-ai.component').then(m => m.AdminAiComponent), canActivate: [authGuard, adminGuard] },
   { path: 'admin/users', loadComponent: () => import('./server/admin-users/admin-users.component').then(m => m.AdminUsersComponent), canActivate: [authGuard, adminGuard] },
   {
     path: '',
