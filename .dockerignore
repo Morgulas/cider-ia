@@ -1,0 +1,7 @@
+.git
+.github
+.vscode
+**/node_modules
+**/dist
+**/.angular
+cider-app/electron-app/dist

@@ -1,0 +1,10 @@
+services:
+  cider:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cider-ia:latest
+    container_name: cider-ia
+    restart: unless-stopped
+    ports:
+      - "${CIDER_PORT:-8080}:80"
