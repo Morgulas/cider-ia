@@ -8,18 +8,12 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 - [Updating Dependencies](#updating-dependencies)
 - [Other](#other)
 - [Update Longtable](#update-longtable)
-- [Release new App Store version](#release-new-app-store-version)
 
 # Useful Commands
 
 ## Local server
 
 Run `npm run start` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
-
-## Electron application
-
-Run `npm run electron` for the electron desktop application.
-Run `npm run electron:debug` to start electron with an external debugger.
 
 ## Code scaffolding
 
@@ -47,10 +41,6 @@ Run `npm install`
 
 # Other
 
-## Electron application
-
-Run `npm run electron:build` to build the electron desktop application executable.
-
 ## Build GitHub Pages (New)
 
 Run `npm run build:gh-pages` to build the site for github pages.
@@ -77,73 +67,8 @@ Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To u
 
 To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
 
-## How to create the ICNS (Mac) and ICO (Windows) Icons
-Make sure you create a file called `Icon1024.png` in the directory you run these commands.
-```
-mkdir MyIcon.iconset
-sips -z 16 16     Icon1024.png --out MyIcon.iconset/icon_16x16.png
-sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_16x16@2x.png
-sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_32x32.png
-sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_32x32@2x.png
-sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_128x128.png
-sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_128x128@2x.png
-sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_256x256.png
-sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_256x256@2x.png
-sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_512x512.png
-cp Icon1024.png MyIcon.iconset/icon_512x512@2x.png
-iconutil -c icns MyIcon.iconset
-convert MyIcon.iconset/icon_16x16.png \
-MyIcon.iconset/icon_16x16@2x.png \
-MyIcon.iconset/icon_32x32.png \
-MyIcon.iconset/icon_32x32@2x.png \
-MyIcon.iconset/icon_128x128.png \
-MyIcon.iconset/icon_128x128@2x.png \
-MyIcon.iconset/icon_256x256.png \
-MyIcon.iconset/icon_256x256@2x.png \
-MyIcon.iconset/icon_512x512.png \
-MyIcon.iconset/icon_512x512@2x.png favicon.ico
-rm -R MyIcon.iconset
-```
-
-## Start App from Terminal for Troubleshooting Logs
- `open -a Cider.app`
-
-## Read the provisionprofile entitlements (look for <dic> and <key>Entitlements</key>)
- `security cms -D -i build/cider-dev.provisionprofile `
-
-## Read the entitlements claimed by the app
- `codesign --display --entitlements - --xml Cider.app | plutil -convert xml1 -o - -`
-
-## Search for app launch errors in your Console App
- - Search bar: `message type:error`
- - Start streaming logs
- - Launch app
- - Stop streaming logs
-
 # Update Longtable
 1. Uninstall the existing library version
     `npm uninstall oatear-longtable`
 2. Install the new library version from the libs directory
     `npm install ./libs/oatear-longtable-0.1.6.tgz`
-
-# Release new App Store version
-
-## Build for App Store (cmd)
- `npm run electron:build-mas`
- The new .pkg file will be created in the `release/mas-arm64` directory.
-
-## Upload to App Store (Transporter)
-1. Open Transporter app
-2. Drag the latest `.pkg` file from the `release/mas-arm64` directory
-3. Submit to App Store Connect
-4. Wait for the app to be processed and approved ('The app is ready for internal testing').
-5. If the build shows up as Waiting for Review, it is waiting for approval from the App Store Review team (24 - 48 Hrs)
-6. If the build shows up as Ready for Sale, it is ready to be released to the public
-
-## Test the App Store build (Test Flight)
-1. Open up Test Flight
-2. Select Oatear Cider from the list and click Update
-
-## Publish the App (App Store Connect)
-1. Click the ... menu in Transporter and select "View in App Store Connect"
-

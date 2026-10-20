@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "Willkommen",
-        "subtitle": "Verwende den Explorer links, um zu beginnen",
-        "subtitle-electron": "Starte ein neues Projekt oder öffne ein bestehendes"
+        "subtitle": "Verwende den Explorer links, um zu beginnen"
     },
     "controls": {
         "search": "Suchen",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "Datei",
-        "new": "Neu",
-        "open-project": "Projekt öffnen",
-        "open-recent": "Zuletzt geöffnet",
-        "save": "Speichern",
-        "save-as": "Speichern unter",
         "advanced": "Erweitert",
-        "reload-project": "Projekt von Festplatte neu laden",
         "reset-database": "Datenbank zurücksetzen",
         "import-database": "Datenbank importieren",
         "export-database": "Datenbank exportieren",
-        "export-cards": "Karten exportieren",
-        "exit-project": "Projekt schließen",
-        "exit-cider": "Cider beenden"
+        "export-cards": "Karten exportieren"
     },
     "sidebar": {
         "unknown-project": "Projekt",
@@ -142,7 +133,6 @@
         "select-language": "Sprache auswählen",
         "language": "Sprache",
         "language-info": "Aktualisiere die Seite, um die neue Sprache vollständig anzuwenden.",
-        "language-info-electron": "Starte die Anwendung neu, um die neue Sprache vollständig anzuwenden.",
         "dark-mode": "Dunkelmodus"
     },
     "simulator": {

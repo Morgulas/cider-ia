@@ -5,7 +5,6 @@ import { AssetsService } from '../data-services/services/assets.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { Action } from 'rxjs/internal/scheduler/Action';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
-import { ElectronService } from '../data-services/electron/electron.service';
 import { combineLatest, debounceTime, firstValueFrom, lastValueFrom, merge, timeout } from 'rxjs';
 import StringUtils from '../shared/utils/string-utils';
 import { TreeNodeContextMenuSelectEvent, TreeNodeSelectEvent, TreeNodeDropEvent } from 'primeng/tree';
@@ -15,8 +14,6 @@ import { DocumentsService } from '../data-services/services/documents.service';
 import { HttpClient } from '@angular/common/http';
 import { AppDB } from '../data-services/indexed-db/db';
 import { TranslateService } from '@ngx-translate/core';
-import { ProjectStateService } from '../data-services/services/project-state.service';
-import { PersistentPath } from '../data-services/types/persistent-path.type';
 import { Asset } from '../data-services/types/asset.type';
 
 @Component({
@@ -42,13 +39,11 @@ export class SiteSidebarComponent implements OnInit {
     private assetsService: AssetsService,
     private templatesService: CardTemplatesService,
     private documentsService: DocumentsService,
-    private electronService: ElectronService,
     private confirmationService: ConfirmationService,
     private messageService: MessageService,
     private translate: TranslateService,
     private httpClient: HttpClient,
     private router: Router,
-    private projectStateService: ProjectStateService,
     private db: AppDB) {
     // Initialize or fetch any necessary data here
     // observe the decks and templates
@@ -64,33 +59,16 @@ export class SiteSidebarComponent implements OnInit {
       this.updateFiles();
     });
 
-    // update menu on project open
-    this.electronService.getIsProjectOpen().asObservable().pipe(debounceTime(500)).subscribe(isProjectOpen => {
-      if (isProjectOpen) {
-        console.log('project just opened, sidebar update');
-        this.updateFiles();
-      }
+    // Database ready or reloaded: full tree rebuild
+    this.db.onLoad().subscribe(() => {
+      this.updateFiles();
     });
 
     // Structural changes (create/delete/reset): full tree rebuild
     this.db.onChange().pipe(debounceTime(500)).subscribe((change: any) => {
-      const isProjectOpen: boolean = this.electronService.getIsProjectOpen().getValue();
-      if (!this.electronService.isElectron() || isProjectOpen) {
-        if (!change || change.type === 'create' || change.type === 'delete' || change.type === 'reset') {
-          console.log('structural change detected, full sidebar update');
-          this.updateFiles().then(() => {
-            this.updateDirtyIndicators();
-          });
-        } else {
-          // Content-only update: just refresh dirty indicators without expensive tree rebuild
-          this.updateDirtyIndicators();
-        }
+      if (!change || change.type === 'create' || change.type === 'delete' || change.type === 'reset') {
+        this.updateFiles();
       }
-    });
-
-    // Also refresh dirty indicators when dirtyEntities list changes
-    this.projectStateService.getDirtyEntities().pipe(debounceTime(500)).subscribe(() => {
-      this.updateDirtyIndicators();
     });
   }
 
@@ -109,9 +87,8 @@ export class SiteSidebarComponent implements OnInit {
       // -----------------------------------------------
       // Setup project home node
       // -----------------------------------------------
-      await firstValueFrom(this.electronService.getProjectHomeUrl()).then(homeUrl => {
-        let projectName = StringUtils.lastDirectoryFromUrl(homeUrl?.path
-          ?? this.translate.instant('sidebar.unknown-project'));
+      {
+        let projectName = this.translate.instant('sidebar.unknown-project');
         updatedFiles.push({
           label: projectName,
           data: {
@@ -142,7 +119,7 @@ export class SiteSidebarComponent implements OnInit {
           draggable: false,
           droppable: false
         });
-      });
+      }
 
       // -----------------------------------------------
       // Fetch style documents
@@ -732,34 +709,6 @@ export class SiteSidebarComponent implements OnInit {
       }
     });
     this.dialogVisible = true;
-  }
-
-  private updateDirtyIndicators() {
-    if (!this.electronService.isElectron()) {
-      return;
-    }
-    const traverse = (nodes: TreeNode[]) => {
-      nodes.forEach(node => {
-        if (node.data && node.data.type && node.data.id) {
-          const isDirty = this.projectStateService.isEntityDirty(node.data.type, node.data.id);
-          if (isDirty) {
-            if (!node.label?.endsWith('*')) {
-              node.label = node.label + ' *';
-              node.styleClass = (node.styleClass || '') + ' dirty-node';
-            }
-          } else {
-            if (node.label?.endsWith(' *')) {
-              node.label = node.label?.substring(0, node.label.length - 2);
-              node.styleClass = node.styleClass?.replace('dirty-node', '').trim();
-            }
-          }
-        }
-        if (node.children) {
-          traverse(node.children);
-        }
-      });
-    };
-    traverse(this.files);
   }
 
   validateDrop(dragNode: TreeNode, dropNode: TreeNode): boolean {

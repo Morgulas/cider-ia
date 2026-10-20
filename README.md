@@ -18,6 +18,8 @@ Design beautiful game cards with the power and familiarity of `HTML`, `CSS`, and
 
 </div>
 
+> **Fork `cider-ia`** — web-only fork of [Oatear Cider](https://github.com/oatear/cider) (desktop/Electron version removed), adding AI features.
+
 ---
 
 ## Get Started
@@ -25,8 +27,6 @@ Design beautiful game cards with the power and familiarity of `HTML`, `CSS`, and
 | Platform / Action | Link | Description |
 | :--- | :--- | :--- |
 | **Web App** | **[Try it Now in Your Browser][pages-url]** | The full experience, running directly in your browser. No installation needed. |
-| **Desktop Apps** | **[Free Download (Win, Mac, Linux)][releases-url]** | Get the installable desktop version for offline use and local file system projects. |
-| **Mac App Store** | [![][mac-app-store-badge]][mac-app-store-url] | A convenient, sandboxed version for Mac users. Purchase to support the project! |
 | **Documentation** | **[Cider Docs][cider-docs-url]** | Detailed documentation for all aspects of Cider with a quick start guide. |
 | **Support Us** | [<img src="cider-app/src/assets/kofi-badge.png" alt="Oatear Cider Logo" width="160">][kofi-url] | If you find Cider useful, consider a small donation to support its development! |
 
@@ -52,17 +52,17 @@ Cider was created for designers who want the ultimate creative freedom without a
 | **3. Live Preview** | See your cards update in real-time as you edit your templates or data. No more guessing how your changes will look. | ![Live Preview][screen-4] |
 | **4. Built-in Simulator** | Instantly playtest your game in the **Game Simulator**—shuffle, draw, and discard without printing a thing. The **Asset Generator** helps you create placeholder art and symbols. | ![Game Simulator][screen-7] |
 | **5. Pro-Grade Exports** | Export cards as PNGs or print-ready PDF sheets with crop marks and low-ink modes. You can also export for virtual tabletops like Tabletop Simulator. | ![Export Options][screen-5] |
-| **6. Your Project, Your Files** | The desktop app saves your project as a clean folder of `.html`, `.css`, and `.csv` files. Use Git, VS Code, or any other tool in your existing workflow. | ![File Tree][image-file-tree] |
 
 ## Installation & Usage
 
+### Self-hosted (Docker)
+This fork runs as a web app only (the desktop version has been removed). See [`docker/README.md`](docker/README.md):
+```bash
+docker compose up -d --build
+```
+
 ### Web Version
 Simply visit **[oatear.github.io/cider][pages-url]** to start. Your projects are stored locally in your browser's IndexedDB. You can import/export your entire project as a single `database.json` file.
-
-### Desktop Version
-1.  Go to the **[Releases Page][releases-url]**.
-2.  Download the appropriate file for your operating system (`.msi` for Windows, `.dmg` for macOS, `.deb` for Debian/Ubuntu).
-3.  **For macOS Users:** For a seamless, signed, and auto-updating experience, please consider purchasing the app from the **[Mac App Store][mac-app-store-url]**.
 
 ## Creative Ownership & Licensing
 Anything you create with Oatear Cider is your intellectual property. The app collects no data and all your work remains on your local device.
@@ -92,7 +92,6 @@ Another great way to contribute is by **[supporting the project financially][kof
 
 <div align="center">
 
-*Apple, the Apple Logo, and Mac App Store are trademarks of Apple Inc.*
 
 </div>
 

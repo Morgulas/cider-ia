@@ -1,9 +1,2 @@
 node_modules/
 /node_modules
-cider-app/electron/dist/main.js
-cider-app/electron/dist/main.js.map
-cider-app/release/
-cider-app/electron-app/dist/main.js
-cider-app/electron-app/dist/main.js.map
-cider-app/build/cider.provisionprofile
-cider-app/build/cider-dev.provisionprofile

@@ -1,7 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { LocalStorageService } from '../data-services/local-storage/local-storage.service';
 import { TranslateService } from '@ngx-translate/core';
-import { ElectronService } from '../data-services/electron/electron.service';
 import { ThemeService } from '../data-services/theme/theme.service';
 import { CiderThemeConfig } from '../shared/theme-registry';
 
@@ -39,15 +38,12 @@ export class SettingsDialogComponent {
     { label: 'Nederlands (NL)', value: 'nl' },
   ];
   language: string;
-  isElectron: boolean;
 
   constructor(
     private localStorageService: LocalStorageService,
     private translate: TranslateService,
-    private electronService: ElectronService,
     private themeService: ThemeService
   ) {
-    this.isElectron = electronService.isElectron();
     this.language = this.localStorageService.getLanguage() || translate.getBrowserLang() || 'en';
 
     // Initialize theme dropdown

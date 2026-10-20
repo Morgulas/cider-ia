@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "환영합니다",
-        "subtitle": "왼쪽 탐색기를 사용하여 시작하세요",
-        "subtitle-electron": "새 프로젝트를 시작하거나 기존 프로젝트를 여세요"
+        "subtitle": "왼쪽 탐색기를 사용하여 시작하세요"
     },
     "controls": {
         "search": "검색",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "파일",
-        "new": "새로 만들기",
-        "open-project": "프로젝트 열기",
-        "open-recent": "최근 프로젝트 열기",
-        "save": "저장",
-        "save-as": "다른 이름으로 저장",
         "advanced": "고급",
-        "reload-project": "디스크에서 프로젝트 다시 불러오기",
         "reset-database": "데이터베이스 초기화",
         "import-database": "데이터베이스 가져오기",
         "export-database": "데이터베이스 내보내기",
-        "export-cards": "카드 내보내기",
-        "exit-project": "프로젝트 종료",
-        "exit-cider": "Cider 종료"
+        "export-cards": "카드 내보내기"
     },
     "sidebar": {
         "unknown-project": "프로젝트",
@@ -142,7 +133,6 @@
         "select-language": "언어 선택",
         "language": "언어",
         "language-info": "새 언어를 완전히 적용하려면 페이지를 새로고침하세요.",
-        "language-info-electron": "새 언어를 완전히 적용하려면 애플리케이션을 다시 시작하세요.",
         "dark-mode": "다크 모드"
     },
     "simulator": {

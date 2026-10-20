@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "欢迎",
-        "subtitle": "使用左侧的资源管理器开始",
-        "subtitle-electron": "创建新项目或打开现有项目"
+        "subtitle": "使用左侧的资源管理器开始"
     },
     "controls": {
         "search": "搜索",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "文件",
-        "new": "新建",
-        "open-project": "打开项目",
-        "open-recent": "最近打开",
-        "save": "保存",
-        "save-as": "另存为",
         "advanced": "高级",
-        "reload-project": "从磁盘重新加载项目",
         "reset-database": "重置数据库",
         "import-database": "导入数据库",
         "export-database": "导出数据库",
-        "export-cards": "导出卡片",
-        "exit-project": "退出项目",
-        "exit-cider": "退出 Cider"
+        "export-cards": "导出卡片"
     },
     "sidebar": {
         "unknown-project": "项目",
@@ -142,7 +133,6 @@
         "select-language": "选择语言",
         "language": "语言",
         "language-info": "刷新页面以完全应用新的语言。",
-        "language-info-electron": "重启应用程序以完全应用新的语言。",
         "dark-mode": "深色模式"
     },
     "simulator": {

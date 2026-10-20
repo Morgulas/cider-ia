@@ -1,8 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { Observable } from 'rxjs/internal/Observable';
-import { ElectronService } from '../data-services/electron/electron.service';
 import PackageUtils from '../shared/utils/package-utils';
-import { PersistentPath } from '../data-services/types/persistent-path.type';
 
 @Component({
   selector: 'app-site-footer',
@@ -11,18 +8,10 @@ import { PersistentPath } from '../data-services/types/persistent-path.type';
   standalone: false
 })
 export class SiteFooterComponent implements OnInit {
-  projectHomeUrl$: Observable<PersistentPath | undefined>;
-  projectUnsaved$: Observable<boolean>;
   appVersion: string = '0.0.0';
 
-  constructor(public electronService: ElectronService) {
-    this.projectHomeUrl$ = this.electronService.getProjectHomeUrl();
-    this.projectUnsaved$ = this.electronService.getProjectUnsaved();
+  constructor() {
     this.appVersion = PackageUtils.getVersion();
-  }
-
-  get isElectron(): boolean {
-    return this.electronService.isElectron();
   }
 
   ngOnInit(): void {

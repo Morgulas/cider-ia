@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "Welcome",
-        "subtitle": "Use the explorer on the left to get started",
-        "subtitle-electron": "Start a new project or open an existing one"
+        "subtitle": "Use the explorer on the left to get started"
     },
     "controls": {
         "search": "Search",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "File",
-        "new": "New",
-        "open-project": "Open Project",
-        "open-recent": "Open Recent",
-        "save": "Save",
-        "save-as": "Save As",
         "advanced": "Advanced",
-        "reload-project": "Reload Project from Disk",
         "reset-database": "Reset Database",
         "import-database": "Import Database",
         "export-database": "Export Database",
-        "export-cards": "Export Cards",
-        "exit-project": "Exit Project",
-        "exit-cider": "Exit Cider"
+        "export-cards": "Export Cards"
     },
     "sidebar": {
         "unknown-project": "Project",
@@ -161,7 +152,6 @@
         "select-language": "Select Language",
         "language": "Language",
         "language-info": "Refresh the page to fully apply the new language.",
-        "language-info-electron": "Restart the application to fully apply the new language.",
         "theme": "Theme",
         "select-theme": "Select Theme"
     },

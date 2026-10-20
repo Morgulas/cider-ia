@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "Benvenuto",
-        "subtitle": "Usa l'explorer a sinistra per iniziare",
-        "subtitle-electron": "Avvia un nuovo progetto o aprine uno esistente"
+        "subtitle": "Usa l'explorer a sinistra per iniziare"
     },
     "controls": {
         "search": "Cerca",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "File",
-        "new": "Nuovo",
-        "open-project": "Apri Progetto",
-        "open-recent": "Apri Recenti",
-        "save": "Salva",
-        "save-as": "Salva Come",
         "advanced": "Avanzate",
-        "reload-project": "Ricarica Progetto dal Disco",
         "reset-database": "Resetta Database",
         "import-database": "Importa Database",
         "export-database": "Esporta Database",
-        "export-cards": "Esporta Carte",
-        "exit-project": "Chiudi Progetto",
-        "exit-cider": "Esci da Cider"
+        "export-cards": "Esporta Carte"
     },
     "sidebar": {
         "unknown-project": "Progetto",
@@ -142,7 +133,6 @@
         "select-language": "Seleziona Lingua",
         "language": "Lingua",
         "language-info": "Aggiorna la pagina per applicare completamente la nuova lingua.",
-        "language-info-electron": "Riavvia l'applicazione per applicare completamente la nuova lingua.",
         "dark-mode": "Modalità Scura"
     },
     "simulator": {

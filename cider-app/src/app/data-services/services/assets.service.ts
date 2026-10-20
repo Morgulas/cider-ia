@@ -7,8 +7,6 @@ import { filter } from 'rxjs/operators';
 import { SearchParameters } from '../types/search-parameters.type';
 import { IndexedDbService } from '../indexed-db/indexed-db.service';
 import StringUtils from 'src/app/shared/utils/string-utils';
-import { ElectronService } from '../electron/electron.service';
-import { PersistentPath } from '../types/persistent-path.type';
 
 @Injectable({
   providedIn: 'root'
@@ -17,9 +15,7 @@ export class AssetsService extends IndexedDbService<Asset, number> {
   assetUrls: BehaviorSubject<any>;
   private isLoadingSubject: BehaviorSubject<boolean>;
 
-  private currentHomeUrl: PersistentPath | undefined;
-
-  constructor(db: AppDB, private electronService: ElectronService) {
+  constructor(db: AppDB) {
     super(db, AppDB.ASSETS_TABLE, [
       { field: 'id', header: 'ID', type: FieldType.numeric, hidden: true },
       { field: 'name', header: 'Name', type: FieldType.text },
@@ -34,103 +30,6 @@ export class AssetsService extends IndexedDbService<Asset, number> {
     db.onLoad().subscribe(() => {
       this.updateAssetUrls();
     });
-
-    this.electronService.getProjectHomeUrl().subscribe(url => this.currentHomeUrl = url);
-
-    // Handle File Watcher Events
-    this.electronService.getFileAdded().subscribe(path => this.handleFileAdded(path));
-    this.electronService.getFileRemoved().subscribe(path => this.handleFileRemoved(path));
-
-    // Handle Directory Watcher Events (keeps assetFolders DB table in sync)
-    this.electronService.getDirectoryAdded().subscribe(path => this.handleDirectoryAdded(path));
-    this.electronService.getDirectoryRemoved().subscribe(path => this.handleDirectoryRemoved(path));
-  }
-
-  private async handleFileAdded(absPath: string) {
-    if (!this.currentHomeUrl) return;
-    const homeUrl = this.currentHomeUrl;
-
-    const assetsPath = homeUrl.path + '/assets';
-    if (absPath.startsWith(assetsPath)) {
-      console.log('New asset detected:', absPath);
-      const relativePathWithFile = absPath.substring(assetsPath.length + 1); // e.g. "icons/fire.png" or "fire.png"
-      const pathParts = relativePathWithFile.split((/\/|\\/)); // split by / or \
-
-      const fileName = pathParts.pop() || '';
-      const relativePath = pathParts.join('/'); // e.g. "icons" or ""
-
-      const nameSplit = StringUtils.splitNameAndExtension(fileName);
-      const assetName = nameSplit.name;
-
-      if (!assetName) return;
-
-      // Check if exists
-      const existing = await this.getByPath(assetName, relativePath);
-      if (existing && existing.id) {
-        console.log('Asset already exists in DB');
-        return;
-      }
-
-      // Import
-      const persistentPath: any = { path: absPath, bookmark: homeUrl.bookmark };
-      const buffer = await this.electronService.readFile(persistentPath);
-      if (buffer) {
-        const fileType = StringUtils.extensionToMime(nameSplit.extension);
-        const blob = new Blob([new Uint8Array(buffer)], { type: fileType });
-        const file = new File([blob], fileName, { type: fileType });
-        await this.create({
-          file: file,
-          name: assetName,
-          path: relativePath
-        } as any, true);
-        this.updateAssetUrls();
-      }
-    }
-  }
-
-  private async handleFileRemoved(absPath: string) {
-    if (!this.currentHomeUrl) return;
-    const homeUrl = this.currentHomeUrl;
-    const assetsPath = homeUrl.path + '/assets';
-
-    if (absPath.startsWith(assetsPath)) {
-      const relativePathWithFile = absPath.substring(assetsPath.length + 1);
-      const pathParts = relativePathWithFile.split((/\/|\\/));
-      const fileName = pathParts.pop() || '';
-      const relativePath = pathParts.join('/');
-
-      const nameSplit = StringUtils.splitNameAndExtension(fileName);
-      const assetName = nameSplit.name;
-
-      const existing = await this.getByPath(assetName, relativePath);
-      if (existing && existing.id) {
-        await this.delete(existing.id);
-        this.updateAssetUrls();
-      }
-    }
-  }
-
-  private async handleDirectoryAdded(absPath: string) {
-    if (!this.currentHomeUrl) return;
-    const assetsPath = this.currentHomeUrl.path + '/assets';
-    if (absPath.startsWith(assetsPath)) {
-      const relativePath = absPath.substring(assetsPath.length + 1);
-      if (!relativePath) return;
-      const alreadyExists = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).where('path').equals(relativePath).count();
-      if (alreadyExists === 0) {
-        await this.db.table(AppDB.ASSET_FOLDERS_TABLE).add({ path: relativePath });
-      }
-    }
-  }
-
-  private async handleDirectoryRemoved(absPath: string) {
-    if (!this.currentHomeUrl) return;
-    const assetsPath = this.currentHomeUrl.path + '/assets';
-    if (absPath.startsWith(assetsPath)) {
-      const relativePath = absPath.substring(assetsPath.length + 1);
-      if (!relativePath) return;
-      await this.db.table(AppDB.ASSET_FOLDERS_TABLE).where('path').equals(relativePath).delete();
-    }
   }
 
   public updateAssetUrls() {
@@ -289,192 +188,68 @@ export class AssetsService extends IndexedDbService<Asset, number> {
   }
 
   async createFolder(resultSet: string) {
-    if (!this.electronService.isElectron()) {
-      // Web mode: use Dexie assetFolders
-      const alreadyExists = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).where('path').equals(resultSet).count();
-      if (alreadyExists === 0) {
-        await this.db.table(AppDB.ASSET_FOLDERS_TABLE).add({ path: resultSet });
-      }
-      return true;
+    const alreadyExists = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).where('path').equals(resultSet).count();
+    if (alreadyExists === 0) {
+      await this.db.table(AppDB.ASSET_FOLDERS_TABLE).add({ path: resultSet });
     }
-    if (!this.currentHomeUrl) return false;
-    const assetsPath = this.currentHomeUrl.path + '/assets/' + resultSet;
-    const success = await this.electronService.createDirectory({
-      path: assetsPath,
-      bookmark: this.currentHomeUrl.bookmark
-    });
-    if (success) {
-      // Also add to DB for consistency
-      const alreadyExists = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).where('path').equals(resultSet).count();
-      if (alreadyExists === 0) {
-        await this.db.table(AppDB.ASSET_FOLDERS_TABLE).add({ path: resultSet });
-      }
-    }
-    return success;
+    return true;
   }
 
   async renameFolder(oldPath: string, newPath: string) {
-    // Helper to update DB records
-    const updateDbRecords = async () => {
-      console.log('renameFolder: updateDbRecords started');
-      try {
-        // 1. Update all assets that start with oldPath
-        const allAssets = await this.getAll();
-        const assetsToUpdate = allAssets.filter(a => (a.path === oldPath) || (a.path && a.path.startsWith(oldPath + '/')));
-        console.log(`renameFolder: Found ${assetsToUpdate.length} assets to update`);
-
-        for (const asset of assetsToUpdate) {
-          if (asset.path === oldPath) {
-            asset.path = newPath;
-          } else if (asset.path) {
-            asset.path = newPath + asset.path.substring(oldPath.length);
-          }
-          await this.update(asset.id, asset);
-        }
-
-        // 2. Update parent folder entries in assetFolders table
-        const allFolders = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).toArray();
-        const foldersToUpdate = allFolders.filter(f => f.path === oldPath || f.path.startsWith(oldPath + '/'));
-        console.log(`renameFolder: Found ${foldersToUpdate.length} folders to update from`, oldPath, 'to', newPath);
-
-        for (const folder of foldersToUpdate) {
-          if (folder.path === oldPath) {
-            folder.path = newPath;
-          } else {
-            folder.path = newPath + folder.path.substring(oldPath.length);
-          }
-          await this.db.table(AppDB.ASSET_FOLDERS_TABLE).put(folder);
-        }
-        console.log('renameFolder: updateDbRecords completed');
-      } catch (e) {
-        console.error('renameFolder: updateDbRecords failed', e);
+    // 1. Update all assets that start with oldPath
+    const allAssets = await this.getAll();
+    const assetsToUpdate = allAssets.filter(a => (a.path === oldPath) || (a.path && a.path.startsWith(oldPath + '/')));
+    for (const asset of assetsToUpdate) {
+      if (asset.path === oldPath) {
+        asset.path = newPath;
+      } else if (asset.path) {
+        asset.path = newPath + asset.path.substring(oldPath.length);
       }
-    };
-
-    if (!this.electronService.isElectron()) {
-      // Web Mode: Just update DB
-      await updateDbRecords();
-      return true;
-    } else {
-      // Electron Mode
-      if (!this.currentHomeUrl) return false;
-      const homeUrl = this.currentHomeUrl;
-      const assetsDir = homeUrl.path + '/assets';
-      const oldFullPath = assetsDir + (oldPath ? '/' + oldPath : '');
-      const newFullPath = assetsDir + (newPath ? '/' + newPath : '');
-
-      const success = await this.electronService.renameDirectory(
-        { path: oldFullPath, bookmark: homeUrl.bookmark },
-        { path: newFullPath, bookmark: homeUrl.bookmark }
-      );
-
-      if (success) {
-        await updateDbRecords();
-      }
-      return success;
+      await this.update(asset.id, asset);
     }
+
+    // 2. Update folder entries in assetFolders table
+    const allFolders = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).toArray();
+    const foldersToUpdate = allFolders.filter(f => f.path === oldPath || f.path.startsWith(oldPath + '/'));
+    for (const folder of foldersToUpdate) {
+      if (folder.path === oldPath) {
+        folder.path = newPath;
+      } else {
+        folder.path = newPath + folder.path.substring(oldPath.length);
+      }
+      await this.db.table(AppDB.ASSET_FOLDERS_TABLE).put(folder);
+    }
+    return true;
   }
 
   async deleteFolder(path: string) {
-    if (!this.electronService.isElectron()) {
-      // Web Mode
-      const allAssets = await this.getAll();
-      const assetsToDelete = allAssets.filter(a => (a.path === path) || (a.path && a.path.startsWith(path + '/')));
-
-      for (const asset of assetsToDelete) {
-        await this.delete(asset.id);
-      }
-
-      const allFolders = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).toArray();
-      const foldersToDelete = allFolders.filter(f => f.path === path || f.path.startsWith(path + '/'));
-
-      for (const folder of foldersToDelete) {
-        await this.db.table(AppDB.ASSET_FOLDERS_TABLE).where('path').equals(folder.path).delete();
-      }
-      return true;
-    } else {
-      // Electron Mode
-      if (!this.currentHomeUrl) return false;
-      const homeUrl = this.currentHomeUrl;
-      const assetsDir = homeUrl.path + '/assets';
-      const fullPath = assetsDir + (path ? '/' + path : '');
-
-      const success = await this.electronService.removeDirectory({ path: fullPath, bookmark: homeUrl.bookmark });
-      if (success) {
-        const allAssets = await this.getAll();
-        const assetsToDelete = allAssets.filter(a => (a.path === path) || (a.path && a.path.startsWith(path + '/')));
-
-        for (const asset of assetsToDelete) {
-          await this.delete(asset.id);
-        }
-
-        const allFolders = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).toArray();
-        const foldersToDelete = allFolders.filter(f => f.path === path || f.path.startsWith(path + '/'));
-
-        for (const folder of foldersToDelete) {
-          await this.db.table(AppDB.ASSET_FOLDERS_TABLE).where('path').equals(folder.path).delete();
-        }
-      }
-      return success;
+    const allAssets = await this.getAll();
+    const assetsToDelete = allAssets.filter(a => (a.path === path) || (a.path && a.path.startsWith(path + '/')));
+    for (const asset of assetsToDelete) {
+      await this.delete(asset.id);
     }
+
+    const allFolders = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).toArray();
+    const foldersToDelete = allFolders.filter(f => f.path === path || f.path.startsWith(path + '/'));
+    for (const folder of foldersToDelete) {
+      await this.db.table(AppDB.ASSET_FOLDERS_TABLE).where('path').equals(folder.path).delete();
+    }
+    return true;
   }
 
   async moveAsset(asset: Asset, targetFolder: string) {
-    if (!this.electronService.isElectron()) {
-      // Web mode: just update the asset path
-      asset.path = targetFolder;
-      await this.update(asset.id, asset);
-      // also ensure the folder exists in assetFolders? 
-      if (targetFolder) {
-        await this.createFolder(targetFolder);
-      }
-      return true;
-    }
-
-    if (!this.currentHomeUrl) return false;
-    const homeUrl = this.currentHomeUrl;
-    const assetsDir = homeUrl.path + '/assets';
-
-    const sourceDir = assetsDir + (asset.path ? '/' + asset.path : '');
-    const targetDir = assetsDir + (targetFolder ? '/' + targetFolder : '');
-
-    // Resolve the actual filename (extension) from disk
-    const entries = await this.electronService.listDirectory({ path: sourceDir, bookmark: homeUrl.bookmark });
-    const assetFile = entries.find(e => e.isFile && StringUtils.splitNameAndExtension(e.name).name === asset.name);
-
-    if (!assetFile) {
-      console.error('Source file not found for asset:', asset.name, 'in', sourceDir);
-      return false;
-    }
-
-    const fileNameWithExt = assetFile.name;
-    const sourcePath = sourceDir + '/' + fileNameWithExt;
-    const targetPath = targetDir + '/' + fileNameWithExt;
-
-    // Ensure target directory exists
+    asset.path = targetFolder;
+    await this.update(asset.id, asset);
     if (targetFolder) {
       await this.createFolder(targetFolder);
     }
-
-    const success = await this.electronService.renameDirectory(
-      { path: sourcePath, bookmark: homeUrl.bookmark },
-      { path: targetPath, bookmark: homeUrl.bookmark }
-    );
-
-    if (success) {
-      asset.path = targetFolder;
-      await this.update(asset.id, asset);
-    }
-    return success;
+    return true;
   }
 
   /**
-   * Recursive function to get all subfolders in the assets directory
+   * All asset folders: explicit ones (assetFolders table) plus those derived from asset paths
    */
   async getFolders(): Promise<string[]> {
-    // Always use the DB-based approach (assetFolders table + derived from assets).
-    // This avoids expensive recursive filesystem scans via IPC in Electron mode.
-    // The assetFolders table is kept in sync during project open and via file watcher events.
     const explicitFolders = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).toArray().then(rows => rows.map(r => r.path));
     const assets = await this.getAll();
     const derivedFolders = new Set<string>();

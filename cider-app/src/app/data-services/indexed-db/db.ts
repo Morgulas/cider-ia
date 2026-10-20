@@ -11,7 +11,6 @@ import { ImportProgress } from "dexie-export-import/dist/import";
 import { HttpClient } from "@angular/common/http";
 import { Subject, firstValueFrom } from "rxjs";
 import { Injectable } from "@angular/core";
-import { ElectronService } from "../electron/electron.service";
 
 @Injectable({
     providedIn: 'root'
@@ -41,9 +40,7 @@ export class AppDB extends Dexie {
     private loadSubject: Subject<null>;
     private isPopulating: boolean = false;
 
-    constructor(httpClient: HttpClient,
-        electronService: ElectronService,
-    ) {
+    constructor(httpClient: HttpClient) {
         super(AppDB.DB_NAME);
         this.httpClient = httpClient;
         this.changeSubject = new Subject<any>();
@@ -150,26 +147,19 @@ export class AppDB extends Dexie {
         // populate in a non-traditional way since the 'on populate' will not allow ajax calls
         this.on('ready', () => this.table(AppDB.DECKS_TABLE).count()
             .then(count => {
-                if (electronService.isElectron()) {
-                    return Promise.resolve();
-                }
                 if (count > 0) {
                     console.log('db already populated');
                     return Promise.resolve();
                 } else {
                     console.log('populate from file');
-                    return this.populateFromFile().then(() => {
-                        // cause asset urls to update
-                        this.loadSubject.next(null);
-                    });
+                    return this.populateFromFile().then(() => undefined);
                 }
             }).then(() => {
                 // initialize mandatory data;
                 return this.initializeData();
             }).then(() => {
-                if (!electronService.isElectron()) {
-                    electronService.setProjectOpen(true);
-                }
+                // database ready: refresh asset urls and the sidebar
+                this.loadSubject.next(null);
             }));
 
         // trigger changeSubject when change emitted to db

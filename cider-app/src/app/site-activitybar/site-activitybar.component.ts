@@ -1,7 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Route, Router } from '@angular/router';
 import { MenuItem } from 'primeng/api';
-import { ElectronService } from '../data-services/electron/electron.service';
 
 @Component({
     selector: 'app-site-activitybar',
@@ -116,9 +115,7 @@ export class SiteActivitybarComponent {
   ];
   public isSaving: boolean = false;
 
-  constructor(private router: Router,
-    private electronService: ElectronService
-  ) {
+  constructor(private router: Router) {
     // Do nothing here
   }
 

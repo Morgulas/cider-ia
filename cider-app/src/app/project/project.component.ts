@@ -1,5 +1,4 @@
 import { Component, OnInit } from '@angular/core';
-import { ElectronService } from '../data-services/electron/electron.service';
 import { DecksService } from '../data-services/services/decks.service';
 import { AssetsService } from '../data-services/services/assets.service';
 import { DocumentsService } from '../data-services/services/documents.service';
@@ -7,7 +6,6 @@ import { CardsService } from '../data-services/services/cards.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
 
 interface ProjectInfo {
@@ -48,8 +46,7 @@ export class ProjectComponent implements OnInit {
   deckInfos: DeckInfo[] = [];
   projectMeters: Meter[] = [];
 
-  constructor(private electronService: ElectronService,
-    private assetsService: AssetsService,
+  constructor(private assetsService: AssetsService,
     private documentsService: DocumentsService,
     private decksService: DecksService,
     private cardsService: CardsService,
@@ -120,11 +117,7 @@ export class ProjectComponent implements OnInit {
 
   private getProjectName(): Promise<string> {
     const defaultProjectName = 'Cider ' + this.translate.instant('breadcrumbs.project');
-    if (this.electronService.isElectron()) {
-      return firstValueFrom(this.electronService.getProjectHomeUrl())
-        .then(homeUrl => homeUrl?.path.split('/').pop() || defaultProjectName);
-    }
-    return new Promise((resolve, reject) => resolve(defaultProjectName));
+    return Promise.resolve(defaultProjectName);
   }
 
   private async getProjectInfo(): Promise<ProjectInfo> {

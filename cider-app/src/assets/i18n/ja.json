@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "ようこそ",
-        "subtitle": "左のエクスプローラーを使って開始してください",
-        "subtitle-electron": "新しいプロジェクトを開始するか、既存のプロジェクトを開きます"
+        "subtitle": "左のエクスプローラーを使って開始してください"
     },
     "controls": {
         "search": "検索",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "ファイル",
-        "new": "新規",
-        "open-project": "プロジェクトを開く",
-        "open-recent": "最近開いたプロジェクト",
-        "save": "保存",
-        "save-as": "名前を付けて保存",
         "advanced": "詳細",
-        "reload-project": "ディスクからプロジェクトを再読み込み",
         "reset-database": "データベースをリセット",
         "import-database": "データベースをインポート",
         "export-database": "データベースをエクスポート",
-        "export-cards": "カードをエクスポート",
-        "exit-project": "プロジェクトを終了",
-        "exit-cider": "Ciderを終了"
+        "export-cards": "カードをエクスポート"
     },
     "sidebar": {
         "unknown-project": "プロジェクト",
@@ -142,7 +133,6 @@
         "select-language": "言語を選択",
         "language": "言語",
         "language-info": "新しい言語を完全に適用するにはページを更新してください。",
-        "language-info-electron": "新しい言語を完全に適用するにはアプリケーションを再起動してください。",
         "dark-mode": "ダークモード"
     },
     "simulator": {

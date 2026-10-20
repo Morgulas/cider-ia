@@ -5,7 +5,6 @@ import MonacoThemes from './monaco-themes';
 export default class MonacoExtension {
 
     static monacoConfig: NgxMonacoEditorConfig = {
-        // needed for electron
         baseUrl: 'assets', 
         requireConfig: { preferScriptTags: true },
         onMonacoLoad: MonacoExtension.loadMonacoEditor,

@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "Welkom",
-        "subtitle": "Gebruik de verkenner aan de linkerkant om te beginnen",
-        "subtitle-electron": "Start een nieuw project of open een bestaand project"
+        "subtitle": "Gebruik de verkenner aan de linkerkant om te beginnen"
     },
     "controls": {
         "search": "Zoeken",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "Bestand",
-        "new": "Nieuw",
-        "open-project": "Project Openen",
-        "open-recent": "Recent Openen",
-        "save": "Opslaan",
-        "save-as": "Opslaan Als",
         "advanced": "Geavanceerd",
-        "reload-project": "Project Herladen vanaf Schijf",
         "reset-database": "Database Herstellen",
         "import-database": "Database Importeren",
         "export-database": "Database Exporteren",
-        "export-cards": "Kaarten Exporteren",
-        "exit-project": "Project Afsluiten",
-        "exit-cider": "Cider Afsluiten"
+        "export-cards": "Kaarten Exporteren"
     },
     "sidebar": {
         "unknown-project": "Project",
@@ -142,7 +133,6 @@
         "select-language": "Selecteer Taal",
         "language": "Taal",
         "language-info": "Herlaad de pagina om de nieuwe taal volledig toe te passen.",
-        "language-info-electron": "Herstart de applicatie om de nieuwe taal volledig toe te passen.",
         "dark-mode": "Donkere Modus"
     },
     "simulator": {

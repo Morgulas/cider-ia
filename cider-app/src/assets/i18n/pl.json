@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "Witamy",
-        "subtitle": "Użyj eksploratora po lewej stronie, aby rozpocząć",
-        "subtitle-electron": "Rozpocznij nowy projekt lub otwórz istniejący"
+        "subtitle": "Użyj eksploratora po lewej stronie, aby rozpocząć"
     },
     "controls": {
         "search": "Szukaj",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "Plik",
-        "new": "Nowy",
-        "open-project": "Otwórz Projekt",
-        "open-recent": "Otwórz Ostatnie",
-        "save": "Zapisz",
-        "save-as": "Zapisz Jako",
         "advanced": "Zaawansowane",
-        "reload-project": "Przeładuj Projekt z Dysku",
         "reset-database": "Resetuj Bazę Danych",
         "import-database": "Importuj Bazę Danych",
         "export-database": "Eksportuj Bazę Danych",
-        "export-cards": "Eksportuj Karty",
-        "exit-project": "Zamknij Projekt",
-        "exit-cider": "Zamknij Cider"
+        "export-cards": "Eksportuj Karty"
     },
     "sidebar": {
         "unknown-project": "Projekt",
@@ -142,7 +133,6 @@
         "select-language": "Wybierz Język",
         "language": "Język",
         "language-info": "Odśwież stronę, aby w pełni zastosować nowy język.",
-        "language-info-electron": "Uruchom ponownie aplikację, aby w pełni zastosować nowy język.",
         "dark-mode": "Tryb Ciemny"
     },
     "simulator": {

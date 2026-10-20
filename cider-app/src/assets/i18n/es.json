@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "Bienvenido",
-        "subtitle": "Usa el explorador a la izquierda para empezar",
-        "subtitle-electron": "Inicia un nuevo proyecto o abre uno existente"
+        "subtitle": "Usa el explorador a la izquierda para empezar"
     },
     "controls": {
         "search": "Buscar",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "Archivo",
-        "new": "Nuevo",
-        "open-project": "Abrir Proyecto",
-        "open-recent": "Abrir Recientes",
-        "save": "Guardar",
-        "save-as": "Guardar Como",
         "advanced": "Avanzado",
-        "reload-project": "Recargar Proyecto desde Disco",
         "reset-database": "Restablecer Base de Datos",
         "import-database": "Importar Base de Datos",
         "export-database": "Exportar Base de Datos",
-        "export-cards": "Exportar Cartas",
-        "exit-project": "Salir del Proyecto",
-        "exit-cider": "Salir de Cider"
+        "export-cards": "Exportar Cartas"
     },
     "sidebar": {
         "unknown-project": "Proyecto",
@@ -142,7 +133,6 @@
         "select-language": "Seleccionar Idioma",
         "language": "Idioma",
         "language-info": "Actualiza la página para aplicar completamente el nuevo idioma.",
-        "language-info-electron": "Reinicia la aplicación para aplicar completamente el nuevo idioma.",
         "dark-mode": "Modo Oscuro"
     },
     "simulator": {

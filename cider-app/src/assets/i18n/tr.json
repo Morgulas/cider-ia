@@ -1,8 +1,7 @@
 {
     "welcome": {
         "title": "Hoş Geldiniz",
-        "subtitle": "Başlamak için soldaki gezgini kullanın",
-        "subtitle-electron": "Yeni bir proje başlatın veya mevcut bir projeyi açın"
+        "subtitle": "Başlamak için soldaki gezgini kullanın"
     },
     "controls": {
         "search": "Ara",
@@ -65,19 +64,11 @@
     },
     "menu": {
         "file": "Dosya",
-        "new": "Yeni",
-        "open-project": "Projeyi Aç",
-        "open-recent": "Son Açılanlar",
-        "save": "Kaydet",
-        "save-as": "Farklı Kaydet",
         "advanced": "Gelişmiş",
-        "reload-project": "Projeyi Diske Yeniden Yükle",
         "reset-database": "Veritabanını Sıfırla",
         "import-database": "Veritabanını İçe Aktar",
         "export-database": "Veritabanını Dışa Aktar",
-        "export-cards": "Kartları Dışa Aktar",
-        "exit-project": "Projeyi Kapat",
-        "exit-cider": "Cider'dan Çık"
+        "export-cards": "Kartları Dışa Aktar"
     },
     "sidebar": {
         "unknown-project": "Proje",
@@ -142,7 +133,6 @@
         "select-language": "Dil Seç",
         "language": "Dil",
         "language-info": "Yeni dili tamamen uygulamak için sayfayı yenileyin.",
-        "language-info-electron": "Yeni dili tamamen uygulamak için uygulamayı yeniden başlatın.",
         "dark-mode": "Koyu Mod"
     },
     "simulator": {
