@@ -4,6 +4,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { generateRandomCardBackground } from '../shared/generators/card-background-generator';
 import { AssetsService } from '../data-services/services/assets.service';
 import FileUtils from '../shared/utils/file-utils';
+import HtmlSanitizer from '../shared/utils/html-sanitizer';
 import { generateRandomDialogFrame } from '../shared/generators/card-textbox-generator';
 
 interface AssetTypeOption {
@@ -136,7 +137,7 @@ export class AssetGeneratorComponent {
       height: height,
     });
     this.generatedSvgs.push({
-      safeHtml: this.sanitizer.bypassSecurityTrustHtml(svgString),
+      safeHtml: this.sanitizer.bypassSecurityTrustHtml(HtmlSanitizer.sanitizeSvg(svgString)),
       svg: svgString,
       type: this.selectedAssetOption,
       width: width,
@@ -168,7 +169,7 @@ export class AssetGeneratorComponent {
       backgroundColor: this.backgroundColor,
     });
     this.generatedSvgs.push({
-      safeHtml: this.sanitizer.bypassSecurityTrustHtml(svgString),
+      safeHtml: this.sanitizer.bypassSecurityTrustHtml(HtmlSanitizer.sanitizeSvg(svgString)),
       svg: svgString,
       type: this.selectedAssetOption,
       width: width,
@@ -200,7 +201,7 @@ export class AssetGeneratorComponent {
       backgroundColor: this.backgroundColor,
     });
     this.generatedSvgs.push({
-      safeHtml: this.sanitizer.bypassSecurityTrustHtml(svgString),
+      safeHtml: this.sanitizer.bypassSecurityTrustHtml(HtmlSanitizer.sanitizeSvg(svgString)),
       svg: svgString,
       type: this.selectedAssetOption,
       width: width,
@@ -232,7 +233,7 @@ export class AssetGeneratorComponent {
       backgroundColor: this.backgroundColor,
     });
     this.generatedSvgs.push({
-      safeHtml: this.sanitizer.bypassSecurityTrustHtml(svgString),
+      safeHtml: this.sanitizer.bypassSecurityTrustHtml(HtmlSanitizer.sanitizeSvg(svgString)),
       svg: svgString,
       type: this.selectedAssetOption,
       width: width,
@@ -253,7 +254,7 @@ export class AssetGeneratorComponent {
       outlineWidth: this.outlineWidth,
     });
     this.generatedSvgs.push({
-      safeHtml: this.sanitizer.bypassSecurityTrustHtml(svgString),
+      safeHtml: this.sanitizer.bypassSecurityTrustHtml(HtmlSanitizer.sanitizeSvg(svgString)),
       svg: svgString,
       type: this.selectedAssetOption,
       width: width,
@@ -278,7 +279,7 @@ export class AssetGeneratorComponent {
       outlineWidth: this.outlineWidth ?? 2,
     });
     this.generatedSvgs.push({
-      safeHtml: this.sanitizer.bypassSecurityTrustHtml(svgString),
+      safeHtml: this.sanitizer.bypassSecurityTrustHtml(HtmlSanitizer.sanitizeSvg(svgString)),
       svg: svgString,
       type: this.selectedAssetOption,
       width: width,

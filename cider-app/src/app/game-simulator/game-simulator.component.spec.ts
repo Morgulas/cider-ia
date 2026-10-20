@@ -4,7 +4,8 @@ import { DecksService } from '../data-services/services/decks.service';
 import { CardsService } from '../data-services/services/cards.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { NgZone } from '@angular/core';
+import { GameSimulatorStateService } from './game-simulator-state.service';
 
 describe('GameSimulatorComponent', () => {
   let component: GameSimulatorComponent;
@@ -12,23 +13,34 @@ describe('GameSimulatorComponent', () => {
   let cardsServiceSpy: jasmine.SpyObj<CardsService>;
   let translateServiceSpy: jasmine.SpyObj<TranslateService>;
   let cardTemplatesServiceSpy: jasmine.SpyObj<CardTemplatesService>;
+  // minimal game state: the component reads stacks and discard from it
+  let gameState: any;
 
   beforeEach(() => {
     decksServiceSpy = jasmine.createSpyObj('DecksService', ['getAll']);
     cardsServiceSpy = jasmine.createSpyObj('CardsService', ['getAll', 'getFieldsUnfiltered']);
     translateServiceSpy = jasmine.createSpyObj('TranslateService', ['instant']);
-    cardTemplatesServiceSpy = jasmine.createSpyObj('CardTemplatesService', [], {
-      // Mock any properties if needed
-    });
+    // not used by the drag logic under test
+    cardTemplatesServiceSpy = {} as jasmine.SpyObj<CardTemplatesService>;
 
     decksServiceSpy.getAll.and.returnValue(Promise.resolve([]));
     cardsServiceSpy.getAll.and.returnValue(Promise.resolve([]));
+
+    gameState = {
+      initialized: true,
+      stacks: [],
+      discard: undefined,
+      bringToFront: jasmine.createSpy('bringToFront')
+    };
+    const ngZone = { run: (fn: () => any) => fn() } as unknown as NgZone;
 
     component = new GameSimulatorComponent(
       decksServiceSpy,
       cardsServiceSpy,
       translateServiceSpy,
-      cardTemplatesServiceSpy
+      cardTemplatesServiceSpy,
+      gameState as GameSimulatorStateService,
+      ngZone
     );
 
     // Manually trigger initialization if needed, but constructor called resetGame which calls services
@@ -55,15 +67,16 @@ describe('GameSimulatorComponent', () => {
       deletable: false
     } as any;
 
-    component.stacks = [targetStack, discardStack];
-    component.discard = discardStack;
+    gameState.stacks = [targetStack, discardStack];
+    gameState.discard = discardStack;
     component['draggingStack'] = true;
     component['hoveredItem'] = targetStack;
 
     // Simulate drag end
     const event = {
       source: {
-        getFreeDragPosition: () => ({ x: 100, y: 100 }) // Dropped near target
+        getFreeDragPosition: () => ({ x: 100, y: 100 }), // Dropped near target
+        getRootElement: () => null
       }
     } as any;
 
@@ -110,15 +123,16 @@ describe('GameSimulatorComponent', () => {
       deletable: true
     } as any;
 
-    component.stacks = [targetStack, sourceStack];
-    // component.discard is undefined or different
+    gameState.stacks = [targetStack, sourceStack];
+    // gameState.discard is undefined: the source stack is a normal stack
     component['draggingStack'] = true;
     component['hoveredItem'] = targetStack;
 
     // Simulate drag end
     const event = {
       source: {
-        getFreeDragPosition: () => ({ x: 100, y: 100 })
+        getFreeDragPosition: () => ({ x: 100, y: 100 }),
+        getRootElement: () => null
       }
     } as any;
 

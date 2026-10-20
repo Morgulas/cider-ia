@@ -75,14 +75,24 @@ export class HandlebarsPipe implements PipeTransform {
       return array[StringUtils.toKebabCase(value)];
     });
 
+    /**
+     * Replaces {{asset}} placeholders in card text with images. The card text may
+     * contain HTML on purpose (bold, line breaks...), so it is returned unescaped;
+     * the rendered card is sanitized as a whole by CardToHtmlPipe (HtmlSanitizer).
+     */
     const compile = function (value: any, options: any): any {
       if (!value) {
         return value;
       }
+      if (typeof value !== 'string') {
+        value = String(value);
+      }
       return new Handlebars.SafeString(value.replace(/[{][{]([^} ]*)( [0-9]+)?[}][}]/g,
         (match: boolean, assetPath: string, count: string) => {
           const assetUrl = resolveAsset(options.data.root.assets, assetPath);
-          const image = `<img src="${assetUrl}" ${options.hash['width'] ? 'width=' + options.hash['width'] : ''}/>`;
+          const width = options.hash['width'];
+          const image = `<img src="${Handlebars.escapeExpression(assetUrl)}"`
+            + `${width ? ' width="' + Handlebars.escapeExpression(width) + '"' : ''}/>`;
           const multiplier = parseInt(count);
           return !assetUrl ? '' : multiplier ? image.repeat(multiplier) : image;
         }));

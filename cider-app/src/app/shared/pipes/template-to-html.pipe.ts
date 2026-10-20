@@ -3,6 +3,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CardTemplate } from 'src/app/data-services/types/card-template.type';
 import { Card } from 'src/app/data-services/types/card.type';
 import * as Handlebars from 'handlebars';
+import HtmlSanitizer from '../utils/html-sanitizer';
 
 /**
  * Convert a card template into html
@@ -56,8 +57,13 @@ export class CardToHtmlPipe implements PipeTransform {
     if (!html || !css) {
       return '';
     }
-    let sanitizedStyle = css.replace(/([^{}]*\{)/g, `.card-preview.card-${uuid} $1`)
+    let scopedStyle = css.replace(/([^{}]*\{)/g, `.card-preview.card-${uuid} $1`)
       .replace(/\!important/g, '');
-    return this.domSanitizer.bypassSecurityTrustHtml(`${html}<style>${sanitizedStyle}</style>`);
+    // Template and card data are untrusted: strip scripts, event handlers and
+    // javascript: URLs before handing the result to Angular as trusted HTML.
+    // The CSS is sanitized together with the HTML so that a "</style>" in it
+    // cannot break out of the style block.
+    const safe = HtmlSanitizer.sanitizeHtml(`${html}<style>${scopedStyle}</style>`);
+    return this.domSanitizer.bypassSecurityTrustHtml(safe);
   }
 }
