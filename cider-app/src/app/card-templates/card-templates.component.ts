@@ -1,4 +1,5 @@
-import { Component, OnInit, HostListener, SecurityContext, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, HostListener, SecurityContext, ViewChild, ElementRef, AfterViewInit, OnDestroy, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ConfirmationService, MessageService, PrimeTemplate } from 'primeng/api';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
@@ -75,6 +76,7 @@ const templateHtmlFront =
     imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, DecksComponent, TranslatePipe]
 })
 export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
   @ViewChild('previewSpace') previewSpace!: ElementRef;
   static readonly DEFAULT_HTML: string = templateHtmlFront;
   static readonly DEFAULT_CSS: string = templateCssFront;
@@ -133,7 +135,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     private confirmationService: ConfirmationService,
     private localStorage: LocalStorageService,
     private route: ActivatedRoute) {
-      this.route.paramMap.subscribe(params => {
+      this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
         const templateIdString = params.get('templateId') || '';
         const templateId = parseInt(templateIdString, 10);
         if (!isNaN(templateId)) {
@@ -147,7 +149,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       });
       this.templateChanges = new Subject();
       this.windowResizing$ = new Subject();
-      this.windowResizing$.pipe(debounceTime(200)).subscribe(() => {
+      this.windowResizing$.pipe(debounceTime(200)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
         this.disablePanels = false;
         setTimeout(() => this.centerPreview(), 100);
       });
@@ -176,7 +178,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       }
     });
     this.templateChanges.asObservable().pipe(debounceTime(1000))
-      .subscribe(() => this.save(this.selectedTemplate));
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.save(this.selectedTemplate));
   }
 
   public saveSettings() {

@@ -1,4 +1,5 @@
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { Document } from '../data-services/types/document.type';
 import { DocumentsService } from '../data-services/services/documents.service';
@@ -20,6 +21,7 @@ import ScriptLoader from '../shared/utils/script-loader';
     imports: [Bind, Splitter, PrimeTemplate, Card, MarkdownComponent, EditorComponent, FormsModule]
 })
 export class DocumentComponent implements OnInit, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
   editorOptions: any = {
     theme: 'vs-dark-extended', language: 'markdown',
     automaticLayout: true, minimap: { enabled: false }
@@ -44,7 +46,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
     private themeService: ThemeService,
     private documentsService: DocumentsService,
   ) {
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const documentIdString = params.get('documentId') || '';
       const documentId = parseInt(documentIdString, 10);
       if (!isNaN(documentId)) {
@@ -100,10 +102,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
       .finally(() => this.mermaidReady = true);
 
     this.documentChanges.asObservable().pipe(debounceTime(1000))
-      .subscribe(() => this.save(this.textDocument));
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.save(this.textDocument));
 
     // Subscribe to theme changes for Monaco editor
-    this.themeSubscription = this.themeService.currentTheme$.subscribe(theme => {
+    this.themeSubscription = this.themeService.currentTheme$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(theme => {
       const isDark = theme.colorScheme === 'dark';
       const monacoTheme = isDark ? 'vs-dark-extended' : 'vs';
       this.editorOptions = { ...this.editorOptions, theme: monacoTheme };

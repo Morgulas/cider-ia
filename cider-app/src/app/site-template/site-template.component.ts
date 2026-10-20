@@ -1,4 +1,5 @@
-import { AfterViewInit, Component, HostListener, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, HostListener, OnInit, ViewChild, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Splitter } from 'primeng/splitter';
 import { debounceTime, Subject } from 'rxjs';
 import { SiteMenuComponent } from '../site-menu/site-menu.component';
@@ -17,6 +18,7 @@ import { DecksComponent } from '../decks/decks.component';
     imports: [SiteMenuComponent, SiteActivitybarComponent, Bind, Splitter, PrimeTemplate, SiteSidebarComponent, SiteContentComponent, SiteFooterComponent, DecksComponent]
 })
 export class SiteTemplateComponent {
+  private readonly destroyRef = inject(DestroyRef);
   splitterPanels: any[] = []
   selectedActivity: string = 'explorer';
   disablePanels: boolean = false;
@@ -24,7 +26,7 @@ export class SiteTemplateComponent {
 
   constructor() {
     this.windowResizing$ = new Subject();
-    this.windowResizing$.pipe(debounceTime(200)).subscribe(() => {
+    this.windowResizing$.pipe(debounceTime(200)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.disablePanels = false;
     });
   }

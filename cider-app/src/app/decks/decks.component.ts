@@ -1,4 +1,5 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { Subject, take } from 'rxjs';
 import { DecksService } from '../data-services/services/decks.service';
@@ -16,6 +17,7 @@ import { EntityTableComponent } from '../entity-table/entity-table.component';
     imports: [PageHeaderComponent, Bind, Card, EntityTableComponent]
 })
 export class DecksComponent implements OnInit, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
   private destroyed$: Subject<boolean> = new Subject();
   cols: EntityField<Deck>[];
   decks: Deck[];
@@ -32,7 +34,7 @@ export class DecksComponent implements OnInit, OnDestroy {
     this.decksService.getAll().then(decks => this.decks = decks);
     this.decksService.getFields().then(fields => this.cols = fields);
     this.decksService.getSelectedDeck().pipe(take(1))
-    .subscribe({next: (decks) => {
+    .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next: (decks) => {
       this.selectedDeck = decks;
     }});
   }

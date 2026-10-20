@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmationService, MenuItem, MessageService, TreeDragDropService, TreeNode, PrimeTemplate } from 'primeng/api';
 import { DecksService } from '../data-services/services/decks.service';
 import { AssetsService } from '../data-services/services/assets.service';
@@ -28,6 +29,7 @@ import { ConfirmDialog } from 'primeng/confirmdialog';
     imports: [Bind, Tree, PrimeTemplate, ContextMenu, EntityDialogComponent, ConfirmDialog, TranslatePipe]
 })
 export class SiteSidebarComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   deckId: number = 0;
   files: TreeNode[] = [];
   selectedFile: TreeNode | null = null;
@@ -59,17 +61,17 @@ export class SiteSidebarComponent implements OnInit {
     console.log('init sidebar');
 
     // update menu on language change
-    this.translate.stream('welcome.title').subscribe(() => {
+    this.translate.stream('welcome.title').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.updateFiles();
     });
 
     // Database ready or reloaded: full tree rebuild
-    this.db.onLoad().subscribe(() => {
+    this.db.onLoad().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.updateFiles();
     });
 
     // Structural changes (create/delete/reset): full tree rebuild
-    this.db.onChange().pipe(debounceTime(500)).subscribe((change: any) => {
+    this.db.onChange().pipe(debounceTime(500)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((change: any) => {
       if (!change || change.type === 'create' || change.type === 'delete' || change.type === 'reset') {
         this.updateFiles();
       }

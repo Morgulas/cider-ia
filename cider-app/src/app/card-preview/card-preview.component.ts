@@ -1,4 +1,5 @@
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, QueryList, SecurityContext, SimpleChanges, ViewChildren } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, QueryList, SecurityContext, SimpleChanges, ViewChildren, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AssetsService } from '../data-services/services/assets.service';
 import { CardTemplate } from '../data-services/types/card-template.type';
 import { Card } from '../data-services/types/card.type';
@@ -19,6 +20,7 @@ import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
     imports: [CardToHtmlPipe, SafeUrlPipe]
 })
 export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
   @ViewChildren('cardElement') cardElement: QueryList<any> = {} as QueryList<any>;
   @Input() card: Card = {} as Card;
   @Input() template: CardTemplate = {} as CardTemplate;
@@ -79,7 +81,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   }
 
   ngOnInit(): void {
-    this.assetsService.getAssetUrls().subscribe(assetUrls => {
+    this.assetsService.getAssetUrls().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(assetUrls => {
       this.assetUrls = assetUrls;
       this.changeDetectorRef.markForCheck();
     });
@@ -105,6 +107,8 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       lastValueFrom(this.isLoadedSubject).then(() => {
         this.renderCacheService.getOrSet(this.getHash(),
           () => GeneralUtils.delay(2000).then(() => this.toImageUrl()))
+          // completes by itself (AsyncSubject), and may run after the preview is destroyed:
+          // no takeUntilDestroyed here
           .subscribe({
             next: (cachedImageUrl) => {
               this.cachedImageUrl = cachedImageUrl;

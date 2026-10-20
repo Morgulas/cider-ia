@@ -1,4 +1,5 @@
-import { AfterViewChecked, Component, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { AfterViewChecked, Component, OnInit, QueryList, ViewChildren, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CardPreviewComponent } from '../card-preview/card-preview.component';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { CardsService } from '../data-services/services/cards.service';
@@ -45,6 +46,7 @@ import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
     imports: [Bind, Card_1, SelectButton, FormsModule, ButtonDirective, Ripple, Tooltip, ProgressBar, CardPreviewComponent, Paginator, Select, InputText, Checkbox, Message, ToggleSwitch, ConfirmDialog, ExportSelectionDialogComponent, Dialog, AsyncPipe, EntityPipe, SafeUrlPipe, TranslatePipe]
 })
 export class ExportCardsComponent implements OnInit, AfterViewChecked {
+  private readonly destroyRef = inject(DestroyRef);
   private static readonly SINGULAR_EXPORT = 'singular-export';
   private static readonly SHEET_EXPORT = 'sheet-export';
   public static readonly PDF_DPI = 72;
@@ -175,7 +177,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   }
 
   ngOnInit(): void {
-    this.translate.stream('welcome.title').subscribe(async () => {
+    this.translate.stream('welcome.title').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async () => {
       await this.updateOptions();
       this.loadSettings();
       this.initializationDone = true;

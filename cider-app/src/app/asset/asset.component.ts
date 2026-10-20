@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AssetsService } from '../data-services/services/assets.service';
 import { ActivatedRoute } from '@angular/router';
 import { Asset } from '../data-services/types/asset.type';
@@ -30,6 +31,7 @@ import { FileUrlPipe } from '../shared/pipes/file-url.pipe';
     imports: [Bind, Card, Tag, ButtonDirective, FormsModule, Textarea, NgIf, NgClass, Tooltip, NgFor, InputText, EntityDialogComponent, ConfirmDialog, Toast, UpperCasePipe, FileUrlPipe]
 })
 export class AssetComponent {
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly math = Math;
   public asset: Asset = {} as Asset;
   public zoom: number = 1.0;
@@ -77,7 +79,7 @@ export class AssetComponent {
     combineLatest({
       assetUrls: this.assetsService.getAssetUrls(),
       routeParams: this.route.paramMap
-    }).subscribe(({ assetUrls, routeParams }) => {
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ assetUrls, routeParams }) => {
       const assetIdString = routeParams.get('assetId') || '';
       const assetId = parseInt(assetIdString, 10);
       this.assetUrls = assetUrls;

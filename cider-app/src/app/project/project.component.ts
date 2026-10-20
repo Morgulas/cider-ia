@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DecksService } from '../data-services/services/decks.service';
 import { AssetsService } from '../data-services/services/assets.service';
 import { DocumentsService } from '../data-services/services/documents.service';
@@ -45,6 +46,7 @@ interface Meter {
     imports: [Bind, Card, MeterGroup, Button, TranslatePipe]
 })
 export class ProjectComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   projectName: string = 'Cider Project';
   projectInfo: ProjectInfo | undefined;
   deckInfos: DeckInfo[] = [];
@@ -63,7 +65,7 @@ export class ProjectComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.translate.stream('welcome.title').subscribe(() => {
+    this.translate.stream('welcome.title').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.getProjectInfo().then(info => {
         this.projectInfo = info;
         this.projectName = info.name;

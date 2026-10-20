@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DocumentsService } from '../data-services/services/documents.service';
 import { Document } from '../data-services/types/document.type';
 import { AssetsService } from '../data-services/services/assets.service';
@@ -12,6 +13,7 @@ import { debounceTime } from 'rxjs';
     styleUrls: ['./site-content.component.scss']
 })
 export class SiteContentComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   protected globalDocument: Document | undefined;
   assetUrls: any;
 
@@ -19,7 +21,7 @@ export class SiteContentComponent implements OnInit {
       private documentsService: DocumentsService,
       private assetsService: AssetsService,
       private handlebarsPipe: HandlebarsPipe) {
-    this.assetsService.getAssetUrls().subscribe(assetUrls => {
+    this.assetsService.getAssetUrls().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(assetUrls => {
       this.assetUrls = assetUrls;
       this.refreshGlobalStyles(true);
     });
@@ -28,7 +30,7 @@ export class SiteContentComponent implements OnInit {
   ngOnInit(): void {
     // make sure to listen for global styles document updates
     // db on change event may be too frequent, consider optimizing
-    this.db.onChange().pipe(debounceTime(2000)).subscribe(() => {
+    this.db.onChange().pipe(debounceTime(2000)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.refreshGlobalStyles();
     });
   }

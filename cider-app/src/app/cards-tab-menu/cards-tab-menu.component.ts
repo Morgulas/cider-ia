@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MenuItem } from 'primeng/api';
 import { Observable } from 'rxjs';
 import { DecksService } from '../data-services/services/decks.service';
@@ -10,6 +11,7 @@ import { Deck } from '../data-services/types/deck.type';
     styleUrls: ['./cards-tab-menu.component.scss']
 })
 export class CardsTabMenuComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
 
   selectedDeck$: Observable<Deck | undefined>;
   items: MenuItem[] = [];
@@ -20,7 +22,7 @@ export class CardsTabMenuComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.selectedDeck$.subscribe({
+    this.selectedDeck$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (selectedDeck) => {
         this.items = [
           {label: 'Listing', icon: 'pi pi-fw pi-list', routerLink: [`/decks/${selectedDeck?.id}/cards/listing`]},

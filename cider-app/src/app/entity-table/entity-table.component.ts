@@ -1,4 +1,5 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmationService, LazyLoadEvent, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { EntityField } from '../data-services/types/entity-field.type';
@@ -41,6 +42,7 @@ import { FileUrlPipe } from '../shared/pipes/file-url.pipe';
     imports: [Bind, Toast, TableModule, PrimeTemplate, ButtonDirective, Ripple, Tooltip, IconField, InputText, InputIcon, MultiSelect, FormsModule, Select, Textarea, EntityDialogComponent, ConfirmDialog, Dialog, Message, FileUpload, ContextMenu, Button, AsyncPipe, EntityListCachedPipe, FileUrlPipe, TranslatePipe]
 })
 export class EntityTableComponent<Entity, Identifier extends string | number> implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
 
   @Input() records: Entity[] = [];
   @Input() columns: EntityField<Entity>[] = [];
@@ -77,7 +79,7 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
     private confirmationService: ConfirmationService,
     private translate: TranslateService) {
       this.saveSubject.asObservable().pipe(debounceTime(1000))
-        .subscribe((entity) => this.save(entity));
+        .pipe(takeUntilDestroyed(this.destroyRef)).subscribe((entity) => this.save(entity));
       this.optionsCache = new Map<EntityService<any, string | number>, any[]>();
   }
 

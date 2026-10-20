@@ -1,4 +1,5 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { CardsService } from '../data-services/services/cards.service';
 import { Card } from '../data-services/types/card.type';
@@ -22,6 +23,7 @@ import { EntityPipe } from '../data-services/pipes/entity.pipe';
     imports: [Bind, Card_1, SelectButton, FormsModule, IconField, InputText, InputIcon, DataView_1, CardPreviewComponent, AsyncPipe, EntityPipe, TranslatePipe]
 })
 export class CardThumbnailsComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   @ViewChild('dv') dv!: DataView;
   thumbnailCards: Card[] = [];
   zoomLevel: number = 0.3;
@@ -57,7 +59,7 @@ export class CardThumbnailsComponent implements OnInit {
 
     // update side options labels and copy options labels
     // whenever the language changes
-    this.translate.stream('welcome.title').subscribe(() => {
+    this.translate.stream('welcome.title').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.sideOptions[0].label = this.translate.instant('controls.fronts');
       this.sideOptions[1].label = this.translate.instant('controls.backs');
       this.sideOptions[2].label = this.translate.instant('controls.both');

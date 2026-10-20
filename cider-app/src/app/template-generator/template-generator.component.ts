@@ -1,4 +1,5 @@
-import { Component, OnInit, EventEmitter, Input, Output } from '@angular/core';
+import { Component, OnInit, EventEmitter, Input, Output, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CardTemplate } from "../data-services/types/card-template.type";
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import TemplateDefaults, { CardTheme, TemplateDesign } from '../shared/defaults/template-defaults';
@@ -23,6 +24,7 @@ import { TranslatePipe } from '@ngx-translate/core';
     imports: [Bind, Card, Stepper, StepList, Step, StepPanels, StepPanel, SelectButton, FormsModule, CardPreviewComponent, Button, NgIf, InputText, TranslatePipe]
 })
 export class TemplateGeneratorComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   deckId: number = 0;
   zoomLevel: number = 0.25;
   previewZoom: number = 0.40;
@@ -40,7 +42,7 @@ export class TemplateGeneratorComponent implements OnInit {
     public templatesService: CardTemplatesService,
     private assetsService: AssetsService,
   ) {
-      this.route.paramMap.subscribe(params => {
+      this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
         const deckIdString = params.get('deckId') || '';
         this.deckId = parseInt(deckIdString, 10);
       })

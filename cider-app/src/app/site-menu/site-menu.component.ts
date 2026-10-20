@@ -1,4 +1,5 @@
-import { Component, NgZone, OnInit } from '@angular/core';
+import { Component, NgZone, OnInit, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmationService, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
 import { NavigationEnd, Router } from '@angular/router';
 import { ExportProgress } from 'dexie-export-import/dist/export';
@@ -29,6 +30,7 @@ import { ProgressBar } from 'primeng/progressbar';
     imports: [Bind, Menubar, Breadcrumb, ConfirmDialog, Dialog, PrimeTemplate, Message, FileUpload, ButtonDirective, Ripple, ProgressBar, TranslatePipe]
 })
 export class SiteMenuComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
 
   selectedDeck$: Observable<Deck | undefined>;
   items: MenuItem[];
@@ -59,7 +61,7 @@ export class SiteMenuComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    combineLatest([this.selectedDeck$, this.translate.onLangChange]).subscribe({
+    combineLatest([this.selectedDeck$, this.translate.onLangChange]).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: ([selectedDeck, langChange]) => {
         // setup the menu items
         this.items = [
@@ -102,7 +104,7 @@ export class SiteMenuComponent implements OnInit {
     // use the router to update the current route
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
-    ).subscribe((event: any) => {
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event: any) => {
       this.ngZone.run(async () => {
         const routeUrl = event.urlAfterRedirects;
         this.currentRoute = routeUrl;
