@@ -64,6 +64,7 @@
     },
     "menu": {
         "file": "Файл",
+        "new-empty-project": "Нов празен проект",
         "advanced": "Разширени",
         "reset-database": "Нулиране на базата данни",
         "import-database": "Импортиране на база данни",

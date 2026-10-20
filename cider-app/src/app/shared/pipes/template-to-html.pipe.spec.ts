@@ -1,5 +1,4 @@
 import { DomSanitizer } from '@angular/platform-browser';
-import { HandlebarsPipe } from './handlebars.pipe';
 import { CardToHtmlPipe } from './template-to-html.pipe';
 import { CardTemplate } from 'src/app/data-services/types/card-template.type';
 import { Card } from 'src/app/data-services/types/card.type';
@@ -14,14 +13,22 @@ describe('CardToHtmlPipe', () => {
     pipe.transform({ html, css } as CardTemplate, card as Card, assets, 'u1') as unknown as string;
 
   beforeEach(() => {
-    // the Handlebars helpers (compile, eq, add...) are registered by HandlebarsPipe
-    new HandlebarsPipe(fakeSanitizer);
+    // registers the Handlebars helpers (compile, eq, add...) by itself
     pipe = new CardToHtmlPipe(fakeSanitizer);
   });
 
   it('returns an empty string without template or card', () => {
     expect(pipe.transform(undefined as any, {} as Card) as unknown).toBe('');
     expect(pipe.transform({ html: 'x', css: 'y' } as CardTemplate, undefined as any) as unknown).toBe('');
+  });
+
+  it('renders a template that has no css', () => {
+    const out = render('<div style="color: red">{{card.name}}</div>', '', { name: 'Apple' });
+    expect(out).toBe('<div style="color: red">Apple</div>');
+  });
+
+  it('can use the helpers without HandlebarsPipe being created first', () => {
+    expect(render('<b>{{add 2 3}}</b>', '', {})).toBe('<b>5</b>');
   });
 
   it('renders card data into the template', () => {

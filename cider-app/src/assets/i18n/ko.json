@@ -64,6 +64,7 @@
     },
     "menu": {
         "file": "파일",
+        "new-empty-project": "새 빈 프로젝트",
         "advanced": "고급",
         "reset-database": "데이터베이스 초기화",
         "import-database": "데이터베이스 가져오기",

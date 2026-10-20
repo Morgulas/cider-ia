@@ -57,11 +57,12 @@ describe('GameSimulatorActions', () => {
     expect(GameSimulatorActions.createStackFromCard(field, card)).toBeUndefined();
   });
 
-  it('splits a stack in half into a new stack', () => {
-    const stack = stackOf(['a', 'b', 'c', 'd'].map(id => gameCard(id)));
+  it('moves the top half of a stack into a new stack', () => {
+    const stack = stackOf(['a', 'b', 'c', 'd', 'e'].map(id => gameCard(id)));
     const newStack = GameSimulatorActions.splitInHalf(stack, () => 0.5);
-    expect(newStack?.cards.length).toBe(2);
-    expect(stack.cards.length).toBe(2);
+    // the top of a stack is the end of the array (cards are drawn with pop)
+    expect(newStack?.cards.map(c => c.uniqueId)).toEqual(['d', 'e']);
+    expect(stack.cards.map(c => c.uniqueId)).toEqual(['a', 'b', 'c']);
     expect(newStack?.pos).toEqual({ x: 150, y: 150 });
     expect(GameSimulatorActions.splitInHalf(stackOf([gameCard('x')]))).toBeUndefined();
   });

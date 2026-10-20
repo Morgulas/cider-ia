@@ -12,10 +12,9 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "build:gh-pages": "ng build --base-href=/cider/",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "test:ci": "ng test --watch=false --browsers=ChromeHeadlessCI --include='src/app/shared/**/*.spec.ts' --include='src/app/game-simulator/**/*.spec.ts'",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadlessCI --include=\"src/app/shared/**/*.spec.ts\" --include=\"src/app/game-simulator/**/*.spec.ts\"",
     "lint": "ng lint"
   },
   "browser": {
@@ -51,7 +50,7 @@
     "html-to-image": "^1.11.13",
     "jszip": "^3.10.1",
     "marked": "^17.0.1",
-    "mermaid": "^11.13.0",
+    "mermaid": "^11.17.2",
     "mime": "^3.0.0",
     "mime-wrapper": "^2.0.0",
     "monaco-editor": "^0.50.0",

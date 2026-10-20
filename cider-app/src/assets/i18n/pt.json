@@ -64,6 +64,7 @@
     },
     "menu": {
         "file": "Arquivo",
+        "new-empty-project": "Novo projeto vazio",
         "advanced": "Avançado",
         "reset-database": "Redefinir Banco de Dados",
         "import-database": "Importar Banco de Dados",

@@ -1,8 +1,9 @@
 <div class="footer">
-    <span>CIDEr {{appVersion}}</span>
+    <span>CIDEr IA {{appVersion}} · modified fork of Oatear Cider (AGPL-3.0)</span>
     <span class="fill"></span>
     <span class="p-mr-2">Copyright Ⓒ 2026 Oatear LLC</span>
     <p-button icon="pi pi-discord" [rounded]="true" [text]="true" (onClick)="navigateToDiscord()" />
-    <p-button icon="pi pi-github" [rounded]="true" [text]="true" (onClick)="navigateToGithub()" />
+    <p-button icon="pi pi-github" [rounded]="true" [text]="true" (onClick)="navigateToGithub()"
+        pTooltip="Source code of this version" />
     <p-button icon="pi pi-book" [rounded]="true" [text]="true" (onClick)="navigateToUserGuide()" />
 </div>

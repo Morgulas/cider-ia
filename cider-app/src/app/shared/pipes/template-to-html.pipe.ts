@@ -4,6 +4,7 @@ import { CardTemplate } from 'src/app/data-services/types/card-template.type';
 import { Card } from 'src/app/data-services/types/card.type';
 import * as Handlebars from 'handlebars';
 import HtmlSanitizer from '../utils/html-sanitizer';
+import { registerHandlebarsHelpers } from '../utils/handlebars-helpers';
 
 /**
  * Convert a card template into html
@@ -16,7 +17,9 @@ export class CardToHtmlPipe implements PipeTransform {
   private static compiledTemplates = new Map<string, Handlebars.TemplateDelegate>();
   private static readonly MAX_CACHE_SIZE = 500;
 
-  constructor(private domSanitizer: DomSanitizer) { }
+  constructor(private domSanitizer: DomSanitizer) {
+    registerHandlebarsHelpers();
+  }
 
   transform(template: CardTemplate, card: Card, assetUrls?: any, uuid?: string, version?: number): SafeHtml {
 
@@ -53,16 +56,17 @@ export class CardToHtmlPipe implements PipeTransform {
   }
 
   private safeHtmlAndStyle(card: Card, html: string, css: string, uuid?: string): SafeHtml {
-    if (!html || !css) {
+    if (!html) {
       return '';
     }
-    const scopedStyle = css.replace(/([^{}]*\{)/g, `.card-preview.card-${uuid} $1`)
+    // the CSS is optional: a template may style itself with inline styles only
+    const scopedStyle = (css || '').replace(/([^{}]*\{)/g, `.card-preview.card-${uuid} $1`)
       .replace(/!important/g, '');
     // Template and card data are untrusted: strip scripts, event handlers and
     // javascript: URLs before handing the result to Angular as trusted HTML.
     // The CSS is sanitized together with the HTML so that a "</style>" in it
     // cannot break out of the style block.
-    const safe = HtmlSanitizer.sanitizeHtml(`${html}<style>${scopedStyle}</style>`);
+    const safe = HtmlSanitizer.sanitizeHtml(scopedStyle ? `${html}<style>${scopedStyle}</style>` : html);
     return this.domSanitizer.bypassSecurityTrustHtml(safe);
   }
 }

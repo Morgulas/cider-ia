@@ -70,6 +70,10 @@ export class SiteMenuComponent implements OnInit {
             icon: 'pi pi-pw pi-file',
             items: [
               {
+                label: this.translate.instant('menu.new-empty-project'),
+                icon: 'pi pi-pw pi-file',
+                command: () => this.openNewEmptyProjectDialog()
+              }, {
                 label: this.translate.instant('menu.advanced'),
                 icon: 'pi pi-pw pi-database',
                 items: [
@@ -195,6 +199,20 @@ export class SiteMenuComponent implements OnInit {
           this.displayLoading = false;
         });
       }
+    });
+  }
+
+  public openNewEmptyProjectDialog() {
+    this.confirmationService.confirm({
+      message: 'Are you sure that you wish to start a new empty project?'
+        + ' This will delete all of your data. Export the database first to keep a copy.',
+      header: 'New Empty Project',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => this.db.resetDatabase(true).then(() => {
+        this.assetsService.updateAssetUrls();
+        this.decksService.selectDeck(undefined);
+        this.router.navigateByUrl('/project');
+      })
     });
   }
 

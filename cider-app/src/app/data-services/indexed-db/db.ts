@@ -9,7 +9,7 @@ import FileUtils from "src/app/shared/utils/file-utils";
 import { ExportProgress } from "dexie-export-import/dist/export";
 import { ImportProgress } from "dexie-export-import/dist/import";
 import { HttpClient } from "@angular/common/http";
-import { Subject, firstValueFrom } from "rxjs";
+import { ReplaySubject, Subject, firstValueFrom } from "rxjs";
 import { Injectable } from "@angular/core";
 
 @Injectable({
@@ -37,14 +37,15 @@ export class AppDB extends Dexie {
     cardTemplates!: Table<CardTemplate, number>;
     private httpClient;
     private changeSubject: Subject<any>;
-    private loadSubject: Subject<null>;
+    private loadSubject: ReplaySubject<null>;
     private isPopulating = false;
 
     constructor(httpClient: HttpClient) {
         super(AppDB.DB_NAME);
         this.httpClient = httpClient;
         this.changeSubject = new Subject<any>();
-        this.loadSubject = new Subject<null>();
+        // replayed: a subscriber that arrives after the database is ready still gets the event
+        this.loadSubject = new ReplaySubject<null>(1);
         /**
          * Dexie Versioning Documentation:
          * 
@@ -260,8 +261,12 @@ export class AppDB extends Dexie {
             noTransaction: true,
             progressCallback: progressCallback
         }).then(tempDb => tempDb.close())
-            .then(result => this.open())
-            .then(() => true);
+            .then(() => this.open())
+            .then(() => {
+                // the import wrote through another connection: tell the UI (sidebar...) to reload
+                this.changeSubject.next({ tableName: 'all', type: 'reset', key: null });
+                return true;
+            });
     }
 
     /**

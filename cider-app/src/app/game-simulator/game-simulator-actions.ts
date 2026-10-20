@@ -58,7 +58,8 @@ export default class GameSimulatorActions {
   }
 
   /**
-   * Moves part of a stack into a new stack placed next to it.
+   * Moves the top half of a stack (the end of the array, where cards are drawn)
+   * into a new stack placed next to it. With an odd count the extra card stays.
    * Undefined when the stack has fewer than 2 cards.
    */
   static splitInHalf(stack: CardStack, random: () => number = Math.random): CardStack | undefined {
@@ -66,7 +67,7 @@ export default class GameSimulatorActions {
       return undefined;
     }
     const half = Math.floor(stack.cards.length / 2);
-    const cards = stack.cards.splice(half - 1, half);
+    const cards = stack.cards.splice(stack.cards.length - half, half);
     return {
       uniqueId: StringUtils.generateRandomString(),
       name: stack.name + ' copy',

@@ -1,4 +1,3 @@
-import { DomSanitizer } from '@angular/platform-browser';
 import * as Handlebars from 'handlebars';
 import { HandlebarsPipe } from './handlebars.pipe';
 
@@ -7,7 +6,7 @@ describe('HandlebarsPipe', () => {
   const run = (template: string, context: any = {}) => Handlebars.compile(template)(context);
 
   beforeEach(() => {
-    pipe = new HandlebarsPipe({} as DomSanitizer);
+    pipe = new HandlebarsPipe();
   });
 
   it('renders asset urls and drops !important (global styles)', () => {

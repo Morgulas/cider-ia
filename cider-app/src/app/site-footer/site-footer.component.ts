@@ -2,12 +2,13 @@ import { Component, OnInit } from '@angular/core';
 import PackageUtils from '../shared/utils/package-utils';
 import { Bind } from 'primeng/bind';
 import { Button } from 'primeng/button';
+import { Tooltip } from 'primeng/tooltip';
 
 @Component({
     selector: 'app-site-footer',
     templateUrl: './site-footer.component.html',
     styleUrls: ['./site-footer.component.scss'],
-    imports: [Bind, Button]
+    imports: [Bind, Button, Tooltip]
 })
 export class SiteFooterComponent implements OnInit {
   appVersion = '0.0.0';
@@ -19,8 +20,9 @@ export class SiteFooterComponent implements OnInit {
   ngOnInit(): void {
   }
 
+  /** Source of this modified version (AGPL-3.0 section 13): the fork, not the original */
   navigateToGithub() {
-    window.open('https://github.com/oatear/cider', "_blank");
+    window.open('https://github.com/Morgulas/cider-ia', "_blank");
   }
   navigateToUserGuide() {
     window.open('https://oatear.github.io/cider-docs/docs/overview', "_blank");

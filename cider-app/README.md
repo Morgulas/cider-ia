@@ -41,16 +41,6 @@ Run `npm install`
 
 # Other
 
-## Build GitHub Pages (New)
-
-Run `npm run build:gh-pages` to build the site for github pages.
-Make sure to copy index.html to 404.html to handle all urls.
-
-## Deploy GitHub Pages
-
-Run `ng build --outputPath=../docs --baseHref=/cider/` to build the site for github pages.
-Make sure to copy index.html to 404.html to handle all urls. Replaced by `Build GitHub Pages` above.
-
 ## Build
 
 Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
@@ -58,6 +48,7 @@ Run `ng build` to build the project. The build artifacts will be stored in the `
 ## Running unit tests
 
 Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+Run `npm run test:ci` for a single headless run (as in CI), and `npm run lint` for ESLint.
 
 ## Running end-to-end tests
 

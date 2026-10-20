@@ -64,6 +64,7 @@
     },
     "menu": {
         "file": "Bestand",
+        "new-empty-project": "Nieuw leeg project",
         "advanced": "Geavanceerd",
         "reset-database": "Database Herstellen",
         "import-database": "Database Importeren",
