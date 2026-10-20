@@ -1,6 +1,8 @@
 :host {
   display: block;
-  min-height: 100vh;
+  /* the application frame does not scroll: each page scrolls itself */
+  height: 100vh;
+  height: 100dvh;
   overflow: auto;
   background: var(--cider-app-background, var(--p-menubar-background));
 }
