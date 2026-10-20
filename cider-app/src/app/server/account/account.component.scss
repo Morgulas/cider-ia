@@ -1,0 +1,42 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  overflow: auto;
+  background: var(--cider-app-background, var(--p-menubar-background));
+}
+
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+
+  h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.6rem;
+  }
+}
+
+.muted {
+  color: var(--p-text-muted-color);
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+
+  label {
+    margin-top: 0.5rem;
+    font-weight: 500;
+  }
+
+  p-button {
+    margin-top: 1rem;
+    align-self: flex-start;
+  }
+}
+
+:host ::ng-deep .full-width {
+  width: 100%;
+}

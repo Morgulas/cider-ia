@@ -55,6 +55,8 @@ export class SessionStore {
   create(userId: string): Promise<string> {
     return this.queue.run(async () => {
       const token = randomBytes(32).toString('base64url');
+      const now = Date.now();
+      this.sessions = this.sessions.filter(session => Date.parse(session.expiresAt) > now);
       this.sessions.push({
         tokenHash: hashToken(token),
         userId,

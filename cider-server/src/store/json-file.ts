@@ -6,15 +6,38 @@ import path from 'node:path';
  * Writes a file atomically: the content goes to a temporary file in the same
  * folder, which then replaces the target. A crash never leaves a half-written file.
  */
-export async function writeFileAtomic(file: string, content: string): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
+export async function writeFileAtomic(file: string, content: string | Buffer): Promise<void> {
+  const dir = path.dirname(file);
+  await fs.mkdir(dir, { recursive: true });
   const tmp = `${file}.${randomBytes(6).toString('hex')}.tmp`;
   try {
-    await fs.writeFile(tmp, content, { encoding: 'utf8', mode: 0o600 });
+    const handle = await fs.open(tmp, 'w', 0o600);
+    try {
+      await handle.writeFile(content);
+      // on disk before the rename: a power cut never leaves an empty file behind
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
     await fs.rename(tmp, file);
+    await syncDirectory(dir);
   } catch (error) {
     await fs.rm(tmp, { force: true });
     throw error;
+  }
+}
+
+/** Makes a rename durable (not supported on every platform: best effort) */
+async function syncDirectory(dir: string): Promise<void> {
+  try {
+    const handle = await fs.open(dir, 'r');
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    // directories cannot be opened for sync on some systems (Windows)
   }
 }
 

@@ -39,6 +39,7 @@ interface Meter {
   color: string;
 }
 
+import { CurrentProjectService } from '../server/current-project.service';
 @Component({
     selector: 'app-project',
     templateUrl: './project.component.html',
@@ -46,6 +47,7 @@ interface Meter {
     imports: [Bind, Card, MeterGroup, Button, TranslatePipe]
 })
 export class ProjectComponent implements OnInit {
+  private readonly currentProject = inject(CurrentProjectService);
   private readonly destroyRef = inject(DestroyRef);
   projectName = 'Cider Project';
   projectInfo: ProjectInfo | undefined;
@@ -123,7 +125,7 @@ export class ProjectComponent implements OnInit {
 
   private getProjectName(): Promise<string> {
     const defaultProjectName = 'Cider ' + this.translate.instant('breadcrumbs.project');
-    return Promise.resolve(defaultProjectName);
+    return Promise.resolve(this.currentProject.project()?.name ?? defaultProjectName);
   }
 
   private async getProjectInfo(): Promise<ProjectInfo> {

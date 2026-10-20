@@ -1,10 +1,8 @@
-import { Component, NgZone, OnInit, DestroyRef, inject } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, NgZone, OnInit, DestroyRef, Injector, inject } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { ConfirmationService, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
 import { NavigationEnd, Router } from '@angular/router';
-import { ExportProgress } from 'dexie-export-import/dist/export';
-import { ImportProgress } from 'dexie-export-import/dist/import';
-import { Observable, combineLatest, filter, lastValueFrom, timeout } from 'rxjs';
+import { Observable, combineLatest, filter, lastValueFrom, startWith, timeout } from 'rxjs';
 import { AppDB } from '../data-services/indexed-db/db';
 import { AssetsService } from '../data-services/services/assets.service';
 import { DecksService } from '../data-services/services/decks.service';
@@ -21,6 +19,10 @@ import { FileUpload } from 'primeng/fileupload';
 import { ButtonDirective } from 'primeng/button';
 import { Ripple } from 'primeng/ripple';
 import { ProgressBar } from 'primeng/progressbar';
+import FileUtils from '../shared/utils/file-utils';
+import { AuthService } from '../server/auth.service';
+import { CurrentProjectService } from '../server/current-project.service';
+import { SessionActionsService } from '../server/session-actions.service';
 
 @Component({
     selector: 'app-site-menu',
@@ -31,6 +33,10 @@ import { ProgressBar } from 'primeng/progressbar';
 })
 export class SiteMenuComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
+  private readonly auth = inject(AuthService);
+  private readonly currentProject = inject(CurrentProjectService);
+  private readonly sessionActions = inject(SessionActionsService);
 
   selectedDeck$: Observable<Deck | undefined>;
   items: MenuItem[];
@@ -61,49 +67,66 @@ export class SiteMenuComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    combineLatest([this.selectedDeck$, this.translate.onLangChange]).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: ([selectedDeck, langChange]) => {
-        // setup the menu items
-        this.items = [
-          {
-            label: this.translate.instant('menu.file'),
-            icon: 'pi pi-pw pi-file',
-            items: [
-              {
-                label: this.translate.instant('menu.new-empty-project'),
-                icon: 'pi pi-pw pi-file',
-                command: () => this.openNewEmptyProjectDialog()
-              }, {
-                label: this.translate.instant('menu.advanced'),
-                icon: 'pi pi-pw pi-database',
-                items: [
-                  {
-                    label: this.translate.instant('menu.reset-database'),
-                    icon: 'pi pi-pw pi-database',
-                    command: () => this.openResetDialog()
-                  }, {
-                    label: this.translate.instant('menu.import-database'),
-                    icon: 'pi pi-pw pi-database',
-                    command: () => this.openImportDialog()
-                  }, {
-                    label: this.translate.instant('menu.export-database'),
-                    icon: 'pi pi-pw pi-database',
-                    command: () => this.openExportDialog()
-                  }
-                ]
-              }, {
-                separator: true
-              }, {
-                label: this.translate.instant("menu.export-cards"),
-                icon: 'pi pi-pw pi-file-pdf',
-                disabled: !selectedDeck,
-                routerLink: [`/decks/${selectedDeck?.id}/export-cards`]
-              }
-            ]
-          }
-        ];
-      }
-    });
+    // startWith: the shell appears when a project is opened, after the language
+    // was set at startup, so onLangChange alone would never fire here
+    combineLatest([this.selectedDeck$, this.translate.onLangChange.pipe(startWith(null)),
+      toObservable(this.auth.user, { injector: this.injector })])
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: ([selectedDeck, , user]) => {
+          this.items = [
+            {
+              label: this.translate.instant('menu.file'),
+              icon: 'pi pi-pw pi-file',
+              items: [
+                {
+                  label: this.translate.instant('menu.my-projects'),
+                  icon: 'pi pi-pw pi-folder-open',
+                  command: () => this.router.navigateByUrl('/projects')
+                }, {
+                  separator: true
+                }, {
+                  label: this.translate.instant('menu.export-project'),
+                  icon: 'pi pi-pw pi-download',
+                  command: () => this.downloadProject()
+                }, {
+                  label: this.translate.instant('menu.import-into-project'),
+                  icon: 'pi pi-pw pi-upload',
+                  command: () => this.openImportDialog()
+                }, {
+                  separator: true
+                }, {
+                  label: this.translate.instant("menu.export-cards"),
+                  icon: 'pi pi-pw pi-file-pdf',
+                  disabled: !selectedDeck,
+                  routerLink: [`/decks/${selectedDeck?.id}/export-cards`]
+                }
+              ]
+            }, {
+              label: user?.username ?? '',
+              icon: 'pi pi-pw pi-user',
+              styleClass: 'user-menu',
+              items: [
+                {
+                  label: this.translate.instant('server.topbar.account'),
+                  icon: 'pi pi-pw pi-id-card',
+                  command: () => this.router.navigateByUrl('/account')
+                }, {
+                  label: this.translate.instant('server.topbar.admin'),
+                  icon: 'pi pi-pw pi-users',
+                  visible: user?.isAdmin === true,
+                  command: () => this.router.navigateByUrl('/admin/users')
+                }, {
+                  separator: true
+                }, {
+                  label: this.translate.instant('server.topbar.logout'),
+                  icon: 'pi pi-pw pi-sign-out',
+                  command: () => this.sessionActions.logout()
+                }
+              ]
+            }
+          ];
+        }
+      });
 
     // use the router to update the current route
     this.router.events.pipe(
@@ -150,25 +173,23 @@ export class SiteMenuComponent implements OnInit {
     }
   }
 
-  public confirmDatabaseImport() {
-    if (this.importFile) {
-      this.loadingIndeterminate = false;
-      this.displayLoading = true;
-      this.loadingPercent = 0;
-      this.loadingHeader = 'Importing Data';
-      this.loadingInfo = 'Importing database rows...';
-      this.db.importDatabase(this.importFile, (progress: ImportProgress) => {
-        this.loadingPercent = (progress.completedRows / (progress.totalRows || 100)) * 100;
-        return true;
-      }).then(() => {
-        this.assetsService.updateAssetUrls();
-      }).then(() => {
-        this.decksService.selectDeck(undefined);
-        this.router.navigateByUrl(`/decks`);
-        this.loadingPercent = 100;
-        this.displayLoading = false;
-      });
-      this.importVisible = false;
+  /** Replaces the content of the open project with a database.json file; it is then saved to the server */
+  public async confirmDatabaseImport() {
+    if (!this.importFile) {
+      return;
+    }
+    this.importVisible = false;
+    this.loadingIndeterminate = true;
+    this.displayLoading = true;
+    this.loadingHeader = this.translate.instant('menu.import-into-project');
+    this.loadingInfo = '';
+    try {
+      await this.db.loadProject(this.importFile);
+      this.assetsService.updateAssetUrls();
+      this.decksService.selectDeck(undefined);
+      await this.router.navigateByUrl('/decks');
+    } finally {
+      this.displayLoading = false;
     }
   }
 
@@ -180,50 +201,22 @@ export class SiteMenuComponent implements OnInit {
     this.importVisible = false;
   }
 
-  public openExportDialog() {
-    this.confirmationService.confirm({
-      message: 'Are you sure that you wish to export the entire database?',
-      header: 'Export Database',
-      icon: 'pi pi-exclamation-triangle',
-      accept: () => {
-        this.loadingIndeterminate = false;
-        this.displayLoading = true;
-        this.loadingPercent = 0;
-        this.loadingHeader = 'Exporting Data';
-        this.loadingInfo = 'Exporting database rows...';
-        this.db.exportDatabase((progress: ExportProgress) => {
-          this.loadingPercent = (progress.completedRows / (progress.totalRows || 100)) * 100;
-          return true;
-        }).then(() => {
-          this.loadingPercent = 100;
-          this.displayLoading = false;
-        });
-      }
-    });
-  }
-
-  public openNewEmptyProjectDialog() {
-    this.confirmationService.confirm({
-      message: 'Are you sure that you wish to start a new empty project?'
-        + ' This will delete all of your data. Export the database first to keep a copy.',
-      header: 'New Empty Project',
-      icon: 'pi pi-exclamation-triangle',
-      accept: () => this.db.resetDatabase(true).then(() => {
-        this.assetsService.updateAssetUrls();
-        this.decksService.selectDeck(undefined);
-        this.router.navigateByUrl('/project');
-      })
-    });
-  }
-
-  public openResetDialog() {
-    this.confirmationService.confirm({
-      message: 'Are you sure that you wish to reset the entire database?'
-        + ' This will delete all of your data. Export the database first to keep a copy.',
-      header: 'Reset Database',
-      icon: 'pi pi-exclamation-triangle',
-      accept: () => this.db.resetDatabase()
-    });
+  /** Downloads the open project as a database.json file, after saving pending changes */
+  public async downloadProject() {
+    const project = this.currentProject.project();
+    if (!project) {
+      return;
+    }
+    this.loadingIndeterminate = true;
+    this.displayLoading = true;
+    this.loadingHeader = this.translate.instant('menu.export-project');
+    this.loadingInfo = '';
+    try {
+      await this.currentProject.flush();
+      FileUtils.saveAs(await this.db.exportProject(), `${project.name}.json`);
+    } finally {
+      this.displayLoading = false;
+    }
   }
 
 }

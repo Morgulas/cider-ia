@@ -1,0 +1,98 @@
+<app-topbar />
+<main class="page">
+  <div class="page-header">
+    <div>
+      <h1>{{ 'server.admin.title' | translate }}</h1>
+      <p class="muted">{{ 'server.admin.subtitle' | translate }}</p>
+    </div>
+    <p-button [label]="'server.admin.new-user' | translate" icon="pi pi-user-plus" [disabled]="busy()"
+      (onClick)="openCreateDialog()" />
+  </div>
+
+  @if (error()) {
+    <p-message severity="error" [text]="error()!" styleClass="block-message" />
+  }
+  @if (info()) {
+    <p-message severity="success" [text]="info()!" styleClass="block-message" />
+  }
+
+  <p-table [value]="users()" [loading]="loading() || busy()" dataKey="id">
+    <ng-template #header>
+      <tr>
+        <th>{{ 'server.admin.username' | translate }}</th>
+        <th>{{ 'server.admin.role' | translate }}</th>
+        <th>{{ 'server.admin.status' | translate }}</th>
+        <th>{{ 'server.admin.created' | translate }}</th>
+        <th></th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-user>
+      <tr>
+        <td>
+          {{ user.username }}
+          @if (isSelf(user)) {
+            <span class="muted">({{ 'server.admin.you' | translate }})</span>
+          }
+        </td>
+        <td>{{ (user.isAdmin ? 'server.admin.admin-role' : 'server.admin.user-role') | translate }}</td>
+        <td>
+          <p-tag [severity]="user.disabled ? 'danger' : 'success'"
+            [value]="(user.disabled ? 'server.admin.disabled' : 'server.admin.active') | translate" />
+        </td>
+        <td>{{ user.createdAt | date: 'mediumDate' }}</td>
+        <td class="row-actions">
+          <p-button icon="pi pi-key" [rounded]="true" [text]="true"
+            [pTooltip]="'server.admin.reset-password' | translate" [ariaLabel]="'server.admin.reset-password' | translate"
+            (onClick)="openPasswordDialog(user)" />
+          <p-button [icon]="user.isAdmin ? 'pi pi-shield' : 'pi pi-user'" [rounded]="true" [text]="true"
+            [disabled]="isSelf(user)"
+            [pTooltip]="(user.isAdmin ? 'server.admin.remove-admin' : 'server.admin.make-admin') | translate"
+            [ariaLabel]="(user.isAdmin ? 'server.admin.remove-admin' : 'server.admin.make-admin') | translate"
+            (onClick)="toggleAdmin(user)" />
+          <p-button [icon]="user.disabled ? 'pi pi-check-circle' : 'pi pi-ban'" [rounded]="true" [text]="true"
+            [disabled]="isSelf(user)"
+            [pTooltip]="(user.disabled ? 'server.admin.enable' : 'server.admin.disable') | translate"
+            [ariaLabel]="(user.disabled ? 'server.admin.enable' : 'server.admin.disable') | translate"
+            (onClick)="toggleDisabled(user)" />
+          <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger" [disabled]="isSelf(user)"
+            [pTooltip]="'server.admin.delete' | translate" [ariaLabel]="'server.admin.delete' | translate"
+            (onClick)="confirmDelete(user)" />
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</main>
+
+<p-dialog [header]="'server.admin.new-user' | translate" [(visible)]="createDialogVisible" [modal]="true"
+  [style]="{ width: '420px' }">
+  <form class="dialog-form" (ngSubmit)="create()" #createForm="ngForm">
+    <label for="new-username">{{ 'server.admin.username' | translate }}</label>
+    <input pInputText id="new-username" name="username" [(ngModel)]="newUsername" required autocomplete="off"
+      aria-describedby="new-username-help" />
+    <small id="new-username-help" class="muted">{{ 'server.login.username-rules' | translate }}</small>
+    <label for="new-password">{{ 'server.login.password' | translate }}</label>
+    <p-password inputId="new-password" name="password" [(ngModel)]="newPassword" [toggleMask]="true" required
+      autocomplete="new-password" styleClass="full-width" inputStyleClass="full-width" />
+    <small class="muted">{{ 'server.login.password-rules' | translate }}</small>
+    <div class="checkbox">
+      <p-checkbox inputId="new-is-admin" name="isAdmin" [(ngModel)]="newIsAdmin" [binary]="true" />
+      <label for="new-is-admin">{{ 'server.admin.is-admin' | translate }}</label>
+    </div>
+    <p-button type="submit" [label]="'server.admin.create' | translate" [disabled]="!createForm.valid || busy()"
+      [loading]="busy()" />
+  </form>
+</p-dialog>
+
+<p-dialog [header]="('server.admin.reset-password' | translate) + ' : ' + (passwordTarget?.username ?? '')"
+  [(visible)]="passwordDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <form class="dialog-form" (ngSubmit)="savePassword()" #passwordForm="ngForm">
+    <label for="reset-password">{{ 'server.admin.new-password' | translate }}</label>
+    <p-password inputId="reset-password" name="password" [(ngModel)]="resetPassword" [toggleMask]="true" required
+      autocomplete="new-password" styleClass="full-width" inputStyleClass="full-width" />
+    <small class="muted">{{ 'server.login.password-rules' | translate }}</small>
+    <p-button type="submit" [label]="'server.admin.reset-password' | translate"
+      [disabled]="!passwordForm.valid || busy()" [loading]="busy()" />
+  </form>
+</p-dialog>
+
+<p-confirmDialog [style]="{ width: '450px' }" />

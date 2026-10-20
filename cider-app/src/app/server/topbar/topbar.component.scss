@@ -1,0 +1,44 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.5rem 1.5rem;
+  border-bottom: 1px solid var(--p-content-border-color);
+  background: var(--p-menubar-background);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--p-text-color);
+  text-decoration: none;
+}
+
+.links {
+  display: flex;
+  gap: 1rem;
+
+  a {
+    color: var(--p-text-muted-color);
+    text-decoration: none;
+    padding: 0.25rem 0;
+    border-bottom: 2px solid transparent;
+
+    &.active,
+    &:hover {
+      color: var(--p-text-color);
+      border-bottom-color: var(--p-primary-color);
+    }
+  }
+}
+
+.fill {
+  flex-grow: 1;
+}
+
+.user {
+  color: var(--p-text-muted-color);
+}

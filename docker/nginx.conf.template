@@ -1,3 +1,9 @@
+# Protocole d'origine : celui transmis par un reverse proxy HTTPS en amont, sinon celui de la requête
+map $http_x_forwarded_proto $cider_forwarded_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
 server {
     listen 80;
     server_name _;
@@ -8,6 +14,23 @@ server {
     gzip on;
     gzip_types text/plain text/css application/javascript application/json application/wasm image/svg+xml;
     gzip_min_length 1024;
+
+    # API : relayée vers le service "api" (comptes et projets).
+    # Taille des envois : CIDER_MAX_PROJECT_MB (projets avec images), comme côté serveur.
+    location /api/ {
+        include /etc/nginx/snippets/security-headers.conf;
+        proxy_pass http://api:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        # uniquement l'adresse vue par nginx : une valeur envoyée par le client est ignorée
+        # (sinon il pourrait contourner la limite de tentatives de connexion)
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $cider_forwarded_proto;
+        client_max_body_size ${CIDER_MAX_PROJECT_MB}m;
+        proxy_request_buffering off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
 
     # index.html jamais mis en cache : les mises à jour sont prises en compte immédiatement
     location = /index.html {

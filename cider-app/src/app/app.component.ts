@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
+import { Component, OnInit, signal } from '@angular/core';
+import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 
 import { LocalStorageService } from './data-services/local-storage/local-storage.service';
 import { TranslateService } from '@ngx-translate/core';
@@ -15,11 +16,20 @@ import { SiteTemplateComponent } from './site-template/site-template.component';
 })
 export class AppComponent implements OnInit {
   title = 'cider';
+  /** project pages are shown in the editor shell; login, projects, users and account pages are full-screen */
+  protected readonly showShell = signal(false);
 
   constructor(private router: Router,
     private localStorageService: LocalStorageService,
     private translateService: TranslateService,
     private themeService: ThemeService) {
+    this.router.events.pipe(filter(event => event instanceof NavigationEnd)).subscribe(() => {
+      this.showShell.set(AppComponent.hasShellData(this.router.routerState.snapshot.root));
+    });
+  }
+
+  private static hasShellData(route: ActivatedRouteSnapshot): boolean {
+    return route.data['shell'] === true || route.children.some(child => AppComponent.hasShellData(child));
   }
 
   ngOnInit() {
@@ -29,26 +39,6 @@ export class AppComponent implements OnInit {
     });
 
     this.initTranslateService();
-    this.requestPersistentStorage();
-  }
-
-  /**
-   * Projects live only in this browser's IndexedDB. Without persistent storage the
-   * browser may evict them when disk space runs low; ask it to keep them.
-   * Chrome and Edge decide silently, Firefox may ask the user.
-   */
-  private requestPersistentStorage() {
-    if (!navigator.storage?.persist || !navigator.storage?.persisted) {
-      return;
-    }
-    navigator.storage.persisted().then(persisted => persisted
-      ? true
-      : navigator.storage.persist()
-    ).then(granted => {
-      console.log(`Persistent storage ${granted ? 'granted' : 'not granted'}`);
-    }).catch(() => {
-      // storage API unavailable (private window, insecure context): nothing to do
-    });
   }
 
   private initTranslateService() {

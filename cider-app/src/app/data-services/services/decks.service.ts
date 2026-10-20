@@ -17,6 +17,8 @@ export class DecksService extends IndexedDbService<Deck, number> {
       { field: 'name', header: 'Name', type: FieldType.text }
     ]);
     this.selectedDeck = new BehaviorSubject<Deck | undefined>(undefined);
+    // another project was loaded: its decks are different, drop the selection
+    db.onLoad().subscribe(() => this.selectDeck(undefined));
   }
 
   override getEntityName(entity: Deck) {

@@ -1,0 +1,89 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  overflow: auto;
+  background: var(--cider-app-background, var(--p-menubar-background));
+}
+
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.6rem;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.muted {
+  color: var(--p-text-muted-color);
+  margin: 0;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--p-primary-color);
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.badge {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background: var(--p-primary-color);
+  color: var(--p-primary-contrast-color);
+}
+
+.row-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  .label {
+    margin-top: 0.5rem;
+    font-weight: 500;
+  }
+
+  .radio {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  p-button {
+    margin-top: 1rem;
+    align-self: flex-end;
+  }
+}
+
+:host ::ng-deep .block-message {
+  margin-bottom: 1rem;
+}

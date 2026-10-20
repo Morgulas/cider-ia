@@ -1,6 +1,7 @@
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { ServerConfig } from './config.js';
 import { checkPasswordRules, hashPassword, verifyPassword } from './passwords.js';
@@ -34,6 +35,32 @@ export interface CiderApp {
   users: UserStore;
   sessions: SessionStore;
   projects: ProjectStore;
+  /** code required to create the first administrator */
+  setupToken: string;
+}
+
+/** Start of a Dexie export: {"formatName":"dexie" (spaces allowed) */
+const DEXIE_EXPORT_START = /^\s*\{\s*"formatName"\s*:\s*"dexie"/;
+
+function sameSecret(given: unknown, expected: string): boolean {
+  if (typeof given !== 'string') {
+    return false;
+  }
+  const a = Buffer.from(given.trim());
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Checks that a project body looks like a whole Dexie export, without parsing it all */
+function looksLikeDexieExport(body: Buffer): boolean {
+  if (!DEXIE_EXPORT_START.test(body.subarray(0, 256).toString('utf8'))) {
+    return false;
+  }
+  let end = body.length - 1;
+  while (end >= 0 && /\s/.test(String.fromCharCode(body[end]))) {
+    end--;
+  }
+  return end >= 0 && body[end] === 0x7d; // '}': the upload was not cut short
 }
 
 export async function buildApp(config: ServerConfig): Promise<CiderApp> {
@@ -45,19 +72,28 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
   await sessions.load();
   decoyHash ??= hashPassword('decoy-password-for-timing');
 
+  // code needed to create the first administrator: only someone who can read the
+  // server logs (or set CIDER_SETUP_TOKEN) can claim a fresh installation
+  const setupToken = config.setupToken || randomBytes(9).toString('base64url');
+
   const app = Fastify({
     logger: { level: config.logLevel },
-    // behind nginx: client address and protocol come from the X-Forwarded-* headers
-    trustProxy: true,
+    // behind nginx: client address and protocol come from the X-Forwarded-* headers,
+    // trusted only when they were set by a proxy of the private network
+    trustProxy: config.trustedProxies,
     bodyLimit: 1024 * 1024,
   });
 
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
 
-  // project bodies are stored as received: parse them as text, not as an object
-  app.addContentTypeParser(PROJECT_CONTENT_TYPE, { parseAs: 'string', bodyLimit: config.maxProjectMb * 1024 * 1024 },
+  // project bodies are stored as received: kept as raw bytes, never parsed whole
+  app.addContentTypeParser(PROJECT_CONTENT_TYPE, { parseAs: 'buffer', bodyLimit: config.maxProjectMb * 1024 * 1024 },
     (_request, body, done) => done(null, body));
+
+  if (users.count() === 0 && !config.setupToken) {
+    app.log.warn(`No account yet. Setup code for the first administrator: ${setupToken}`);
+  }
 
   app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => {
     if (error instanceof HttpError || error instanceof UserStoreError || error instanceof ProjectStoreError) {
@@ -138,7 +174,10 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
     if (users.count() > 0) {
       throw new HttpError(409, 'the administrator account already exists');
     }
-    const { username, password } = body(request);
+    const { username, password, setupToken: givenToken } = body(request);
+    if (!sameSecret(givenToken, setupToken)) {
+      throw new HttpError(403, 'wrong setup code (see the logs of the api container)');
+    }
     const passwordProblem = checkPasswordRules(password);
     if (passwordProblem) {
       throw new HttpError(400, passwordProblem);
@@ -232,7 +271,8 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
     }
     const user = await users.update(target.id, changes);
     if (changes.passwordHash || changes.disabled) {
-      await sessions.revokeUser(user.id);
+      // an administrator resetting their own password stays logged in here
+      await sessions.revokeUser(user.id, user.id === admin.id ? request.cookies[SESSION_COOKIE] : undefined);
     }
     return { user: toPublicUser(user) };
   });
@@ -257,7 +297,7 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
 
   app.post('/api/projects', async (request) => {
     const user = requireUser(request);
-    return { project: await projects.create(user.id, body(request)['name'] as string) };
+    return { project: await projects.create(user.id, body(request)['name'] as string, config.maxProjectsPerUser) };
   });
 
   app.get<{ Params: { id: string } }>('/api/projects/:id', async (request) => ({
@@ -290,17 +330,11 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
    */
   app.put<{ Params: { id: string }; Querystring: { force?: string } }>('/api/projects/:id/data', async (request) => {
     const user = requireUser(request);
-    if (request.headers['content-type']?.split(';')[0] !== PROJECT_CONTENT_TYPE || typeof request.body !== 'string') {
+    if (request.headers['content-type']?.split(';')[0] !== PROJECT_CONTENT_TYPE || !Buffer.isBuffer(request.body)) {
       throw new HttpError(415, `project data must be sent as ${PROJECT_CONTENT_TYPE}`);
     }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(request.body);
-    } catch {
-      throw new HttpError(400, 'project data is not valid JSON');
-    }
-    if (!parsed || typeof parsed !== 'object' || (parsed as { formatName?: unknown }).formatName !== 'dexie') {
-      throw new HttpError(400, 'project data is not a Cider database export');
+    if (!looksLikeDexieExport(request.body)) {
+      throw new HttpError(400, 'project data is not a complete Cider database export');
     }
     const baseHeader = request.headers['x-base-revision'];
     const baseRevision = typeof baseHeader === 'string' && /^\d+$/.test(baseHeader) ? Number(baseHeader) : undefined;
@@ -309,5 +343,5 @@ export async function buildApp(config: ServerConfig): Promise<CiderApp> {
     return { project };
   });
 
-  return { app, users, sessions, projects };
+  return { app, users, sessions, projects, setupToken };
 }

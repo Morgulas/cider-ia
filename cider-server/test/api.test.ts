@@ -64,8 +64,8 @@ describe('cider-server API', () => {
   before(async () => {
     dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cider-server-test-'));
     config = {
-      dataDir, host: '127.0.0.1', port: 0, sessionDays: 30, maxProjectMb: 1,
-      cookieSecure: 'auto', logLevel: 'silent',
+      dataDir, host: '127.0.0.1', port: 0, sessionDays: 30, maxProjectMb: 1, maxProjectsPerUser: 3,
+      setupToken: '', cookieSecure: 'auto', logLevel: 'silent', trustedProxies: ['loopback', '172.16.0.0/12'],
     };
     server = await buildApp(config);
   });
@@ -81,15 +81,26 @@ describe('cider-server API', () => {
     assert.deepEqual(response.json, { setupRequired: true, user: null });
   });
 
+  it('requires the setup code printed in the logs to create the administrator', async () => {
+    assert.ok(server.setupToken.length >= 12);
+    const missing = await call('POST', '/api/auth/setup', { body: { username: 'admin', password: 'admin-password-1' } });
+    assert.equal(missing.status, 403);
+    const wrong = await call('POST', '/api/auth/setup',
+      { body: { username: 'admin', password: 'admin-password-1', setupToken: 'not-the-code' } });
+    assert.equal(wrong.status, 403);
+    assert.equal(server.users.count(), 0);
+  });
+
   it('refuses a too short password at setup', async () => {
-    const response = await call('POST', '/api/auth/setup', { body: { username: 'admin', password: 'short' } });
+    const response = await call('POST', '/api/auth/setup',
+      { body: { username: 'admin', password: 'short', setupToken: server.setupToken } });
     assert.equal(response.status, 400);
   });
 
   it('creates exactly one administrator, even with simultaneous setups', async () => {
     const [first, second] = await Promise.all([
-      call('POST', '/api/auth/setup', { body: { username: 'admin', password: 'admin-password-1' } }),
-      call('POST', '/api/auth/setup', { body: { username: 'other', password: 'admin-password-1' } }),
+      call('POST', '/api/auth/setup', { body: { username: 'admin', password: 'admin-password-1', setupToken: server.setupToken } }),
+      call('POST', '/api/auth/setup', { body: { username: 'other', password: 'admin-password-1', setupToken: server.setupToken } }),
     ]);
     const statuses = [first.status, second.status].sort();
     assert.deepEqual(statuses, [200, 409]);
@@ -101,7 +112,8 @@ describe('cider-server API', () => {
     assert.equal(cookie.path, '/api');
     adminCookie = cookie.value;
     // later setups are refused
-    const again = await call('POST', '/api/auth/setup', { body: { username: 'third', password: 'admin-password-1' } });
+    const again = await call('POST', '/api/auth/setup',
+      { body: { username: 'third', password: 'admin-password-1', setupToken: server.setupToken } });
     assert.equal(again.status, 409);
   });
 
@@ -186,6 +198,9 @@ describe('cider-server API', () => {
     const notJson = await call('PUT', `/api/projects/${aliceProject}/data`,
       { cookie: aliceCookie, raw: '{oops', headers: { 'x-base-revision': '2' } });
     assert.equal(notJson.status, 400);
+    const truncated = await call('PUT', `/api/projects/${aliceProject}/data`,
+      { cookie: aliceCookie, raw: sampleProject('cut').slice(0, -5), headers: { 'x-base-revision': '2' } });
+    assert.equal(truncated.status, 400);
     const notDexie = await call('PUT', `/api/projects/${aliceProject}/data`,
       { cookie: aliceCookie, raw: '{"hello":1}', headers: { 'x-base-revision': '2' } });
     assert.equal(notDexie.status, 400);
@@ -215,6 +230,23 @@ describe('cider-server API', () => {
   it('rejects malformed project ids (no path traversal)', async () => {
     const response = await call('GET', `/api/projects/${encodeURIComponent('../users')}/data`, { cookie: aliceCookie });
     assert.equal(response.status, 404);
+  });
+
+  it('limits the number of projects per user', async () => {
+    const created: string[] = [];
+    let status = 200;
+    while (status === 200) {
+      const response = await call('POST', '/api/projects', { cookie: bobCookie, body: { name: `p${created.length}` } });
+      status = response.status;
+      if (status === 200) {
+        created.push(response.json.project.id);
+      }
+    }
+    assert.equal(status, 409);
+    assert.equal(created.length, 3);
+    for (const id of created) {
+      await call('DELETE', `/api/projects/${id}`, { cookie: bobCookie });
+    }
   });
 
   it('renames and deletes a project', async () => {
@@ -247,6 +279,15 @@ describe('cider-server API', () => {
     bobCookie = await login('bob', 'bob-password');
   });
 
+  it('keeps the administrator logged in when they reset their own password', async () => {
+    const me = await call('GET', '/api/auth/me', { cookie: adminCookie });
+    const reset = await call('PATCH', `/api/users/${me.json.user.id}`,
+      { cookie: adminCookie, body: { password: 'admin-password-2' } });
+    assert.equal(reset.status, 200);
+    assert.equal((await call('GET', '/api/auth/me', { cookie: adminCookie })).status, 200);
+    await login(me.json.user.username, 'admin-password-2');
+  });
+
   it('always keeps an active administrator', async () => {
     const status = await call('GET', '/api/auth/me', { cookie: adminCookie });
     const adminId = status.json.user.id;
@@ -272,6 +313,20 @@ describe('cider-server API', () => {
     assert.ok(!usersFile.includes('alice-password'));
     const sessionsFile = await fs.readFile(path.join(dataDir, 'sessions.json'), 'utf8');
     assert.ok(!sessionsFile.includes(aliceCookie));
+  });
+
+  it('limits login attempts per client, even with a forged X-Forwarded-For', async () => {
+    // what nginx forwards: the value sent by the client, then the real client address
+    const attempt = (forged: string) => server.app.inject({
+      method: 'POST', url: '/api/auth/login', remoteAddress: '172.18.0.3',
+      headers: { [CSRF_HEADER]: '1', 'content-type': 'application/json', 'x-forwarded-for': `${forged}, 203.0.113.7` },
+      payload: JSON.stringify({ username: 'nobody', password: 'wrong-password' }),
+    });
+    const statuses: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      statuses.push((await attempt(`10.0.0.${i}`)).statusCode);
+    }
+    assert.ok(statuses.includes(429), `no attempt was limited: ${statuses.join(',')}`);
   });
 
   it('deletes an account together with its projects', async () => {

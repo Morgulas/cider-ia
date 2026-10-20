@@ -14,7 +14,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "test:ci": "ng test --watch=false --browsers=ChromeHeadlessCI --include=\"src/app/shared/**/*.spec.ts\" --include=\"src/app/game-simulator/**/*.spec.ts\"",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadlessCI --include=\"src/app/shared/**/*.spec.ts\" --include=\"src/app/game-simulator/**/*.spec.ts\" --include=\"src/app/server/**/*.spec.ts\"",
     "lint": "ng lint"
   },
   "browser": {

@@ -1,10 +1,43 @@
 services:
-  cider:
+  # Interface web (fichiers statiques servis par nginx) ; relaie /api vers le service api
+  web:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: cider-ia:latest
-    container_name: cider-ia
+      dockerfile: docker/web.Dockerfile
+    image: cider-ia-web:latest
+    container_name: cider-ia-web
     restart: unless-stopped
     ports:
       - "${CIDER_PORT:-8080}:80"
+    environment:
+      # taille maximale d'un projet (images comprises), en Mo : même valeur que pour api
+      CIDER_MAX_PROJECT_MB: ${CIDER_MAX_PROJECT_MB:-200}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Serveur : comptes utilisateurs et projets
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: cider-ia-api:latest
+    container_name: cider-ia-api
+    restart: unless-stopped
+    environment:
+      # utilisateur propriétaire des fichiers de données sur l'hôte (id -u / id -g)
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      # durée de vie d'une session sans utilisation, en jours
+      CIDER_SESSION_DAYS: ${CIDER_SESSION_DAYS:-30}
+      # taille maximale d'un projet (images comprises), en Mo
+      CIDER_MAX_PROJECT_MB: ${CIDER_MAX_PROJECT_MB:-200}
+      # nombre maximal de projets par utilisateur
+      CIDER_MAX_PROJECTS_PER_USER: ${CIDER_MAX_PROJECTS_PER_USER:-100}
+      # code de création du premier administrateur ; vide = code aléatoire affiché dans les logs
+      CIDER_SETUP_TOKEN: ${CIDER_SETUP_TOKEN:-}
+      # "true" quand l'application est servie en HTTPS (cookie de session Secure)
+      CIDER_COOKIE_SECURE: ${CIDER_COOKIE_SECURE:-auto}
+    volumes:
+      # dossier de l'hôte où sont stockés comptes et projets
+      - ${CIDER_DATA_PATH:-./data}:/data

@@ -4,6 +4,7 @@ import { DecksService } from '../data-services/services/decks.service';
 import { CardsService } from '../data-services/services/cards.service';
 import { Card } from '../data-services/types/card.type';
 import StringUtils from '../shared/utils/string-utils';
+import { AppDB } from '../data-services/indexed-db/db';
 
 @Injectable({
     providedIn: 'root'
@@ -28,8 +29,11 @@ export class GameSimulatorStateService {
 
     constructor(
         private decksService: DecksService,
-        private cardsService: CardsService
+        private cardsService: CardsService,
+        db: AppDB
     ) {
+        // another project was loaded: the next visit to the simulator deals a new game
+        db.onLoad().subscribe(() => this._initialized = false);
         // Initialize default discard if needed, though resetGame will overwrite
         this.discard.uniqueId = StringUtils.generateRandomString();
     }

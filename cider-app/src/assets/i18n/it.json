@@ -64,7 +64,6 @@
     },
     "menu": {
         "file": "File",
-        "new-empty-project": "Nuovo progetto vuoto",
         "advanced": "Avanzate",
         "reset-database": "Resetta Database",
         "import-database": "Importa Database",

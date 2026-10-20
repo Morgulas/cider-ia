@@ -1,0 +1,41 @@
+<main class="login-page">
+  <form class="login-card" (ngSubmit)="submit()" #form="ngForm">
+    <div class="brand">
+      <img src="assets/cider-logo-128.png" alt="" width="64" height="64" />
+      <h1>CIDEr IA</h1>
+    </div>
+    <h2>{{ (setupMode ? 'server.login.title-setup' : 'server.login.title-login') | translate }}</h2>
+    @if (setupMode) {
+      <p class="help">{{ 'server.login.setup-help' | translate }}</p>
+      <label for="setup-token">{{ 'server.login.setup-token' | translate }}</label>
+      <input pInputText id="setup-token" name="setupToken" [(ngModel)]="setupToken" required autocomplete="off"
+        spellcheck="false" aria-describedby="setup-token-help" />
+      <small id="setup-token-help">{{ 'server.login.setup-token-help' | translate }}</small>
+    }
+
+    <label for="username">{{ 'server.login.username' | translate }}</label>
+    <input pInputText id="username" name="username" [(ngModel)]="username" required autocomplete="username"
+      [attr.aria-describedby]="setupMode ? 'username-help' : null" />
+    @if (setupMode) {
+      <small id="username-help">{{ 'server.login.username-rules' | translate }}</small>
+    }
+
+    <label for="password">{{ 'server.login.password' | translate }}</label>
+    <p-password inputId="password" name="password" [(ngModel)]="password" [feedback]="setupMode" [toggleMask]="true"
+      required [autocomplete]="setupMode ? 'new-password' : 'current-password'" styleClass="full-width"
+      inputStyleClass="full-width" />
+    @if (setupMode) {
+      <small>{{ 'server.login.password-rules' | translate }}</small>
+      <label for="password-confirm">{{ 'server.login.password-confirm' | translate }}</label>
+      <p-password inputId="password-confirm" name="passwordConfirm" [(ngModel)]="passwordConfirm" [feedback]="false"
+        [toggleMask]="true" required autocomplete="new-password" styleClass="full-width" inputStyleClass="full-width" />
+    }
+
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" />
+    }
+
+    <p-button type="submit" [label]="(setupMode ? 'server.login.submit-setup' : 'server.login.submit-login') | translate"
+      [loading]="busy()" [disabled]="!form.valid" styleClass="full-width" />
+  </form>
+</main>

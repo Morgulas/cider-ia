@@ -1,9 +1,36 @@
 <div class="footer">
     <span>CIDEr IA {{appVersion}} · modified fork of Oatear Cider (AGPL-3.0)</span>
-    <span class="fill"></span>
+    <span class="fill save-state" [class]="'save-state state-' + currentProject.saveState()" aria-live="polite">
+        @switch (currentProject.saveState()) {
+            @case ('saved') {
+                <i class="pi pi-cloud"></i>
+                @if (currentProject.lastSavedAt(); as savedAt) {
+                    {{ 'server.save.saved-at' | translate: { time: (savedAt | date: 'shortTime') } }}
+                } @else {
+                    {{ 'server.save.saved' | translate }}
+                }
+            }
+            @case ('pending') { <i class="pi pi-pencil"></i> {{ 'server.save.pending' | translate }} }
+            @case ('saving') { <i class="pi pi-spin pi-spinner"></i> {{ 'server.save.saving' | translate }} }
+            @case ('error') {
+                <i class="pi pi-exclamation-triangle"></i>
+                {{ 'server.save.error' | translate: { error: currentProject.lastError() } }}
+            }
+            @case ('conflict') { <i class="pi pi-exclamation-triangle"></i> {{ 'server.save.conflict-title' | translate }} }
+        }
+    </span>
     <span class="p-mr-2">Copyright Ⓒ 2026 Oatear LLC</span>
     <p-button icon="pi pi-discord" [rounded]="true" [text]="true" (onClick)="navigateToDiscord()" />
     <p-button icon="pi pi-github" [rounded]="true" [text]="true" (onClick)="navigateToGithub()"
         pTooltip="Source code of this version" />
     <p-button icon="pi pi-book" [rounded]="true" [text]="true" (onClick)="navigateToUserGuide()" />
 </div>
+<p-dialog [header]="'server.save.conflict-title' | translate" [visible]="conflict()" [modal]="true" [closable]="false"
+    [style]="{ width: '480px' }">
+    <p>{{ 'server.save.conflict-message' | translate }}</p>
+    <ng-template #footer>
+        <p-button [label]="'server.save.reload-server' | translate" severity="secondary" [outlined]="true"
+            [disabled]="resolving" (onClick)="reloadServer()" />
+        <p-button [label]="'server.save.keep-local' | translate" [disabled]="resolving" (onClick)="keepLocal()" />
+    </ng-template>
+</p-dialog>

@@ -1,6 +1,6 @@
-import { ApplicationConfig, importProvidersFrom, provideZoneChangeDetection } from '@angular/core';
+import { ApplicationConfig, importProvidersFrom, inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter, withRouterConfig } from '@angular/router';
-import { HttpClient, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withInterceptors, withInterceptorsFromDi } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { providePrimeNG } from 'primeng/config';
 import { provideTranslateService, TranslateLoader } from '@ngx-translate/core';
@@ -13,6 +13,8 @@ import { LocalStorageService } from './data-services/local-storage/local-storage
 import { CardToHtmlPipe } from './shared/pipes/template-to-html.pipe';
 import { HandlebarsPipe } from './shared/pipes/handlebars.pipe';
 import MonacoExtension from './shared/extensions/monaco-extension';
+import { apiInterceptor } from './server/api.interceptor';
+import { AuthService } from './server/auth.service';
 
 export function HttpLoaderFactory(http: HttpClient) {
   return new TranslateHttpLoader(http, './assets/i18n/', '.json');
@@ -22,7 +24,9 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection(),
     provideRouter(routes, withRouterConfig({ onSameUrlNavigation: 'reload' })),
-    provideHttpClient(withInterceptorsFromDi()),
+    provideHttpClient(withInterceptorsFromDi(), withInterceptors([apiInterceptor])),
+    // know who is logged in before the first route is resolved
+    provideAppInitializer(() => inject(AuthService).refresh()),
     provideAnimationsAsync(),
     importProvidersFrom(MonacoEditorModule.forRoot(MonacoExtension.monacoConfig)),
     provideMarkdown(),

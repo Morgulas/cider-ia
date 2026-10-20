@@ -64,7 +64,6 @@
     },
     "menu": {
         "file": "Файл",
-        "new-empty-project": "Новий порожній проєкт",
         "advanced": "Додатково",
         "reset-database": "Скинути базу даних",
         "import-database": "Імпортувати базу даних",

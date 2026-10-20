@@ -100,9 +100,12 @@ export class ProjectStore {
   }
 
   /** Creates a project, optionally with initial data (an imported or sample project) */
-  create(userId: string, name: string, data?: string): Promise<ProjectMeta> {
+  create(userId: string, name: string, maxProjects: number, data?: Buffer): Promise<ProjectMeta> {
     return this.queue(userId).run(async () => {
       const index = await this.readIndex(userId);
+      if (index.projects.length >= maxProjects) {
+        throw new ProjectStoreError(`a user can have at most ${maxProjects} projects`, 409);
+      }
       const now = new Date().toISOString();
       const project: ProjectMeta = {
         id: randomBytes(16).toString('hex'),
@@ -115,7 +118,7 @@ export class ProjectStore {
       if (data !== undefined) {
         await writeFileAtomic(this.dataFile(userId, project.id), data);
         project.revision = 1;
-        project.size = Buffer.byteLength(data);
+        project.size = data.length;
       }
       index.projects.push(project);
       await this.writeIndex(userId, index);
@@ -123,17 +126,22 @@ export class ProjectStore {
     });
   }
 
-  /** Project data, or null for a project that was never saved (empty project) */
-  async readData(userId: string, projectId: string): Promise<{ project: ProjectMeta; data: string | null }> {
-    const project = await this.get(userId, projectId);
-    try {
-      return { project, data: await fs.readFile(this.dataFile(userId, projectId), 'utf8') };
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return { project, data: null };
+  /**
+   * Project data, or null for a project that was never saved (empty project).
+   * Read in the write queue: the data and the revision always match.
+   */
+  readData(userId: string, projectId: string): Promise<{ project: ProjectMeta; data: Buffer | null }> {
+    return this.queue(userId).run(async () => {
+      const project = await this.get(userId, projectId);
+      try {
+        return { project, data: await fs.readFile(this.dataFile(userId, projectId)) };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          return { project, data: null };
+        }
+        throw error;
       }
-      throw error;
-    }
+    });
   }
 
   /**
@@ -141,7 +149,7 @@ export class ProjectStore {
    * if someone saved in between (another tab or device), the save is refused
    * with 409 unless force is set.
    */
-  writeData(userId: string, projectId: string, data: string, baseRevision: number | undefined, force: boolean): Promise<ProjectMeta> {
+  writeData(userId: string, projectId: string, data: Buffer, baseRevision: number | undefined, force: boolean): Promise<ProjectMeta> {
     return this.queue(userId).run(async () => {
       const index = await this.readIndex(userId);
       const project = index.projects.find(candidate => candidate.id === projectId);
@@ -153,7 +161,7 @@ export class ProjectStore {
       }
       await writeFileAtomic(this.dataFile(userId, projectId), data);
       project.revision += 1;
-      project.size = Buffer.byteLength(data);
+      project.size = data.length;
       project.updatedAt = new Date().toISOString();
       await this.writeIndex(userId, index);
       return project;

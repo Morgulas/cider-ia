@@ -1,4 +1,7 @@
-<!-- <app-site-header></app-site-header> -->
-<app-site-template>
+@if (showShell()) {
+  <app-site-template>
     <router-outlet></router-outlet>
-</app-site-template>
+  </app-site-template>
+} @else {
+  <router-outlet></router-outlet>
+}

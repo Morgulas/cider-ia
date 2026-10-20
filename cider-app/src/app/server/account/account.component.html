@@ -1,0 +1,27 @@
+<app-topbar />
+<main class="page">
+  <h1>{{ 'server.account.title' | translate }}</h1>
+  <p class="muted">{{ 'server.account.signed-in-as' | translate: { name: auth.user()?.username } }}</p>
+
+  <form class="dialog-form" (ngSubmit)="changePassword()" #form="ngForm">
+    <label for="current-password">{{ 'server.account.current-password' | translate }}</label>
+    <p-password inputId="current-password" name="currentPassword" [(ngModel)]="currentPassword" [feedback]="false"
+      [toggleMask]="true" required autocomplete="current-password" styleClass="full-width" inputStyleClass="full-width" />
+    <label for="new-password">{{ 'server.account.new-password' | translate }}</label>
+    <p-password inputId="new-password" name="newPassword" [(ngModel)]="newPassword" [toggleMask]="true" required
+      autocomplete="new-password" styleClass="full-width" inputStyleClass="full-width" />
+    <small class="muted">{{ 'server.login.password-rules' | translate }}</small>
+    <label for="confirm-password">{{ 'server.account.confirm' | translate }}</label>
+    <p-password inputId="confirm-password" name="confirmPassword" [(ngModel)]="confirmPassword" [feedback]="false"
+      [toggleMask]="true" required autocomplete="new-password" styleClass="full-width" inputStyleClass="full-width" />
+
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" />
+    }
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" />
+    }
+    <p-button type="submit" [label]="'server.account.change' | translate" [disabled]="!form.valid || busy()"
+      [loading]="busy()" />
+  </form>
+</main>

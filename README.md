@@ -56,13 +56,14 @@ Cider a été créé pour les concepteurs qui veulent une liberté créative tot
 ## Installation et utilisation
 
 ### Auto-hébergement (Docker)
-Ce fork fonctionne uniquement comme application web (la version desktop a été retirée). Voir [`docker/README.md`](docker/README.md) :
+Ce fork fonctionne uniquement comme application web, avec un serveur : **comptes utilisateurs** (créés par un administrateur) et **projets enregistrés sur le serveur**, accessibles depuis n'importe quel navigateur. Le dossier de données se choisit dans le `docker-compose`. Voir [`docker/README.md`](docker/README.md) :
 ```bash
+cp .env.example .env
 docker compose up -d --build
 ```
 
-### Version web
-Il suffit de se rendre sur **[oatear.github.io/cider][pages-url]** pour commencer (version d'origine). Vos projets sont stockés localement dans la base IndexedDB de votre navigateur. Vous pouvez importer ou exporter l'intégralité de votre projet dans un seul fichier `database.json`.
+### Version web d'origine
+La version d'origine, sans serveur, est disponible sur **[oatear.github.io/cider][pages-url]** : les projets y sont stockés dans le navigateur. Un projet s'échange entre les deux versions sous forme de fichier `database.json`.
 
 ## Propriété des créations et licence
 Tout ce que vous créez avec Oatear Cider est votre propriété intellectuelle. L'application ne collecte aucune donnée et tout votre travail reste sur votre appareil.
@@ -84,8 +85,11 @@ Une autre excellente façon de contribuer est de **[soutenir financièrement le 
     # Installer les dépendances
     npm ci
 
-    # Lancer l'application en mode développement
-    npm start
+    # Lancer le serveur (dans un autre terminal)
+    cd ../cider-server && npm ci && CIDER_DATA_DIR=./data npm run dev
+
+    # Lancer l'application en mode développement (relaie /api vers le serveur)
+    cd ../cider-app && npm start
     ```
 
 ---

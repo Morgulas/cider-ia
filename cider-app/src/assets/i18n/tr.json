@@ -64,7 +64,6 @@
     },
     "menu": {
         "file": "Dosya",
-        "new-empty-project": "Yeni boş proje",
         "advanced": "Gelişmiş",
         "reset-database": "Veritabanını Sıfırla",
         "import-database": "Veritabanını İçe Aktar",

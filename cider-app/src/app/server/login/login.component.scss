@@ -1,0 +1,54 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cider-app-background, var(--p-menubar-background));
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid var(--p-content-border-color);
+  background: var(--p-content-background);
+
+  h1 {
+    margin: 0;
+    font-size: 1.6rem;
+  }
+
+  h2 {
+    margin: 0.5rem 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  label {
+    margin-top: 0.5rem;
+    font-weight: 500;
+  }
+
+  small,
+  .help {
+    color: var(--p-text-muted-color);
+  }
+
+  p-button {
+    margin-top: 1rem;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+:host ::ng-deep .full-width {
+  width: 100%;
+}

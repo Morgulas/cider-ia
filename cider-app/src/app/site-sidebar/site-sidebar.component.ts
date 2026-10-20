@@ -20,6 +20,7 @@ import { ContextMenu } from 'primeng/contextmenu';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 
+import { CurrentProjectService } from '../server/current-project.service';
 @Component({
     selector: 'app-site-sidebar',
     templateUrl: './site-sidebar.component.html',
@@ -29,6 +30,7 @@ import { ConfirmDialog } from 'primeng/confirmdialog';
 })
 export class SiteSidebarComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly currentProject = inject(CurrentProjectService);
   deckId = 0;
   files: TreeNode[] = [];
   selectedFile: TreeNode | null = null;
@@ -93,7 +95,7 @@ export class SiteSidebarComponent implements OnInit {
       // Setup project home node
       // -----------------------------------------------
       {
-        const projectName = this.translate.instant('sidebar.unknown-project');
+        const projectName = this.currentProject.project()?.name ?? this.translate.instant('sidebar.unknown-project');
         updatedFiles.push({
           label: projectName,
           data: {

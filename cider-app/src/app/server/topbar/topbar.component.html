@@ -1,0 +1,21 @@
+<header class="topbar">
+  <a class="brand" routerLink="/projects">
+    <img src="assets/cider-logo-128.png" alt="" width="32" height="32" />
+    <span>CIDEr IA</span>
+  </a>
+  <nav class="links">
+    <a routerLink="/projects" routerLinkActive="active">{{ 'server.topbar.projects' | translate }}</a>
+    @if (auth.isAdmin()) {
+      <a routerLink="/admin/users" routerLinkActive="active">{{ 'server.topbar.admin' | translate }}</a>
+    }
+    <a routerLink="/account" routerLinkActive="active">{{ 'server.topbar.account' | translate }}</a>
+  </nav>
+  <span class="fill"></span>
+  @if (currentProject.project(); as project) {
+    <p-button [label]="('server.topbar.back-to-project' | translate) + ' : ' + project.name" icon="pi pi-arrow-left"
+      [text]="true" (onClick)="backToProject()" />
+  }
+  <span class="user"><i class="pi pi-user"></i> {{ auth.user()?.username }}</span>
+  <p-button [label]="'server.topbar.logout' | translate" icon="pi pi-sign-out" severity="secondary" [text]="true"
+    (onClick)="logout()" />
+</header>

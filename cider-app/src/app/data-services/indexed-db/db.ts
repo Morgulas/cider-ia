@@ -4,19 +4,20 @@ import { Asset } from "../types/asset.type";
 import { CardTemplate } from "../types/card-template.type";
 import { FieldType } from "../types/field-type.type";
 import { Deck } from "../types/deck.type";
-import { exportDB, importDB, importInto } from "dexie-export-import";
-import FileUtils from "src/app/shared/utils/file-utils";
-import { ExportProgress } from "dexie-export-import/dist/export";
-import { ImportProgress } from "dexie-export-import/dist/import";
-import { HttpClient } from "@angular/common/http";
-import { ReplaySubject, Subject, firstValueFrom } from "rxjs";
+import { exportDB, importInto } from "dexie-export-import";
+import { ReplaySubject, Subject } from "rxjs";
 import { Injectable } from "@angular/core";
+
+/** User and project a local working copy belongs to */
+export interface ProjectOwner {
+    userId: string;
+    projectId: string;
+}
 
 @Injectable({
     providedIn: 'root'
 })
 export class AppDB extends Dexie {
-    private static readonly SAMPLE_DB_FILE: string = 'assets/cosmic-apple.json'
     private static readonly DB_NAME: string = 'cider-db';
     public static readonly GAMES_TABLE: string = 'games';
     public static readonly DECKS_TABLE: string = 'decks';
@@ -27,6 +28,7 @@ export class AppDB extends Dexie {
     public static readonly CARD_ATTRIBUTES_TABLE: string = 'cardAttributes';
     public static readonly DOCUMENTS_TABLE: string = 'documents';
     public static readonly ASSET_FOLDERS_TABLE: string = 'assetFolders';
+    public static readonly META_TABLE: string = 'meta';
     private static readonly ALL_TABLES = [
         AppDB.GAMES_TABLE, AppDB.DECKS_TABLE, AppDB.CARDS_TABLE, AppDB.ASSETS_TABLE,
         AppDB.CARD_TEMPLATES_TABLE, AppDB.CARD_ATTRIBUTES_TABLE, AppDB.DOCUMENTS_TABLE, AppDB.ASSET_FOLDERS_TABLE];
@@ -35,14 +37,12 @@ export class AppDB extends Dexie {
     cards!: Table<Card, number>;
     assets!: Table<Asset, number>;
     cardTemplates!: Table<CardTemplate, number>;
-    private httpClient;
     private changeSubject: Subject<any>;
     private loadSubject: ReplaySubject<null>;
     private isPopulating = false;
 
-    constructor(httpClient: HttpClient) {
+    constructor() {
         super(AppDB.DB_NAME);
-        this.httpClient = httpClient;
         this.changeSubject = new Subject<any>();
         // replayed: a subscriber that arrives after the database is ready still gets the event
         this.loadSubject = new ReplaySubject<null>(1);
@@ -144,24 +144,17 @@ export class AppDB extends Dexie {
         this.version(10).stores({
             assetFolders: '++id, path',
         });
+        this.version(11).stores({
+            // owner of the local working copy (user and project), never exported
+            meta: 'key',
+        });
 
-        // populate in a non-traditional way since the 'on populate' will not allow ajax calls
-        this.on('ready', () => this.table(AppDB.DECKS_TABLE).count()
-            .then(count => {
-                if (count > 0) {
-                    console.log('db already populated');
-                    return Promise.resolve();
-                } else {
-                    console.log('populate from file');
-                    return this.populateFromFile().then(() => undefined);
-                }
-            }).then(() => {
-                // initialize mandatory data;
-                return this.initializeData();
-            }).then(() => {
-                // database ready: refresh asset urls and the sidebar
-                this.loadSubject.next(null);
-            }));
+        // The local database is a working copy of the project opened from the server
+        // (see CurrentProjectService): it is filled by loadProject(), never with the sample.
+        this.on('ready', () => this.initializeData().then(() => {
+            // database ready: refresh asset urls and the sidebar
+            this.loadSubject.next(null);
+        }));
 
         // trigger changeSubject when change emitted to db
         Dexie.on('storagemutated', (event) => {
@@ -213,94 +206,6 @@ export class AppDB extends Dexie {
 
     }
 
-    async populateFromFile(emitChange = true) {
-        // This is a destructive operation, but it's only called when the DB is effectively empty
-        // or we fully intend to reset to the sample state.
-        this.isPopulating = true;
-
-        try {
-            // 1. Fetch the sample file
-            const blob = await firstValueFrom(this.httpClient.get(AppDB.SAMPLE_DB_FILE, { responseType: 'blob' }));
-            const file = new File([blob], 'database.json', { type: 'application/json', lastModified: Date.now() });
-
-            // 2. Import into the CURRENT existing database logic
-            // We do NOT close or delete the DB. We just clear existing tables and import data.
-            // options:
-            // - clearTablesBeforeImport: true -> effectively a reset
-            // - acceptVersionDiff: true -> ignores that the file might be v2 and the DB is v10
-            // - overwriteValues: true -> ensures import wins
-            await importInto(this, file, {
-                clearTablesBeforeImport: true,
-                acceptVersionDiff: true,
-                overwriteValues: true
-            });
-
-            // 3. Notify that the database has been populated (refreshes UI/Sidebar)
-            // We use a generic event so listeners know something changed.
-            // We also wait a tick to ensure listeners are ready if this is part of initial load.
-            if (emitChange) {
-                this.changeSubject.next({ tableName: 'all', type: 'reset', key: null });
-            }
-        } finally {
-            this.isPopulating = false;
-        }
-
-        return this;
-    }
-
-    /**
-     * Import database from file
-     * Warning: Overrides the existing database
-     * 
-     * @param file 
-     */
-    public async importDatabase(file: File,
-        progressCallback?: (progress: ImportProgress) => boolean): Promise<boolean> {
-        await this.delete();
-        return importDB(file, {
-            noTransaction: true,
-            progressCallback: progressCallback
-        }).then(tempDb => tempDb.close())
-            .then(() => this.open())
-            .then(() => {
-                // the import wrote through another connection: tell the UI (sidebar...) to reload
-                this.changeSubject.next({ tableName: 'all', type: 'reset', key: null });
-                return true;
-            });
-    }
-
-    /**
-     * Export database to file
-     * 
-     */
-    public exportDatabase(progressCallback?: (progress: ExportProgress) => boolean): Promise<boolean> {
-        const promisedBlob: Promise<Blob> = exportDB(this, {
-            progressCallback: progressCallback,
-            prettyJson: true
-        });
-        return promisedBlob.then(blob => {
-            FileUtils.saveAs(blob, 'database.json');
-            return true;
-        });
-    }
-
-    /**
-     * Delete all data in database and return to default data.
-     */
-    public async resetDatabase(keepEmpty?: boolean) {
-        this.close();
-        await this.delete();
-        await this.open();
-        if (!keepEmpty) {
-            await this.populateFromFile(false);
-            // Don't close here! populateFromFile leaves the DB open (via importInto), 
-            // and we want it to stay open for initializeData.
-        }
-        await this.initializeData();
-        this.changeSubject.next(null);
-        return true;
-    }
-
     public onChange() {
         return this.changeSubject.asObservable();
     }
@@ -313,6 +218,56 @@ export class AppDB extends Dexie {
      * Initialize data in the database if there are missing
      * mandatory entries. This is run on project open.
      */
+    /**
+     * Replaces the whole local working copy with a project saved on the server,
+     * or empties it (data null: new project, or closing a project). The owner
+     * (user and project) is recorded in the "meta" table, so a save can check
+     * that the copy still holds the project it is about to overwrite on the server.
+     * No change events are emitted for the rows written here: they are not user
+     * edits to save back.
+     */
+    public async loadProject(data: Blob | null, owner?: ProjectOwner): Promise<void> {
+        if (!this.isOpen()) {
+            await this.open();
+        }
+        this.isPopulating = true;
+        try {
+            await this.transaction('rw', this.tables, async () => {
+                await Promise.all(this.tables.map(table => table.clear()));
+            });
+            if (data) {
+                await importInto(this, data, {
+                    clearTablesBeforeImport: true,
+                    acceptVersionDiff: true,
+                    overwriteValues: true,
+                    skipTables: [AppDB.META_TABLE]
+                });
+            }
+            if (owner) {
+                await this.table(AppDB.META_TABLE).put({ key: 'owner', ...owner });
+            }
+        } finally {
+            this.isPopulating = false;
+        }
+        await this.initializeData();
+        this.changeSubject.next({ tableName: 'all', type: 'reset', key: null });
+        this.loadSubject.next(null);
+    }
+
+    /** The user and project the local working copy belongs to, if any */
+    public async getOwner(): Promise<ProjectOwner | undefined> {
+        if (!this.isOpen()) {
+            await this.open();
+        }
+        const record = await this.table(AppDB.META_TABLE).get('owner');
+        return record ? { userId: record.userId, projectId: record.projectId } : undefined;
+    }
+
+    /** The whole local working copy as a Dexie export, as saved on the server */
+    public exportProject(): Promise<Blob> {
+        return exportDB(this, { prettyJson: false, skipTables: [AppDB.META_TABLE] });
+    }
+
     public async initializeData(): Promise<void> {
         this.isPopulating = true;
         try {

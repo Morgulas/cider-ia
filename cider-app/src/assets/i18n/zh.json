@@ -64,7 +64,6 @@
     },
     "menu": {
         "file": "文件",
-        "new-empty-project": "新建空项目",
         "advanced": "高级",
         "reset-database": "重置数据库",
         "import-database": "导入数据库",

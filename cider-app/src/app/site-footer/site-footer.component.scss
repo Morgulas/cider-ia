@@ -20,3 +20,20 @@
 :host ::ng-deep .p-button.p-button-text {
     color: var(--p-text-muted-color);
 }
+.save-state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+
+    &.state-error,
+    &.state-conflict {
+        color: var(--p-red-400);
+    }
+
+    &.state-pending,
+    &.state-saving {
+        color: var(--p-text-muted-color);
+    }
+}

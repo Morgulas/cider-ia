@@ -13,7 +13,9 @@ RUN npm run build
 
 # --- Étape 2 : serveur web statique ---
 FROM nginx:1.27-alpine
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+# modèle traité au démarrage par l'image nginx (variables d'environnement substituées)
+ENV CIDER_MAX_PROJECT_MB=200
+COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/dist/cider/browser /usr/share/nginx/html
 

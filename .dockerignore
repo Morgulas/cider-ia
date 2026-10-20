@@ -3,4 +3,7 @@
 .vscode
 **/node_modules
 **/dist
+**/dist-test
 **/.angular
+data
+.env

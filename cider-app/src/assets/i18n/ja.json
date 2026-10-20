@@ -64,7 +64,6 @@
     },
     "menu": {
         "file": "ファイル",
-        "new-empty-project": "新しい空のプロジェクト",
         "advanced": "詳細",
         "reset-database": "データベースをリセット",
         "import-database": "データベースをインポート",
