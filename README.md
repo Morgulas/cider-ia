@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="cider-app/src/assets/cider-logo-512.png" alt="Oatear Cider Logo" width="150">
+<img src="cider-app/src/assets/cider-logo-512.png" alt="Logo Oatear Cider" width="150">
 
 # Oatear Cider
 
-### The Data-Driven Card Design Studio for Game Developers
+### Le studio de conception de cartes piloté par les données, pour les créateurs de jeux
 
-Design beautiful game cards with the power and familiarity of `HTML`, `CSS`, and `Handlebars`. Oatear Cider is a modern IDE for card game creation, bridging the gap between simple editors and complex professional software.
+Concevez de belles cartes de jeu avec la puissance et la simplicité de `HTML`, `CSS` et `Handlebars`. Oatear Cider est un environnement de développement moderne pour créer des jeux de cartes, à mi-chemin entre les éditeurs simples et les logiciels professionnels complexes.
 
 [![][license]][license-url] 
 [![][stars]][gh-url]
@@ -18,82 +18,77 @@ Design beautiful game cards with the power and familiarity of `HTML`, `CSS`, and
 
 </div>
 
-> **Fork `cider-ia`** — web-only fork of [Oatear Cider](https://github.com/oatear/cider) (desktop/Electron version removed), adding AI features.
+> **Fork `cider-ia`** — fork de [Oatear Cider](https://github.com/oatear/cider) en version web uniquement (la version desktop/Electron a été retirée), auquel on ajoute des fonctionnalités d'IA.
 
 ---
 
-## Get Started
+## Pour commencer
 
-| Platform / Action | Link | Description |
+| Plateforme / action | Lien | Description |
 | :--- | :--- | :--- |
-| **Web App** | **[Try it Now in Your Browser][pages-url]** | The full experience, running directly in your browser. No installation needed. |
-| **Documentation** | **[Cider Docs][cider-docs-url]** | Detailed documentation for all aspects of Cider with a quick start guide. |
-| **Support Us** | [<img src="cider-app/src/assets/kofi-badge.png" alt="Oatear Cider Logo" width="160">][kofi-url] | If you find Cider useful, consider a small donation to support its development! |
+| **Application web** | **[L'essayer dans votre navigateur][pages-url]** | L'expérience complète, directement dans votre navigateur, sans installation (version d'origine, sans les modifications de ce fork). |
+| **Documentation** | **[Documentation de Cider][cider-docs-url]** | Une documentation détaillée de toutes les fonctions de Cider, avec un guide de démarrage rapide. |
+| **Nous soutenir** | [<img src="cider-app/src/assets/kofi-badge.png" alt="Soutenir Oatear sur Ko-fi" width="160">][kofi-url] | Si Cider vous est utile, pensez à faire un petit don pour soutenir son développement ! |
 
 ---
 
-## About Oatear Cider
+## À propos d'Oatear Cider
 
-Cider was created for designers who want the ultimate creative freedom without a steep learning curve. Instead of a restrictive graphical editor, Cider uses the tools you already know:
+Cider a été créé pour les concepteurs qui veulent une liberté créative totale sans courbe d'apprentissage abrupte. Au lieu d'un éditeur graphique limité, Cider utilise des outils que vous connaissez déjà :
 
--   **Structure with HTML:** Define the layout of your cards with standard HTML.
--   **Style with CSS:** Apply rich styling, from fonts and colors to complex layouts like CSS Grid.
--   **Add Logic with Handlebars:** Use data from a spreadsheet to dynamically change names, stats, and abilities.
--   **See a Sample Project:** Check out the **[Cosmic Apple][cosmic-apple]** sample project to see how it all comes together.
+-   **Structurer avec HTML :** définissez la mise en page de vos cartes en HTML standard.
+-   **Mettre en forme avec CSS :** appliquez des styles riches, des polices et couleurs jusqu'aux mises en page complexes comme CSS Grid.
+-   **Ajouter de la logique avec Handlebars :** utilisez les données d'un tableur pour faire varier les noms, les statistiques et les capacités.
+-   **Voir un projet d'exemple :** découvrez le projet **[Cosmic Apple][cosmic-apple]** pour voir comment tout s'articule.
 
-![Cider App Screenshot][screen-1]
+![Capture d'écran de Cider][screen-1]
 
-## Core Features
+## Fonctionnalités principales
 
-| Feature | Description | Screenshot |
+| Fonctionnalité | Description | Capture d'écran |
 | :--- | :--- | :--- |
-| **1. Powerful Templates** | Create reusable card templates with HTML & CSS. The Template Wizard helps you quickly set up standard card sizes and layouts. | ![Template Editor][screen-2] |
-| **2. Data-Driven Design** | Separate your design from your content. Manage all card attributes in a simple, spreadsheet-like interface. Change data in one place, and update hundreds of cards instantly. | ![Tabular Data Editor][screen-3] |
-| **3. Live Preview** | See your cards update in real-time as you edit your templates or data. No more guessing how your changes will look. | ![Live Preview][screen-4] |
-| **4. Built-in Simulator** | Instantly playtest your game in the **Game Simulator**—shuffle, draw, and discard without printing a thing. The **Asset Generator** helps you create placeholder art and symbols. | ![Game Simulator][screen-7] |
-| **5. Pro-Grade Exports** | Export cards as PNGs or print-ready PDF sheets with crop marks and low-ink modes. You can also export for virtual tabletops like Tabletop Simulator. | ![Export Options][screen-5] |
+| **1. Des modèles puissants** | Créez des modèles de cartes réutilisables en HTML et CSS. L'assistant de modèles vous aide à mettre en place rapidement les formats et mises en page de cartes standard. | ![Éditeur de modèles][screen-2] |
+| **2. Une conception pilotée par les données** | Séparez la mise en forme du contenu. Gérez tous les attributs des cartes dans une interface simple, proche d'un tableur. Modifiez une donnée à un seul endroit et mettez à jour des centaines de cartes d'un coup. | ![Éditeur de données tabulaires][screen-3] |
+| **3. Aperçu en direct** | Voyez vos cartes se mettre à jour en temps réel pendant que vous modifiez vos modèles ou vos données. Plus besoin de deviner le résultat. | ![Aperçu en direct][screen-4] |
+| **4. Simulateur intégré** | Testez votre jeu immédiatement dans le **simulateur de partie** : mélangez, piochez et défaussez sans rien imprimer. Le **générateur d'assets** vous aide à créer des illustrations et symboles provisoires. | ![Simulateur de partie][screen-7] |
+| **5. Exports de qualité professionnelle** | Exportez vos cartes en PNG ou en planches PDF prêtes à imprimer, avec traits de coupe et mode économie d'encre. Vous pouvez aussi exporter pour des tables virtuelles comme Tabletop Simulator. | ![Options d'export][screen-5] |
 
-## Installation & Usage
+## Installation et utilisation
 
-### Self-hosted (Docker)
-This fork runs as a web app only (the desktop version has been removed). See [`docker/README.md`](docker/README.md):
+### Auto-hébergement (Docker)
+Ce fork fonctionne uniquement comme application web (la version desktop a été retirée). Voir [`docker/README.md`](docker/README.md) :
 ```bash
 docker compose up -d --build
 ```
 
-### Web Version
-Simply visit **[oatear.github.io/cider][pages-url]** to start. Your projects are stored locally in your browser's IndexedDB. You can import/export your entire project as a single `database.json` file.
+### Version web
+Il suffit de se rendre sur **[oatear.github.io/cider][pages-url]** pour commencer (version d'origine). Vos projets sont stockés localement dans la base IndexedDB de votre navigateur. Vous pouvez importer ou exporter l'intégralité de votre projet dans un seul fichier `database.json`.
 
-## Creative Ownership & Licensing
-Anything you create with Oatear Cider is your intellectual property. The app collects no data and all your work remains on your local device.
+## Propriété des créations et licence
+Tout ce que vous créez avec Oatear Cider est votre propriété intellectuelle. L'application ne collecte aucune donnée et tout votre travail reste sur votre appareil.
 
-The application source code is protected by the **[AGPL-3.0 License][license-url]** to ensure it remains open-source forever.
+Le code source de l'application est protégé par la **[licence AGPL-3.0][license-url]**, afin qu'il reste open source pour toujours.
 
-## Contributing
-We welcome contributions from the community! Whether it's reporting a bug, suggesting a feature, or writing code, your help is appreciated.
+## Contribuer
+Les contributions de la communauté sont les bienvenues ! Qu'il s'agisse de signaler un bug, de proposer une fonctionnalité ou d'écrire du code, votre aide est appréciée.
 
-Another great way to contribute is by **[supporting the project financially][kofi-url]**. Donations help cover costs like the Apple Developer Program fee and allow us to dedicate more time to development.
+Une autre excellente façon de contribuer est de **[soutenir financièrement le projet d'origine][kofi-url]**. Les dons aident à couvrir des frais comme l'abonnement au programme développeur d'Apple et permettent de consacrer plus de temps au développement.
 
--   **Bug Reports & Feature Requests:** Please open an issue on the **[GitHub Issues page](https://github.com/oatear/cider/issues)**.
--   **Development:** Fork the repository, create a new branch, and submit a pull request. To run the project locally, you'll need Node.js and Angular CLI installed.
+-   **Bugs et demandes de fonctionnalités :** ouvrez une issue sur la **[page GitHub Issues du projet d'origine](https://github.com/oatear/cider/issues)**, ou sur [celle de ce fork](https://github.com/Morgulas/cider-ia/issues) pour ce qui concerne ses ajouts.
+-   **Développement :** pour lancer le projet en local, il faut Node.js et Angular CLI.
     ```bash
-    # Clone the repository
-    git clone https://github.com/oatear/cider.git
-    cd cider/cider-app
+    # Cloner le dépôt
+    git clone https://github.com/Morgulas/cider-ia.git
+    cd cider-ia/cider-app
 
-    # Install dependencies
-    npm install
+    # Installer les dépendances
+    npm ci
 
-    # Run the app in development mode
+    # Lancer l'application en mode développement
     npm start
     ```
 
 ---
-
-<div align="center">
-
-
-</div>
 
 <!-- BADGE & IMAGE DEFINITIONS -->
 [last-commit]: https://img.shields.io/github/last-commit/oatear/cider
