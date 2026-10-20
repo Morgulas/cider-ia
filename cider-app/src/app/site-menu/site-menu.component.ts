@@ -23,6 +23,7 @@ import FileUtils from '../shared/utils/file-utils';
 import { AuthService } from '../server/auth.service';
 import { CurrentProjectService } from '../server/current-project.service';
 import { SessionActionsService } from '../server/session-actions.service';
+import { DesktopProjectExporter } from '../server/project-import/desktop-project-exporter.service';
 
 @Component({
     selector: 'app-site-menu',
@@ -37,6 +38,7 @@ export class SiteMenuComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly currentProject = inject(CurrentProjectService);
   private readonly sessionActions = inject(SessionActionsService);
+  private readonly desktopExporter = inject(DesktopProjectExporter);
 
   selectedDeck$: Observable<Deck | undefined>;
   items: MenuItem[];
@@ -88,6 +90,10 @@ export class SiteMenuComponent implements OnInit {
                   label: this.translate.instant('menu.export-project'),
                   icon: 'pi pi-pw pi-download',
                   command: () => this.downloadProject()
+                }, {
+                  label: this.translate.instant('menu.export-project-folder'),
+                  icon: 'pi pi-pw pi-box',
+                  command: () => this.downloadProjectFolder()
                 }, {
                   label: this.translate.instant('menu.import-into-project'),
                   icon: 'pi pi-pw pi-upload',
@@ -207,6 +213,23 @@ export class SiteMenuComponent implements OnInit {
   }
 
   /** Downloads the open project as a database.json file, after saving pending changes */
+  /** Downloads the project as a folder of the desktop version, in a .zip archive */
+  public async downloadProjectFolder() {
+    const project = this.currentProject.project();
+    if (!project) {
+      return;
+    }
+    this.loadingIndeterminate = true;
+    this.displayLoading = true;
+    this.loadingHeader = this.translate.instant('menu.export-project-folder');
+    this.loadingInfo = '';
+    try {
+      FileUtils.saveAs(await this.desktopExporter.exportZip(project.name), `${project.name}.zip`);
+    } finally {
+      this.displayLoading = false;
+    }
+  }
+
   public async downloadProject() {
     const project = this.currentProject.project();
     if (!project) {

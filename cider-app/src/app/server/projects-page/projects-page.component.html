@@ -7,13 +7,18 @@
     </div>
     <div class="actions">
       <p-button [label]="'server.projects.import' | translate" icon="pi pi-upload" severity="secondary"
-        [outlined]="true" [disabled]="busy()" (onClick)="fileInput.click()" />
+        [outlined]="true" [disabled]="busy()" (onClick)="importDialogVisible = true" />
       <input #fileInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
+      <input #folderInput type="file" webkitdirectory multiple hidden (change)="importFolder($event)" />
+      <input #zipInput type="file" accept=".zip,application/zip" hidden (change)="importZip($event)" />
       <p-button [label]="'server.projects.new' | translate" icon="pi pi-plus" [disabled]="busy()"
         (onClick)="openNewDialog()" />
     </div>
   </div>
 
+  @if (info()) {
+    <p-message severity="success" [text]="info()!" styleClass="block-message" />
+  }
   @if (error()) {
     <p-message severity="error" [text]="error()!" styleClass="block-message" />
   }
@@ -56,6 +61,33 @@
     </ng-template>
   </p-table>
 </main>
+
+<p-dialog [header]="'server.projects.import-title' | translate" [(visible)]="importDialogVisible" [modal]="true"
+  [style]="{ width: '520px', maxWidth: '95vw' }">
+  <div class="import-choices">
+    <button type="button" class="import-choice" [disabled]="busy()" (click)="importDialogVisible = false; fileInput.click()">
+      <i class="pi pi-globe"></i>
+      <span>
+        <strong>{{ 'server.projects.import-web' | translate }}</strong>
+        <small class="muted">{{ 'server.projects.import-web-help' | translate }}</small>
+      </span>
+    </button>
+    <button type="button" class="import-choice" [disabled]="busy()" (click)="importDialogVisible = false; folderInput.click()">
+      <i class="pi pi-folder"></i>
+      <span>
+        <strong>{{ 'server.projects.import-folder' | translate }}</strong>
+        <small class="muted">{{ 'server.projects.import-folder-help' | translate }}</small>
+      </span>
+    </button>
+    <button type="button" class="import-choice" [disabled]="busy()" (click)="importDialogVisible = false; zipInput.click()">
+      <i class="pi pi-box"></i>
+      <span>
+        <strong>{{ 'server.projects.import-zip' | translate }}</strong>
+        <small class="muted">{{ 'server.projects.import-zip-help' | translate }}</small>
+      </span>
+    </button>
+  </div>
+</p-dialog>
 
 <p-dialog [header]="'server.projects.new-title' | translate" [(visible)]="newDialogVisible" [modal]="true"
   [style]="{ width: '420px' }">

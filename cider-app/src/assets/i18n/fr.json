@@ -71,7 +71,8 @@
         "export-cards": "Exporter les cartes",
         "my-projects": "Mes projets",
         "export-project": "Télécharger le projet",
-        "import-into-project": "Remplacer par un fichier database.json"
+        "import-into-project": "Remplacer par un fichier database.json",
+        "export-project-folder": "Télécharger en dossier (.zip, format desktop)"
     },
     "sidebar": {
         "unknown-project": "Projet",
@@ -198,7 +199,7 @@
             "subtitle": "Les projets sont enregistrés sur le serveur et accessibles depuis n'importe quel navigateur.",
             "new": "Nouveau projet",
             "import": "Importer un projet",
-            "empty": "Aucun projet pour l'instant. Créez-en un, partez du jeu d'exemple ou importez un fichier database.json.",
+            "empty": "Aucun projet pour l'instant. Créez-en un, partez du jeu d'exemple ou importez un projet de CIDEr (version web ou desktop).",
             "name": "Nom",
             "updated": "Dernier enregistrement",
             "size": "Taille",
@@ -216,7 +217,19 @@
             "import-invalid": "Ce fichier n'est pas un export de projet Cider (database.json)",
             "current": "Ouvert",
             "rename-title": "Renommer le projet",
-            "other-tab": "Un projet est déjà ouvert dans un autre onglet de ce navigateur. Fermez-le d'abord (ou fermez cet onglet)."
+            "other-tab": "Un projet est déjà ouvert dans un autre onglet de ce navigateur. Fermez-le d'abord (ou fermez cet onglet).",
+            "import-title": "Importer un projet CIDEr",
+            "import-web": "Fichier de la version web (.json)",
+            "import-web-help": "Fichier exporté depuis la version web d'origine (Fichier > Avancé > Exporter la base de données) ou téléchargé depuis ce serveur.",
+            "import-folder": "Dossier de projet de la version desktop",
+            "import-folder-help": "Choisir le dossier du projet (celui qui contient les dossiers decks et assets). Le navigateur demande de confirmer l'envoi de ses fichiers.",
+            "import-zip": "Dossier de la version desktop en .zip",
+            "import-zip-help": "Le même dossier, compressé dans une archive .zip.",
+            "import-folder-invalid": "Aucun projet CIDEr desktop trouvé : le dossier doit contenir un dossier « decks » ou « assets ».",
+            "import-zip-invalid": "Ce fichier n'est pas une archive .zip lisible.",
+            "import-not-saved": "Le projet importé n'a pas pu être enregistré sur le serveur.",
+            "import-done": "Projet « {{name}} » importé.",
+            "import-desktop-done": "Projet « {{name}} » importé : {{decks}} deck(s), {{cards}} carte(s), {{templates}} modèle(s), {{assets}} ressource(s), {{documents}} document(s)."
         },
         "admin": {
             "title": "Utilisateurs",

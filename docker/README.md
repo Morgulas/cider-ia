@@ -96,6 +96,12 @@ Les noms de modèles évoluent vite : ils sont modifiables sans toucher au code.
 - **En-têtes de sécurité** : nginx envoie une Content-Security-Policy (`docker/security-headers.conf`). Les scripts ne peuvent venir que du serveur lui-même ; images, polices et feuilles de style externes en https restent autorisées pour les modèles de cartes.
 - **Modèles de cartes** : le HTML des cartes est nettoyé avant affichage (DOMPurify). Scripts, attributs `on…`, `<link>`, `<iframe>`, `<form>`, `<object>` et `<foreignObject>` sont retirés. Pour une police externe, utiliser `@import url(...)` dans le CSS du modèle ou dans le document `global-styles`.
 
-## Mise à jour depuis la version sans serveur
+## Reprendre les projets de CIDEr d'origine
 
-Les projets de l'ancienne version restaient dans le navigateur. Pour les récupérer : avec l'ancienne version, **Fichier > Avancé > Exporter la base de données**, puis dans la nouvelle, **Mes projets > Importer un projet**.
+Dans **Mes projets > Importer un projet**, trois sources sont acceptées ; chaque import crée un nouveau projet :
+
+- **Version web (.json)** : les projets de la version web restaient dans le navigateur. Avec l'ancienne version, **Fichier > Avancé > Exporter la base de données**, puis importer le fichier obtenu. Les exports des toutes premières versions (tables `games`) sont convertis automatiquement.
+- **Version desktop (dossier)** : choisir le dossier du projet, celui qui contient `decks/` et `assets/` (le navigateur demande de confirmer l'envoi des fichiers). Sont repris les documents (`.md`, `.css`), les ressources avec leurs sous-dossiers, et pour chaque deck les attributs (`attributes.csv`), les cartes (`cards.csv`) et les modèles (`.html` + `.css`).
+- **Version desktop (.zip)** : le même dossier compressé, pratique si le navigateur refuse le choix d'un dossier.
+
+L'opération inverse existe aussi : dans un projet, **Fichier > Télécharger en dossier (.zip, format desktop)** produit ce même dossier, avec des CSV modifiables dans un tableur et réimportables.

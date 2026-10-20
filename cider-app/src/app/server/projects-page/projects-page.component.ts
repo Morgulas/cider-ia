@@ -18,6 +18,9 @@ import { CurrentProjectService } from '../current-project.service';
 import { ProjectsApiService } from '../projects-api.service';
 import { apiErrorMessage, ProjectMeta } from '../server.types';
 import { SessionActionsService } from '../session-actions.service';
+import { DesktopProjectImporter } from '../project-import/desktop-project-importer.service';
+import { isDexieExport, upgradeLegacyExport } from '../project-import/legacy-export';
+import { filesFromFolder, filesFromZip, ProjectFile, projectRoot } from '../project-import/project-files';
 import { TopbarComponent } from '../topbar/topbar.component';
 
 const SAMPLE_PROJECT_FILE = 'assets/cosmic-apple.json';
@@ -39,11 +42,15 @@ export class ProjectsPageComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly translate = inject(TranslateService);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly desktopImporter = inject(DesktopProjectImporter);
 
   protected readonly projects = signal<ProjectMeta[]>([]);
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly info = signal<string | null>(null);
+
+  protected importDialogVisible = false;
 
   protected newDialogVisible = false;
   protected newName = '';
@@ -72,6 +79,7 @@ export class ProjectsPageComponent implements OnInit {
   private async run(action: () => Promise<unknown>): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
+    this.info.set(null);
     try {
       await action();
     } catch (error) {
@@ -109,7 +117,10 @@ export class ProjectsPageComponent implements OnInit {
     });
   }
 
-  /** Imports a database.json export as a new project named after the file */
+  /**
+   * Imports a database export (web version: database.json) as a new project named
+   * after the file. Exports of older versions are brought up to the current tables.
+   */
   protected async importFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -118,20 +129,84 @@ export class ProjectsPageComponent implements OnInit {
       return;
     }
     await this.run(async () => {
-      let valid: boolean;
+      let dump: unknown;
       try {
-        valid = JSON.parse(await file.text())?.formatName === 'dexie';
+        dump = JSON.parse(await file.text());
       } catch {
-        valid = false;
+        dump = null;
       }
-      if (!valid) {
+      if (!isDexieExport(dump)) {
         throw new Error(this.translate.instant('server.projects.import-invalid'));
       }
+      const data: Blob = upgradeLegacyExport(dump)
+        ? new Blob([JSON.stringify(dump)], { type: 'application/json' })
+        : file;
       const name = file.name.replace(/\.json$/i, '').slice(0, 100) || 'Import';
       const project = await this.api.create(name);
-      await this.api.saveData(project.id, file, 0);
+      await this.api.saveData(project.id, data, 0);
       await this.refresh();
+      this.info.set(this.translate.instant('server.projects.import-done', { name: project.name }));
     });
+  }
+
+  /** Imports a project folder of the desktop version, chosen with the folder picker */
+  protected async importFolder(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = filesFromFolder(Array.from(input.files ?? []));
+    input.value = '';
+    if (files.length > 0) {
+      await this.run(() => this.importDesktopProject(files, ''));
+    }
+  }
+
+  /** Imports a project folder of the desktop version, compressed in a .zip archive */
+  protected async importZip(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    await this.run(async () => {
+      let files: ProjectFile[];
+      try {
+        files = await filesFromZip(file);
+      } catch (error) {
+        throw new Error(this.translate.instant('server.projects.import-zip-invalid'), { cause: error });
+      }
+      await this.importDesktopProject(files, file.name.replace(/\.zip$/i, ''));
+    });
+  }
+
+  /**
+   * Creates a project, opens it and reads the desktop folder into it, then saves
+   * it. If anything fails, the half-imported project is deleted.
+   */
+  private async importDesktopProject(files: ProjectFile[], preferredName: string): Promise<void> {
+    const root = projectRoot(files);
+    if (!root) {
+      throw new Error(this.translate.instant('server.projects.import-folder-invalid'));
+    }
+    if (!(await this.sessionActions.closeProject())) {
+      return;
+    }
+    const name = (preferredName || root.name || 'Import').slice(0, 100);
+    const project = await this.api.create(name);
+    try {
+      await this.currentProject.open(project.id);
+      const summary = await this.desktopImporter.import(root.files);
+      await this.currentProject.flush();
+      if (this.currentProject.hasUnsavedChanges()) {
+        throw new Error(this.translate.instant('server.projects.import-not-saved'));
+      }
+      await this.refresh();
+      this.info.set(this.translate.instant('server.projects.import-desktop-done', { name: project.name, ...summary }));
+    } catch (error) {
+      await this.currentProject.close(true);
+      await this.api.delete(project.id).catch(() => undefined);
+      await this.refresh();
+      throw error;
+    }
   }
 
   protected openRenameDialog(project: ProjectMeta): void {

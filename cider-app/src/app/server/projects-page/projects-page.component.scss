@@ -89,3 +89,47 @@
 :host ::ng-deep .block-message {
   margin-bottom: 1rem;
 }
+
+.import-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.import-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 8px;
+  background: var(--p-content-background);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    border-color: var(--p-primary-color);
+    background: var(--p-content-hover-background);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  i {
+    font-size: 1.4rem;
+    color: var(--p-primary-color);
+    margin-top: 0.15rem;
+  }
+
+  span {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+}
