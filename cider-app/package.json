@@ -15,7 +15,8 @@
     "build:gh-pages": "ng build --base-href=/cider/",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "test:ci": "ng test --watch=false --browsers=ChromeHeadlessCI --include='src/app/shared/**/*.spec.ts' --include='src/app/game-simulator/**/*.spec.ts'"
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadlessCI --include='src/app/shared/**/*.spec.ts' --include='src/app/game-simulator/**/*.spec.ts'",
+    "lint": "ng lint"
   },
   "browser": {
     "fs": false,
@@ -73,17 +74,21 @@
     "@angular/build": "^21.2.27",
     "@angular/cli": "^21.2.27",
     "@angular/compiler-cli": "^21.2.25",
+    "@eslint/js": "^10.0.1",
     "@types/file-saver": "^2.0.7",
     "@types/jasmine": "^4.6.5",
     "@types/node": "^18.19.107",
     "@types/pdfmake": "^0.2.11",
+    "angular-eslint": "21.4.0",
+    "eslint": "^10.3.0",
     "jasmine-core": "^5.7.1",
     "karma": "^6.4.4",
     "karma-chrome-launcher": "^3.2.0",
     "karma-coverage": "~2.2.1",
     "karma-jasmine": "^5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "typescript-eslint": "8.59.2"
   },
   "overrides": {
     "rxjs": "^6.5.3 || ^7.4.0",
