@@ -64,7 +64,21 @@ describe('CardToHtmlPipe', () => {
 
   it('does not let the css break out of its style block', () => {
     const out = render('<div>x</div>', 'a {}</style><img src=x onerror=alert(1)><style>', {});
-    expect(out).not.toContain('onerror');
+    expect(out).not.toContain('<img');
+    expect(out.match(/<\/style>/g)?.length).toBe(1);
+    const container = document.createElement('div');
+    container.innerHTML = out;
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelectorAll('style').length).toBe(1);
+  });
+
+  it('keeps css that contains "<" (comments written by card designers)', () => {
+    const out = render('<div class="a">x</div>', '/* <div> titre */ .a { content: "<b>"; color: red; }', {});
+    const container = document.createElement('div');
+    container.innerHTML = out;
+    const style = container.querySelector('style');
+    expect(style).not.toBeNull();
+    expect(style!.textContent).toContain('color: red');
   });
 
   it('replaces asset placeholders with images in compiled card text', () => {

@@ -64,9 +64,11 @@ export class CardToHtmlPipe implements PipeTransform {
       .replace(/!important/g, '');
     // Template and card data are untrusted: strip scripts, event handlers and
     // javascript: URLs before handing the result to Angular as trusted HTML.
-    // The CSS is sanitized together with the HTML so that a "</style>" in it
-    // cannot break out of the style block.
-    const safe = HtmlSanitizer.sanitizeHtml(scopedStyle ? `${html}<style>${scopedStyle}</style>` : html);
-    return this.domSanitizer.bypassSecurityTrustHtml(safe);
+    // The CSS is not given to the HTML sanitizer, which drops a whole <style>
+    // block as soon as it contains "<" followed by a letter (a comment such as
+    // "/* <div> */" is enough): it is made unable to close the style block instead.
+    const safeHtml = HtmlSanitizer.sanitizeHtml(html);
+    const safeStyle = HtmlSanitizer.sanitizeCss(scopedStyle);
+    return this.domSanitizer.bypassSecurityTrustHtml(safeStyle ? `${safeHtml}<style>${safeStyle}</style>` : safeHtml);
   }
 }

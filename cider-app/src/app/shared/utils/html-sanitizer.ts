@@ -58,6 +58,16 @@ export default class HtmlSanitizer {
   }
 
   /**
+   * Makes CSS safe to put in a <style> block: "<" is written as the CSS escape
+   * \3c, which keeps its meaning in CSS strings and is harmless in comments, so
+   * the text can never close the block ("</style>") and start HTML.
+   * CSS itself cannot run scripts in current browsers.
+   */
+  static sanitizeCss(css: string): string {
+    return css ? css.replace(/</g, '\\3c ') : '';
+  }
+
+  /**
    * Sanitize a standalone SVG document (generated assets)
    */
   static sanitizeSvg(svg: string): string {
