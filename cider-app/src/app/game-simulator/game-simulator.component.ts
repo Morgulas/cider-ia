@@ -7,11 +7,12 @@ import { FieldType } from '../data-services/types/field-type.type';
 import { MenuItem } from 'primeng/api';
 import { ContextMenu } from 'primeng/contextmenu';
 import { CdkDragEnd, CdkDragStart, DragRef, Point, CdkDropListGroup, CdkDrag } from '@angular/cdk/drag-drop';
-import StringUtils from '../shared/utils/string-utils';
 import MathUtils from '../shared/utils/math-utils';
 import { EntityField } from '../data-services/types/entity-field.type';
 import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import { GameSimulatorStateService } from './game-simulator-state.service';
+import { GameSimulatorMenus } from './game-simulator-menus';
+import GameSimulatorActions from './game-simulator-actions';
 import { CardStack, GameCard, GameComponent, Position, Positionable } from './game-simulator.types';
 import { NgStyle, AsyncPipe } from '@angular/common';
 import { CardPreviewComponent } from '../card-preview/card-preview.component';
@@ -32,8 +33,6 @@ import { EntityPipe } from '../data-services/pipes/entity.pipe';
     imports: [CdkDropListGroup, NgStyle, CdkDrag, CardPreviewComponent, Bind, Dialog, FormsModule, InputText, Button, ContextMenu, DecksComponent, AsyncPipe, EntityPipe, TranslatePipe]
 })
 export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit {
-  private static readonly COLORS = ['copper', 'silver', 'gold', 'crimson',
-    'emerald', 'azure', 'lilac', 'ivory', 'charcoal'];
   public static readonly BASE_CARD_WIDTH = 825; // Approximated from visual reference or default - Fallback only
   public static readonly BASE_CARD_HEIGHT = 1125;
   static readonly TABLE_MIN = -5000;
@@ -94,6 +93,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
 
   zoomMagnifiedLevel = 0.40;
   contextMenuItems: MenuItem[] = [];
+  private readonly menus: GameSimulatorMenus;
   hoveredItem: Positionable | undefined;
   draggingCard = false;
   draggingStack = false;
@@ -166,6 +166,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     public gameStateService: GameSimulatorStateService,
     private ngZone: NgZone
   ) {
+    this.menus = new GameSimulatorMenus(this, translate);
     if (!this.gameStateService.initialized) {
       this.gameStateService.resetGame();
     }
@@ -275,22 +276,17 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
 
 
   public shuffleCards(cards: GameCard[]) {
-    for (let i = cards.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [cards[i], cards[j]] = [cards[j], cards[i]];
-    }
+    GameSimulatorActions.shuffleCards(cards);
   }
 
 
 
   public rotateStack(stack: CardStack, angle: number) {
-    stack.rotation = (stack.rotation || 0) + angle;
-    // Apply rotation to all contained cards so they come out rotated
-    stack.cards.forEach(card => card.rotation = stack.rotation);
+    GameSimulatorActions.rotateStack(stack, angle);
   }
 
   public rotateCard(card: GameCard, angle: number) {
-    card.rotation = (card.rotation || 0) + angle;
+    GameSimulatorActions.rotateCard(card, angle);
   }
 
   public flipStack(stack: CardStack) {
@@ -489,10 +485,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
   }
 
   public deleteItem(items: Positionable[], item: Positionable) {
-    const index = items.indexOf(item);
-    if (index > -1) {
-      items.splice(index, 1);
-    }
+    GameSimulatorActions.removeItem(items, item);
   }
 
   public async onStackContextMenu(event: MouseEvent, cm: ContextMenu, stack: CardStack) {
@@ -522,90 +515,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
         return uniqueFields;
       });
 
-    this.contextMenuItems = [
-      {
-        label: this.translate.instant('simulator.draw-card'),
-        icon: 'pi pi-plus',
-        command: () => this.drawCard(stack),
-        "disabled": stack.cards.length === 0
-      },
-      {
-        label: this.translate.instant('simulator.rename-stack'),
-        icon: 'pi pi-pencil',
-        command: () => {
-          this.stackToRename = stack;
-          this.renameStackName = stack.name;
-          this.renameDialogVisible = true;
-        },
-        disabled: stack === this.discard
-      },
-      {
-        label: this.translate.instant('simulator.draw-card-facedown'),
-        icon: 'pi pi-eye-slash',
-        command: () => this.drawCard(stack, false),
-        disabled: stack.cards.length === 0
-      },
-      {
-        label: this.translate.instant('simulator.draw-specific-card'),
-        icon: 'pi pi-id-card',
-        disabled: stack.cards.length === 0,
-        command: () => this.openDrawSpecificCardDialog(stack)
-      },
-      {
-        label: this.translate.instant('simulator.shuffle-stack'),
-        icon: 'pi pi-arrow-right-arrow-left',
-        command: (event: any) => {
-          stack.shuffling = true;
-          setTimeout(() => {
-            this.shuffleCards(stack.cards);
-            stack.shuffling = false;
-          }, 600);
-        },
-        disabled: stack.cards.length < 2
-      },
-      {
-        label: this.translate.instant('simulator.flip-stack'),
-        icon: 'pi pi-refresh',
-        command: () => this.flipStack(stack),
-        disabled: stack.cards.length === 0
-      },
-      {
-        label: this.translate.instant('simulator.rotate-left'),
-        icon: 'pi pi-undo',
-        command: () => this.rotateStack(stack, -90)
-      },
-      {
-        label: this.translate.instant('simulator.rotate-right'),
-        icon: 'pi pi-refresh',
-        command: () => this.rotateStack(stack, 90)
-      },
-      {
-        label: this.translate.instant('simulator.split-in-half'),
-        icon: 'pi pi-clone',
-        command: () => this.splitInHalf(stack),
-        disabled: stack.cards.length < 2
-      },
-      {
-        label: this.translate.instant('simulator.split-by-attribute'),
-        icon: 'pi pi-clone',
-        disabled: stack.cards.length === 0 || optionAttributes.length < 1,
-        // Dynamically create a submenu for each card in the stack
-        // items: stack.cards.map(gameCard => ({
-        //   label: gameCard.card.name,
-        //   command: () => this.drawSpecificCardFromStack(stack, gameCard)
-        // })),
-        items: optionAttributes.map(attribute => ({
-          label: attribute.header,
-          command: () => this.splitByAttribute(stack, attribute)
-        }))
-      },
-      {
-        label: this.translate.instant('simulator.delete'),
-        icon: 'pi pi-trash',
-        command: () => this.deleteItem(this.stacks, stack),
-        disabled: !stack.deletable
-      },
-    ];
+    this.contextMenuItems = this.menus.stack(stack, optionAttributes);
     const x = event.pageX;
     const y = event.pageY;
     setTimeout(() => cm.show({ pageX: x, pageY: y } as MouseEvent));
@@ -628,38 +538,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     cm.hide();
     event.preventDefault();
     event.stopPropagation();
-    this.contextMenuItems = [
-      {
-        label: this.translate.instant('simulator.flip-card'),
-        icon: 'pi pi-refresh',
-        command: () => this.flipCard(card)
-      },
-      {
-        label: this.translate.instant('simulator.toggle-holographic'),
-        icon: 'pi pi-star',
-        command: () => card.holographic = !card.holographic
-      },
-      {
-        label: this.translate.instant('simulator.rotate-left'),
-        icon: 'pi pi-undo',
-        command: () => this.rotateCard(card, -90)
-      },
-      {
-        label: this.translate.instant('simulator.rotate-right'),
-        icon: 'pi pi-refresh',
-        command: () => this.rotateCard(card, 90)
-      },
-      {
-        label: this.translate.instant('simulator.create-stack'),
-        icon: 'pi pi-book',
-        command: () => this.createStack(this.field.cards, card)
-      },
-      {
-        label: this.translate.instant('simulator.discard-card'),
-        icon: 'pi pi-trash',
-        command: () => this.discardCard(this.field.cards, card)
-      }
-    ];
+    this.contextMenuItems = this.menus.card(card);
     const x = event.pageX;
     const y = event.pageY;
     setTimeout(() => cm.show({ pageX: x, pageY: y } as MouseEvent));
@@ -670,30 +549,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     cm.hide();
     event.preventDefault();
     event.stopPropagation();
-    this.contextMenuItems = [
-      ...component.contextMenu,
-      {
-        label: this.translate.instant('simulator.duplicate'),
-        icon: 'pi pi-clone',
-        command: () => {
-          const newComp = {
-            ...component,
-            uniqueId: component.type + '-' + StringUtils.generateRandomString(),
-            pos: {
-              x: component.pos.x + 100 + (Math.random() * 100 - 50),
-              y: component.pos.y + 100 + (Math.random() * 100 - 50)
-            },
-          };
-          this.gameStateService.bringToFront(newComp);
-          this.components.push(newComp);
-        },
-      },
-      {
-        label: this.translate.instant('simulator.delete'),
-        icon: 'pi pi-trash',
-        command: () => this.deleteItem(this.components, component),
-      },
-    ];
+    this.contextMenuItems = this.menus.component(component);
     this.contextMenuItems.forEach(item => {
       item.state = component;
     })
@@ -718,298 +574,42 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     const logicalX = (event.clientX - boundaryLeft - this.simulatorPan.x) / this.simulatorZoom;
     const logicalY = (event.clientY - boundaryTop - this.simulatorPan.y) / this.simulatorZoom;
 
-    this.contextMenuItems = [
-      {
-        label: this.translate.instant('simulator.add-coin'),
-        icon: 'pi pi-plus',
-        items: GameSimulatorComponent.COLORS.map(color => ({
-          label: StringUtils.kebabToTitleCase(color),
-          command: () => {
-            const component: GameComponent = {
-              uniqueId: 'coin-' + StringUtils.generateRandomString(),
-              type: 'coin',
-              className: 'game-coin color-' + color,
-              faceUp: true,
-              pos: {
-                x: logicalX,
-                y: logicalY
-              },
-              contextMenu: [],
-            };
-            component.contextMenu = [
-              {
-                label: this.translate.instant('simulator.flip-randomly'),
-                icon: 'pi pi-percentage',
-                command: (event: any) => {
-                  const componentState: GameComponent | undefined =
-                    event.item?.state as GameComponent;
-                  if (componentState) {
-                    componentState.rolling = true;
-                    setTimeout(() => {
-                      // Also use flipComponent if desired, but rolling is distinct.
-                      // Let's keep rolling as is for random, but if we want 3D flip for strict flip:
-                      // Random flip implies "tossing". 
-                      componentState.faceUp = Math.random() < 0.5;
-                      componentState.rolling = false;
-                    }, 600);
-                  }
-                }
-              },
-              {
-                label: this.translate.instant('simulator.flip-over'),
-                icon: 'pi pi-refresh',
-                command: (event: any) => {
-                  const componentState: GameComponent | undefined =
-                    event.item?.state as GameComponent;
-                  if (componentState) {
-                    this.flipComponent(componentState);
-                  }
-                }
-              },
-            ];
-            this.gameStateService.bringToFront(component);
-            this.components.push(component);
-          }
-        }))
-      },
-      {
-        label: this.translate.instant('simulator.add-cube'),
-        icon: 'pi pi-plus',
-        items: GameSimulatorComponent.COLORS.map(color => ({
-          label: StringUtils.kebabToTitleCase(color),
-          command: () => {
-            const component: GameComponent = {
-              uniqueId: 'cube-' + StringUtils.generateRandomString(),
-              type: 'cube',
-              className: `game-cube color-${color}`,
-              faceUp: true,
-              pos: {
-                x: logicalX,
-                y: logicalY
-              },
-              contextMenu: [
-                {
-                  label: this.translate.instant('simulator.flip-over'),
-                  icon: 'pi pi-refresh',
-                  command: (event: any) => {
-                    const componentState: GameComponent | undefined =
-                      event.item?.state as GameComponent;
-                    if (componentState) {
-                      this.flipComponent(componentState);
-                    }
-                  }
-                },
-              ],
-            };
-            this.gameStateService.bringToFront(component);
-            this.components.push(component);
-          }
-        }))
-      },
-      {
-        label: this.translate.instant('simulator.add-die') + ' (D6)',
-        icon: 'pi pi-plus',
-        items: GameSimulatorComponent.COLORS.map(color => ({
-          label: StringUtils.kebabToTitleCase(color),
-          command: () => {
-            const component: GameComponent = {
-              uniqueId: 'd6-' + StringUtils.generateRandomString(),
-              type: 'd6',
-              className: `game-d6 color-${color}`,
-              faceUp: true,
-              face: 6,
-              pos: {
-                x: logicalX,
-                y: logicalY
-              },
-              contextMenu: [
-                {
-                  label: this.translate.instant('simulator.roll-die'),
-                  icon: 'pi pi-percentage',
-                  command: (event: any) => {
-                    const componentState: GameComponent | undefined =
-                      event.item?.state as GameComponent;
-                    if (componentState) {
-                      componentState.rolling = true;
-                      setTimeout(() => {
-                        componentState.face = MathUtils.randomInt(1, 6);
-                        componentState.rolling = false;
-                      }, 600);
-                    }
-                  }
-                },
-              ],
-            };
-            this.gameStateService.bringToFront(component);
-            this.components.push(component);
-          }
-        }))
-      },
-      {
-        label: this.translate.instant('simulator.add-pawn'),
-        icon: 'pi pi-plus',
-        items: GameSimulatorComponent.COLORS.map(color => ({
-          label: StringUtils.kebabToTitleCase(color),
-          command: () => {
-            const component: GameComponent = {
-              uniqueId: 'pawn-' + StringUtils.generateRandomString(),
-              type: 'pawn',
-              className: `game-pawn color-${color}`,
-              faceUp: true,
-              pos: {
-                x: logicalX,
-                y: logicalY
-              },
-              contextMenu: [
-                {
-                  label: this.translate.instant('simulator.flip-over'),
-                  icon: 'pi pi-refresh',
-                  command: (event: any) => {
-                    const componentState: GameComponent | undefined =
-                      event.item?.state as GameComponent;
-                    if (componentState) {
-                      this.flipComponent(componentState);
-                    }
-                  }
-                },
-              ],
-            };
-            this.gameStateService.bringToFront(component);
-            this.components.push(component);
-          }
-        }))
-      },
-      {
-        separator: true
-      },
-      {
-        label: this.translate.instant('simulator.zoom'),
-        icon: 'pi pi-search',
-        items: [
-          {
-            label: 'Tiny',
-            command: () => { this.simulatorZoom = 0.15; this.clampAllItems(); }
-          },
-          {
-            label: 'Small',
-            command: () => { this.simulatorZoom = 0.20; this.clampAllItems(); }
-          },
-          {
-            label: 'Regular',
-            command: () => { this.simulatorZoom = 0.25; this.clampAllItems(); }
-          },
-          {
-            label: 'Large',
-            command: () => { this.simulatorZoom = 0.30; this.clampAllItems(); }
-          },
-          {
-            label: 'Huge',
-            command: () => { this.simulatorZoom = 0.35; this.clampAllItems(); }
-          }
-        ]
-      },
-      {
-        separator: true
-      },
-      {
-        label: this.translate.instant('simulator.reset-game'),
-        icon: 'pi pi-refresh',
-        command: () => this.gameStateService.resetGame(),
-      },
-      {
-        label: this.translate.instant('simulator.update-game-state'),
-        icon: 'pi pi-sync',
-        command: () => this.gameStateService.updateGameState(),
-      },
-      {
-        separator: true
-      },
-      {
-        label: this.translate.instant('simulator.shortcuts'),
-        icon: 'pi pi-question-circle',
-        command: () => this.showShortcuts(),
-      },
-    ];
+    this.contextMenuItems = this.menus.field(logicalX, logicalY);
     const x = event.pageX;
     const y = event.pageY;
     setTimeout(() => cm.show({ pageX: x, pageY: y } as MouseEvent));
   }
 
   public createStack(cards: GameCard[], card: GameCard) {
-    const index = cards.indexOf(card);
-    if (index < 0) {
-      return
+    const newStack = GameSimulatorActions.createStackFromCard(cards, card);
+    if (newStack) {
+      this.addStack(newStack);
     }
-    cards.splice(index, 1);
-    const newCards: GameCard[] = [card];
-    const newStack: CardStack = {
-      uniqueId: StringUtils.generateRandomString(),
-      name: 'stack-' + StringUtils.generateRandomString(3),
-      cards: newCards,
-      faceUp: card.faceUp,
-      pos: { x: card.pos.x, y: card.pos.y },
-      rotation: card.rotation,
-      deletable: true,
-    };
-    this.gameStateService.bringToFront(newStack);
-    this.stacks.push(newStack);
   }
 
   public splitInHalf(stack: CardStack) {
-    if (stack.cards.length < 2) {
-      return;
+    const newStack = GameSimulatorActions.splitInHalf(stack);
+    if (newStack) {
+      this.addStack(newStack);
     }
-    // split the stack in half and push the new stack into the stacks array
-    const cards = stack.cards.splice(
-      Math.floor(stack.cards.length / 2) - 1,
-      Math.floor(stack.cards.length / 2));
-    const newStack: CardStack = {
-      uniqueId: StringUtils.generateRandomString(),
-      name: stack.name + ' copy',
-      cards: cards,
-      faceUp: false,
-      pos: {
-        x: stack.pos.x + 50 + (Math.random() * 20 - 10),
-        y: stack.pos.y + 50 + (Math.random() * 20 - 10)
-      },
-      deletable: true,
-    };
-    this.gameStateService.bringToFront(newStack);
-    this.stacks.push(newStack);
   }
 
   public splitByAttribute(stack: CardStack, attribute: EntityField<Card>) {
-    if (stack.cards.length < 2) {
+    const newStacks = GameSimulatorActions.splitByAttribute(stack, attribute);
+    if (newStacks.length === 0) {
       return;
     }
-    const uniqueValues = Array.from(new Set(stack.cards.map(card => card.card[attribute.field])));
-
-    const newStacks = uniqueValues.map((value) => {
-      const displayValue = (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) ? 'None' : String(value);
-      return {
-        uniqueId: StringUtils.generateRandomString(),
-        name: stack.name + ' ' + displayValue,
-        cards: stack.cards.filter((card) => card.card[attribute.field] === value),
-        faceUp: false,
-        pos: {
-          x: stack.pos.x + (Math.random() * 100 - 50),
-          y: stack.pos.y + (Math.random() * 100 - 50)
-        },
-        deletable: true,
-      } as CardStack;
-    }).filter((cardStack) => cardStack.cards.length > 0);
-
-    // remove cards taken out of the main stack, and remove stack if empty and deletable
-    stack.cards = stack.cards.filter((card) => !newStacks?.some((newStack) => newStack.cards.includes(card)));
+    // remove the original stack if it is now empty and deletable
     if (stack.cards.length < 1 && stack.deletable) {
       this.deleteItem(this.stacks, stack);
     }
+    newStacks.forEach(newStack => this.addStack(newStack));
+  }
 
-    // add new stacks to the game
-    newStacks?.forEach((stack) => {
-      this.gameStateService.bringToFront(stack);
-      this.stacks.push(stack);
-    });
+  /** Puts a new stack on the board, above the other items */
+  private addStack(stack: CardStack) {
+    this.gameStateService.bringToFront(stack);
+    this.stacks.push(stack);
   }
 
   public onDragStarted(event: CdkDragStart, items: Positionable[], item: Positionable) {
@@ -1055,12 +655,10 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
       const sourceStack = item as CardStack;
 
       // Move all cards from source to target
-      targetStack.cards.push(...sourceStack.cards);
+      GameSimulatorActions.mergeStacks(targetStack, sourceStack);
 
       // Check if source stack is the discard pile
       if (sourceStack === this.discard) {
-        // Clear cards from discard
-        sourceStack.cards = [];
 
         // Reposition discard pile near the target stack
         // Offset by a bit so it's visible "popped out"
@@ -1192,7 +790,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     }
   }
 
-  private clampAllItems() {
+  public clampAllItems() {
     const defaultCardWidth = GameSimulatorComponent.BASE_CARD_WIDTH;
     const defaultCardHeight = GameSimulatorComponent.BASE_CARD_HEIGHT;
 
