@@ -1,14 +1,11 @@
-import { Component, HostBinding, OnInit } from '@angular/core';
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { Component, OnInit } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
 
-import { filter } from 'rxjs';
 import { LocalStorageService } from './data-services/local-storage/local-storage.service';
 import { TranslateService } from '@ngx-translate/core';
 import { ThemeService } from './data-services/theme/theme.service';
 import { SiteTemplateComponent } from './site-template/site-template.component';
 
-// setup in index.html
-declare const gtag: Function;
 
 @Component({
     selector: 'app-root',
@@ -31,7 +28,6 @@ export class AppComponent implements OnInit {
       this.updateViewWidthHeightVar();
     });
 
-    // this.setUpAnalytics();
     this.initTranslateService();
     this.requestPersistentStorage();
   }
@@ -55,17 +51,6 @@ export class AppComponent implements OnInit {
     });
   }
 
-  // private setUpAnalytics() {
-  //   this.router.events.pipe(filter(event => event instanceof NavigationEnd))
-  //       .subscribe((event) => {
-  //           gtag('config', 'G-4B83EBZERL',
-  //               {
-  //                   page_path: (<NavigationEnd>event).urlAfterRedirects
-  //               }
-  //           );
-  //       });
-  // }
-
   private initTranslateService() {
     this.translateService.addLangs(['en', 'fr', 'es', 'bg', 'de', 'it',
       'pt', 'ru', 'pl', 'uk', 'ko', 'ja', 'zh', 'tr', 'nl']);
@@ -77,8 +62,8 @@ export class AppComponent implements OnInit {
   }
 
   private updateViewWidthHeightVar() {
-    let vh = window.innerHeight * 0.01;
-    let vw = window.innerWidth * 0.01;
+    const vh = window.innerHeight * 0.01;
+    const vw = window.innerWidth * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
     document.documentElement.style.setProperty('--vw', `${vw}px`);
   }

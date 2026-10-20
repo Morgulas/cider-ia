@@ -1,4 +1,3 @@
-import { trigger } from "@angular/animations";
 import * as Handlebars from 'handlebars';
 
 export default class MonacoLanguages {
@@ -184,8 +183,8 @@ export default class MonacoLanguages {
 
     static isInsertReplaceEdit(edit: any): any {
         return (
-            typeof (<any>edit).insert !== 'undefined' &&
-            typeof (<any>edit).replace !== 'undefined'
+            typeof (edit as any).insert !== 'undefined' &&
+            typeof (edit as any).replace !== 'undefined'
         );
     }
 
@@ -310,7 +309,7 @@ export class DocumentColorAdapter {
                     return;
                 }
                 return presentations.map((presentation: any) => {
-                    let item: any = {
+                    const item: any = {
                         label: presentation.label
                     };
                     if (presentation.textEdit) {

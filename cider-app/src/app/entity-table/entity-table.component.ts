@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ConfirmationService, LazyLoadEvent, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
+import { ConfirmationService, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { EntityField } from '../data-services/types/entity-field.type';
 import { EntityService } from '../data-services/types/entity-service.type';
@@ -49,30 +49,30 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
   @Input() service: EntityService<Entity, Identifier> | undefined;
   @Input() selection: Entity | Entity[] | undefined;
   @Input() selectionMode: 'single' | 'multiple' | undefined;
-  @Input() allowImportExport: boolean = false;
-  @Input() allowEditing: boolean = true;
-  @Input() showColumnFilters: boolean = true;
-  @Input() lazy: boolean = true;
-  @Input() showActions: boolean = true;
-  @Input() showInlineEditor: boolean = true;
-  @Input() showStats: boolean = false;
-  @Input() saveToService: boolean = true;
+  @Input() allowImportExport = false;
+  @Input() allowEditing = true;
+  @Input() showColumnFilters = true;
+  @Input() lazy = true;
+  @Input() showActions = true;
+  @Input() showInlineEditor = true;
+  @Input() showStats = false;
+  @Input() saveToService = true;
   @Output() selectionChange: EventEmitter<Entity | Entity[] | undefined> = new EventEmitter<Entity | Entity[] | undefined>();
   FieldType = FieldType;
-  total: number = 0;
-  loading: boolean = false;
-  dialogVisible: boolean = false;
+  total = 0;
+  loading = false;
+  dialogVisible = false;
   entity: Entity = {} as Entity;
   idField?: string;
-  lookups: Map<EntityService<any, string | number>, Map<string | number, string>> = new Map();
-  importVisible: boolean = false;
-  statsVisible: boolean = false;
+  lookups = new Map<EntityService<any, string | number>, Map<string | number, string>>();
+  importVisible = false;
+  statsVisible = false;
   stats: TableStat[] = [];
-  statsTopX: number = 20;
+  statsTopX = 20;
   importFile: File | undefined = undefined;
-  saveSubject: Subject<Entity> = new Subject();
+  saveSubject = new Subject<Entity>();
   contextMenuItems: MenuItem[] = [];
-  shortcutsVisible: boolean = false;
+  shortcutsVisible = false;
   optionsCache: Map<EntityService<any, string | number>, any[]>;
 
   constructor(private messageService: MessageService, 
@@ -175,7 +175,7 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
     if (!this.service || !this.saveToService) {
       return;
     }
-    const id = (<any>entity)[this.service?.getIdField()];
+    const id = (entity as any)[this.service?.getIdField()];
     this.updateExisting(id, entity);
   }
   
@@ -244,7 +244,7 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
       // determine entity type based on the table name in the service (remove the last 's' if it exists)
       const entityType = StringUtils.kebabToTitleCase(this.service?.getTableName().replace(/s$/, '') || 'Entity');
       // set the name field to a random value
-      (<any>this.entity)[nameField.field] = `${entityType}-${Math.random().toString(36).substr(2, 9)}`;
+      (this.entity as any)[nameField.field] = `${entityType}-${Math.random().toString(36).substr(2, 9)}`;
     }
     this.dialogVisible = true;
   }
@@ -260,7 +260,7 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
       header: 'Delete Entity',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.service?.delete((<any>entity)[this.service?.getIdField()]).then(deleted => {
+        this.service?.delete((entity as any)[this.service?.getIdField()]).then(deleted => {
           this.messageService.add({severity:'success', summary: 'Successful', detail: 'Entity Deleted', life: 3000});
           this.clear(table);
         });

@@ -35,7 +35,7 @@ export class SiteContentComponent implements OnInit {
     });
   }
 
-  private refreshGlobalStyles(forceUpdate: boolean = false) {
+  private refreshGlobalStyles(forceUpdate = false) {
     this.documentsService.getAll({ name: 'global-styles' }).then(documents => {
       if (documents.length > 0) {
         if (forceUpdate || this.globalDocument?.content !== documents[0].content) {

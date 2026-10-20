@@ -247,36 +247,36 @@
           <div class="p-d-flex p-flex-row">
             <div class="p-field p-mr-2">
               <label [for]="paperWidth">{{'export.paper-width' | translate}}</label>
-              <input type="number" pInputText [id]="paperWidth" [(ngModel)]="paperWidth" required autofocus
+              <input type="number" pInputText [id]="paperWidth" [(ngModel)]="paperWidth" required
                 [disabled]="!selectedPaper.name.includes('Custom')" (ngModelChange)="saveSettings()" />
             </div>
             <div class="p-field">
               <label [for]="paperHeight">{{'export.paper-height' | translate}}</label>
-              <input type="number" pInputText [id]="paperHeight" [(ngModel)]="paperHeight" required autofocus
+              <input type="number" pInputText [id]="paperHeight" [(ngModel)]="paperHeight" required
                 [disabled]="!selectedPaper.name.includes('Custom')" (ngModelChange)="saveSettings()" />
             </div>
           </div>
           <div class="p-d-flex p-flex-row">
             <div class="p-field p-mr-2">
               <label [for]="cardsPerPage">{{'export.cards-per-page' | translate}}</label>
-              <input type="number" pInputText [id]="cardsPerPage" [(ngModel)]="cardsPerPage" required autofocus
+              <input type="number" pInputText [id]="cardsPerPage" [(ngModel)]="cardsPerPage" required
                 (ngModelChange)="updateSlices()" [disabled]="selectedPaper.name.includes('Tabletop Simulator')" />
             </div>
             <div class="p-field">
               <label [for]="cardGap">{{'export.card-gaps' | translate}}</label>
-              <input type="number" pInputText [id]="cardGap" [(ngModel)]="cardGap" required autofocus
+              <input type="number" pInputText [id]="cardGap" [(ngModel)]="cardGap" required
                 [disabled]="selectedPaper.name.includes('Tabletop Simulator')" (ngModelChange)="saveSettings()" />
             </div>
           </div>
           <div class="p-d-flex p-flex-row">
             <div class="p-field p-mr-2">
               <label [for]="paperMarginX">{{'export.paper-margin-x' | translate}}</label>
-              <input type="number" pInputText [id]="paperMarginX" [(ngModel)]="paperMarginX" required autofocus
+              <input type="number" pInputText [id]="paperMarginX" [(ngModel)]="paperMarginX" required
                 [disabled]="selectedPaper.name.includes('Tabletop Simulator')" (ngModelChange)="saveSettings()" />
             </div>
             <div class="p-field">
               <label [for]="paperMarginY">{{'export.paper-margin-y' | translate}}</label>
-              <input type="number" pInputText [id]="paperMarginY" [(ngModel)]="paperMarginY" required autofocus
+              <input type="number" pInputText [id]="paperMarginY" [(ngModel)]="paperMarginY" required
                 [disabled]="selectedPaper.name.includes('Tabletop Simulator')" (ngModelChange)="saveSettings()" />
             </div>
           </div>
@@ -313,24 +313,24 @@
           <div class="p-d-flex p-flex-row">
             <div class="p-field p-mr-2">
               <label [for]="cutBleed">{{'export.cut-bleed' | translate}}</label>
-              <input type="number" pInputText [id]="cutBleed" [(ngModel)]="cutBleed" required autofocus
+              <input type="number" pInputText [id]="cutBleed" [(ngModel)]="cutBleed" required
                 [disabled]="!showCutMarks" (ngModelChange)="saveSettings()" />
             </div>
             <div class="p-field">
               <label [for]="cutMarkLength">{{'export.cut-mark-length' | translate}}</label>
-              <input type="number" pInputText [id]="cutMarkLength" [(ngModel)]="cutMarkLength" required autofocus
+              <input type="number" pInputText [id]="cutMarkLength" [(ngModel)]="cutMarkLength" required
                 [disabled]="!showCutMarks" (ngModelChange)="saveSettings()" />
             </div>
           </div>
           <div class="p-d-flex p-flex-row">
             <div class="p-field p-mr-2">
               <label [for]="paperDpi">{{'export.paper-dpi' | translate}}</label>
-              <input type="number" pInputText [id]="paperDpi" [(ngModel)]="paperDpi" required autofocus
+              <input type="number" pInputText [id]="paperDpi" [(ngModel)]="paperDpi" required
                 (ngModelChange)="saveSettings()" />
             </div>
             <div class="p-field">
               <label [for]="paperDpi">{{'export.max-tts-pixels' | translate}}</label>
-              <input type="number" pInputText [id]="paperDpi" [(ngModel)]="maxTtsPixels" required autofocus
+              <input type="number" pInputText [id]="paperDpi" [(ngModel)]="maxTtsPixels" required
                 (ngModelChange)="calculatePixelRatio()" [disabled]="!selectedPaper.name.includes('Tabletop')" />
             </div>
           </div>
@@ -383,7 +383,7 @@
           <div class="p-field">
             <label [for]="individualExportPixelRatio">Scale (larger/smaller images)</label>
             <input type="number" pInputText [id]="individualExportPixelRatio" [(ngModel)]="individualExportPixelRatio"
-              required autofocus (ngModelChange)="saveSettings()" />
+              required (ngModelChange)="saveSettings()" />
           </div>
           <div class="p-field p-d-flex p-flex-row">
             <p-checkbox name="individualExportUseCardName" class="p-mr-2" [binary]="true"
@@ -407,7 +407,7 @@
   }
 </div>
 <p-confirmDialog [style]="{width: '450px'}"></p-confirmDialog>
-<app-export-selection-dialog [(visible)]="exportSelectionDialogVisible" (onApply)="updateSelection($event)"
+<app-export-selection-dialog [(visible)]="exportSelectionDialogVisible" (applied)="updateSelection($event)"
   [records]="originalCards"></app-export-selection-dialog>
 <p-dialog header="Exporting Data" [(visible)]="displayLoading" [style]="{width: '450px'}" [modal]="true">
   <div class="p-field">{{'export.wait-message' | translate}}</div>

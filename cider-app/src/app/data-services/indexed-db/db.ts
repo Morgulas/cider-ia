@@ -1,5 +1,5 @@
 import Dexie, { Table } from "dexie";
-import { Card } from "primeng/card";
+import { Card } from "../types/card.type";
 import { Asset } from "../types/asset.type";
 import { CardTemplate } from "../types/card-template.type";
 import { FieldType } from "../types/field-type.type";
@@ -38,7 +38,7 @@ export class AppDB extends Dexie {
     private httpClient;
     private changeSubject: Subject<any>;
     private loadSubject: Subject<null>;
-    private isPopulating: boolean = false;
+    private isPopulating = false;
 
     constructor(httpClient: HttpClient) {
         super(AppDB.DB_NAME);
@@ -212,7 +212,7 @@ export class AppDB extends Dexie {
 
     }
 
-    async populateFromFile(emitChange: boolean = true) {
+    async populateFromFile(emitChange = true) {
         // This is a destructive operation, but it's only called when the DB is effectively empty
         // or we fully intend to reset to the sample state.
         this.isPopulating = true;
@@ -255,8 +255,6 @@ export class AppDB extends Dexie {
      */
     public async importDatabase(file: File,
         progressCallback?: (progress: ImportProgress) => boolean): Promise<boolean> {
-        // unsolved dexie with typescript issue: https://github.com/dexie/Dexie.js/issues/1262
-        // @ts-ignore
         await this.delete();
         return importDB(file, {
             noTransaction: true,
@@ -271,8 +269,6 @@ export class AppDB extends Dexie {
      * 
      */
     public exportDatabase(progressCallback?: (progress: ExportProgress) => boolean): Promise<boolean> {
-        // unsolved dexie with typescript issue: https://github.com/dexie/Dexie.js/issues/1262
-        // @ts-ignore
         const promisedBlob: Promise<Blob> = exportDB(this, {
             progressCallback: progressCallback,
             prettyJson: true
@@ -350,7 +346,7 @@ export class AppDB extends Dexie {
                 const usedColors = new Set<string>();
 
                 const getRandomColor = () => {
-                    let color = '';
+                    let color: string;
                     let attempts = 0;
                     do {
                         color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');

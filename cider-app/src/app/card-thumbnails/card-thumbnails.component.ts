@@ -26,25 +26,25 @@ export class CardThumbnailsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   @ViewChild('dv') dv!: DataView;
   thumbnailCards: Card[] = [];
-  zoomLevel: number = 0.3;
+  zoomLevel = 0.3;
   zoomOptions: any[] = [
     { label: 's', value: 0.2 },
     { label: 'm', value: 0.3 },
     { label: 'l', value: 0.5 },
     { label: 'xl', value: 0.8 }
   ];
-  sideSelected: string = 'fronts';
+  sideSelected = 'fronts';
   sideOptions: any[] = [
     { label: 'Fronts', value: 'fronts' },
     { label: 'Backs', value: 'backs' },
     { label: 'Both', value: 'both' }
   ];
-  filterFields: string = "";
+  filterFields = "";
   copyOptions: any[] = [
     { label: 'Singles', value: 'singles' },
     { label: 'Copies', value: 'copies' }
   ];
-  copySelected: string = 'copies';
+  copySelected = 'copies';
 
 
   constructor(public cardsService: CardsService,

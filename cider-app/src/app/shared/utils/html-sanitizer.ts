@@ -6,7 +6,7 @@ import DOMPurify from 'dompurify';
  * data: URLs stay limited to DOMPurify's media tags (img, audio, video...).
  */
 const ALLOWED_URI_REGEXP =
-  /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
+  /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i;
 
 /**
  * Sanitizes untrusted HTML before it is injected into the page.

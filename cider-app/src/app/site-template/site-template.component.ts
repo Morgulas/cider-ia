@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, HostListener, OnInit, ViewChild, DestroyRef, inject } from '@angular/core';
+import { Component, HostListener, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Splitter } from 'primeng/splitter';
 import { debounceTime, Subject } from 'rxjs';
@@ -20,8 +20,8 @@ import { DecksComponent } from '../decks/decks.component';
 export class SiteTemplateComponent {
   private readonly destroyRef = inject(DestroyRef);
   splitterPanels: any[] = []
-  selectedActivity: string = 'explorer';
-  disablePanels: boolean = false;
+  selectedActivity = 'explorer';
+  disablePanels = false;
   windowResizing$: Subject<boolean>;
 
   constructor() {

@@ -19,7 +19,7 @@ export class DeckGuard  {
    */
   canActivate(route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
-      let deckIdString = route.paramMap.get('deckId');
+      const deckIdString = route.paramMap.get('deckId');
       if (deckIdString) {
         return this.decksService.get(Number(deckIdString))
           .then(deck => {

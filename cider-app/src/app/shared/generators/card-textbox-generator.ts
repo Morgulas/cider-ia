@@ -162,16 +162,18 @@ function applyEdgeStyle(skeleton: {x: number, y: number}[], edge: EdgeOption, tu
                         displacedPt = { x: pt.x + perp.x * displacement, y: pt.y + perp.y * displacement };
                     }
                     break;
-                case 'zigzag':
+                case 'zigzag': {
                     const amplitude = len * 0.02;
                     const zigOffset = (j % 2 === 0 ? 1 : -1) * amplitude * (1 - turbulence*0.8);
                     displacedPt = { x: pt.x + perp.x * zigOffset, y: pt.y + perp.y * zigOffset };
                     break;
+                }
                 case 'straight':
-                default:
+                default: {
                     const displacement = (Math.random() - 0.5) * len * 0.2 * turbulence;
                     displacedPt = { x: pt.x + perp.x * displacement, y: pt.y + perp.y * displacement };
                     break;
+                }
             }
             finalPoints.push(displacedPt);
         }
@@ -235,7 +237,7 @@ export function generateDialogFrame(options: DialogFrameOptions): string {
     archDirection = 'up'
   } = options;
 
-  let frameElements = '';
+  let frameElements: string;
   let resketchElements = '';  // Separate string for sketch lines
   
   // 1. Calculate a safe drawing area to prevent clipping

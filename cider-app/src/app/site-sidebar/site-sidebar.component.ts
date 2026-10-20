@@ -4,9 +4,8 @@ import { ConfirmationService, MenuItem, MessageService, TreeDragDropService, Tre
 import { DecksService } from '../data-services/services/decks.service';
 import { AssetsService } from '../data-services/services/assets.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
-import { Action } from 'rxjs/internal/scheduler/Action';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
-import { combineLatest, debounceTime, firstValueFrom, lastValueFrom, merge, timeout } from 'rxjs';
+import { debounceTime, firstValueFrom } from 'rxjs';
 import StringUtils from '../shared/utils/string-utils';
 import { TreeNodeContextMenuSelectEvent, TreeNodeSelectEvent, TreeNodeDropEvent, Tree } from 'primeng/tree';
 import { Router } from '@angular/router';
@@ -30,13 +29,13 @@ import { ConfirmDialog } from 'primeng/confirmdialog';
 })
 export class SiteSidebarComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
-  deckId: number = 0;
+  deckId = 0;
   files: TreeNode[] = [];
   selectedFile: TreeNode | null = null;
   menuItems: MenuItem[] = [];
-  updatingFiles: boolean = false;
-  dialogVisible: boolean = false;
-  dialogTitle: string = '';
+  updatingFiles = false;
+  dialogVisible = false;
+  dialogTitle = '';
   service: EntityService<any, any>;
   entity: any = {};
 
@@ -94,7 +93,7 @@ export class SiteSidebarComponent implements OnInit {
       // Setup project home node
       // -----------------------------------------------
       {
-        let projectName = this.translate.instant('sidebar.unknown-project');
+        const projectName = this.translate.instant('sidebar.unknown-project');
         updatedFiles.push({
           label: projectName,
           data: {
@@ -196,9 +195,9 @@ export class SiteSidebarComponent implements OnInit {
       // Fetch decks and their templates
       // -----------------------------------------------
       await this.decksService.getAll().then(decks => {
-        let deckFolderChildren: TreeNode[] = [];
+        const deckFolderChildren: TreeNode[] = [];
         decks.forEach(deck => {
-          let deckChildren: TreeNode[] = [];
+          const deckChildren: TreeNode[] = [];
 
           deckChildren.push({
             label: this.translate.instant('sidebar.cards'),
@@ -314,7 +313,7 @@ export class SiteSidebarComponent implements OnInit {
             }
             ));
 
-          let deckFile = {
+          const deckFile = {
             label: deck.name,
             data: {
               url: '/decks/' + deck.id + '/cards',
@@ -363,7 +362,7 @@ export class SiteSidebarComponent implements OnInit {
           deckFolderChildren.push(deckFile);
         });
 
-        let decksFolder: TreeNode = {
+        const decksFolder: TreeNode = {
           label: this.translate.instant('sidebar.decks'),
           data: {
             url: '/decks',

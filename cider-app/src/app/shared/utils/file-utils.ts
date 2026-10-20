@@ -14,7 +14,7 @@ export default class FileUtils {
             const reader = new FileReader();
             reader.onload = function() {
                 //window.location.href = <string>reader.result;
-                FileUtils.anchorUrlDownload(<string>reader.result);
+                FileUtils.anchorUrlDownload((reader.result as string));
             }
             reader.readAsDataURL(data);
         } else {

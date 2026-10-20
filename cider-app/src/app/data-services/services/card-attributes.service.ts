@@ -6,6 +6,7 @@ import { FieldType } from '../types/field-type.type';
 import { DropdownOption } from '../types/dropdown-option.type';
 import { DecksService } from './decks.service';
 import StringUtils from 'src/app/shared/utils/string-utils';
+import { EqualityCriteria } from '../types/equality-criteria.type';
 
 @Injectable({
   providedIn: 'root'
@@ -33,7 +34,7 @@ export class CardAttributesService extends DecksChildService<CardAttribute, numb
     ]);
   }
 
-  override getAll(equalityCriterias?: { [key: string]: any; }) {
+  override getAll(equalityCriterias?: EqualityCriteria) {
     return super.getAll(equalityCriterias).then(attributes => {
       return attributes.sort((a, b) => (a.order || 0) - (b.order || 0));
     });
@@ -47,7 +48,7 @@ export class CardAttributesService extends DecksChildService<CardAttribute, numb
   normalizeDropdownOptions(options: any): DropdownOption[] {
     if (!options) return [];
 
-    let parsedOptions: any[] = [];
+    let parsedOptions: any[];
     if (typeof options === 'string') {
       const trimmed = options.trim();
       if (trimmed.startsWith('[')) {
@@ -127,7 +128,7 @@ export class CardAttributesService extends DecksChildService<CardAttribute, numb
     for (const attr of inherent) {
       const existing = await this.db.table(this.tableName).where({ deckId: deckId, name: attr.name }).first();
       if (!existing) {
-        await this.create(<any>{
+        await this.create(({
           deckId: deckId,
           name: attr.name,
           type: attr.type,
@@ -136,7 +137,7 @@ export class CardAttributesService extends DecksChildService<CardAttribute, numb
           width: 135,
           order: attr.order,
           isSystem: true
-        }, true);
+        } as any), true);
       } else {
         if (!existing.isSystem) {
           existing.isSystem = true;

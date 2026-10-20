@@ -1,8 +1,8 @@
-import { Component, OnInit, EventEmitter, Input, Output, DestroyRef, inject } from '@angular/core';
+import { Component, OnInit, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CardTemplate } from "../data-services/types/card-template.type";
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
-import TemplateDefaults, { CardTheme, TemplateDesign } from '../shared/defaults/template-defaults';
+import TemplateDefaults, { TemplateDesign } from '../shared/defaults/template-defaults';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AssetsService } from '../data-services/services/assets.service';
 import StringUtils from '../shared/utils/string-utils';
@@ -25,16 +25,16 @@ import { TranslatePipe } from '@ngx-translate/core';
 })
 export class TemplateGeneratorComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
-  deckId: number = 0;
-  zoomLevel: number = 0.25;
-  previewZoom: number = 0.40;
+  deckId = 0;
+  zoomLevel = 0.25;
+  previewZoom = 0.40;
   sizeCards: any[] = [];
   layoutCards: any[] = [];
   themeCards: any[] = [];
   selectedSize: any = undefined;
   selectedLayout: any = undefined;
   selectedTheme: any = undefined;
-  templateName: string = '';
+  templateName = '';
 
   constructor(
     private router: Router,

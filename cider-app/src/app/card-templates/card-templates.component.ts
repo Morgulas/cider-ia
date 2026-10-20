@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, SecurityContext, ViewChild, ElementRef, AfterViewInit, OnDestroy, DestroyRef, inject } from '@angular/core';
+import { Component, OnInit, HostListener, ViewChild, ElementRef, AfterViewInit, OnDestroy, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ConfirmationService, MessageService, PrimeTemplate } from 'primeng/api';
@@ -94,18 +94,18 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   selectedCard: Card = {} as Card;
   selectedTemplate: CardTemplate = {} as CardTemplate;
   editTemplate: CardTemplate = {} as CardTemplate;
-  dialogVisible: boolean = false;
-  infoVisible: boolean = false;
-  infoText: string = '';
+  dialogVisible = false;
+  infoVisible = false;
+  infoText = '';
   zoom: number = this.DEFAULT_ZOOM;
   previewPanelWidth = 40;
-  disablePanels: boolean = false;
+  disablePanels = false;
   templateChanges: Subject<boolean>;
   disableSplitter = false;
   windowResizing$: Subject<boolean>;
-  templateVersion: number = 0;
-  isPanning: boolean = false;
-  settingsVisible: boolean = false;
+  templateVersion = 0;
+  isPanning = false;
+  settingsVisible = false;
   previewSettings: PreviewSettings = {
     tiltEnabled: false,
     trimLinesEnabled: false,
@@ -121,10 +121,10 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     { label: 'mm', value: 'mm' }
   ];
 
-  private panStartX: number = 0;
-  private panStartY: number = 0;
-  private scrollLeftStart: number = 0;
-  private scrollTopStart: number = 0;
+  private panStartX = 0;
+  private panStartY = 0;
+  private scrollLeftStart = 0;
+  private scrollTopStart = 0;
   private resizeObserver: ResizeObserver | null = null;
 
 
@@ -301,7 +301,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
 
   
   public save(entity : CardTemplate) {
-    const id = (<any>this.selectedTemplate)[this.service?.getIdField()];
+    const id = (this.selectedTemplate as any)[this.service?.getIdField()];
     if (id) {
       this.updateExisting(id, this.selectedTemplate);
     }
@@ -344,7 +344,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       header: 'Confirm',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.service?.delete((<any>entity)[this.service?.getIdField()]).then(deleted => {
+        this.service?.delete((entity as any)[this.service?.getIdField()]).then(deleted => {
           this.updateTemplatesList();
           this.messageService.add({severity:'success', summary: 'Successful', detail: 'Entity Deleted', life: 3000});
         });

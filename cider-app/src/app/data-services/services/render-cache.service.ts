@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { AsyncSubject, BehaviorSubject, Observable, withLatestFrom } from 'rxjs';
+import { AsyncSubject, BehaviorSubject, Observable } from 'rxjs';
 
 /**
  * RenderCacheService contains a hashmap of number, string values
@@ -50,7 +50,7 @@ export class RenderCacheService {
   }
 
   private set(key: number, value: string) {
-    var renderCache = this.renderCache.getValue();
+    const renderCache = this.renderCache.getValue();
     renderCache.set(key, value);
     this.renderCache.next(renderCache);
   }
@@ -75,7 +75,7 @@ export class RenderCacheService {
   public calculateHash(input: string) {
     let hash = 0;
     for (let i = 0, len = input.length; i < len; i++) {
-        let chr = input.charCodeAt(i);
+        const chr = input.charCodeAt(i);
         hash = (hash << 5) - hash + chr;
         hash |= 0; // Convert to 32bit integer
     }
@@ -90,8 +90,8 @@ export class RenderCacheService {
     } else {
       byteString = unescape(base64.split(',')[1]);
     }
-    var blobArray = new Uint8Array(byteString.length);
-    for (var i = 0; i < byteString.length; i++) {
+    const blobArray = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) {
       blobArray[i] = byteString.charCodeAt(i);
     }
     return new File([blobArray], fileName, {type: mime});

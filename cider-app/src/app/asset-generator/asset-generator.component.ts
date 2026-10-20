@@ -95,8 +95,8 @@ export class AssetGeneratorComponent {
   imageHeight: number | undefined = undefined;
   frontScale: number | undefined = undefined;
   turbulence: number | undefined = undefined;
-  saveSvg: string = "";
-  saveName: string = "";
+  saveSvg = "";
+  saveName = "";
 
   public generatedSvgs: GeneratedSvg[] = [];
 

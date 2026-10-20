@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { Route, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { MenuItem, PrimeTemplate } from 'primeng/api';
 import { Bind } from 'primeng/bind';
 import { Menubar } from 'primeng/menubar';
@@ -12,10 +12,10 @@ import { SettingsDialogComponent } from '../settings-dialog/settings-dialog.comp
     imports: [Bind, Menubar, PrimeTemplate, SettingsDialogComponent]
 })
 export class SiteActivitybarComponent {
-  @Input() selectedActivity: string = 'explorer';
+  @Input() selectedActivity = 'explorer';
   @Output() selectedActivityChange: EventEmitter<string> = new EventEmitter<string>();
 
-  public settingsDialogVisible: boolean = false;
+  public settingsDialogVisible = false;
   public menuItems: MenuItem[] = [
     {
       label: 'Explorer',
@@ -116,7 +116,7 @@ export class SiteActivitybarComponent {
       }
     },
   ];
-  public isSaving: boolean = false;
+  public isSaving = false;
 
   constructor(private router: Router) {
     // Do nothing here

@@ -1,7 +1,5 @@
 import { Injectable } from '@angular/core';
 import * as htmlToImage from 'html-to-image';
-// @ts-ignore
-// @ts-ignore
 import domToImageMore from 'dom-to-image-more';
 import { LocalStorageService } from '../local-storage/local-storage.service';
 

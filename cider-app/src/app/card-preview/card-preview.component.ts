@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, QueryList, SecurityContext, SimpleChanges, ViewChildren, DestroyRef, inject } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, QueryList, SimpleChanges, ViewChildren, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AssetsService } from '../data-services/services/assets.service';
 import { CardTemplate } from '../data-services/types/card-template.type';
@@ -8,7 +8,7 @@ import { AsyncSubject, lastValueFrom } from 'rxjs';
 import { RenderCacheService } from '../data-services/services/render-cache.service';
 import { CardToHtmlPipe } from '../shared/pipes/template-to-html.pipe';
 import { ImageRendererService } from '../data-services/services/image-renderer.service';
-import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import GeneralUtils from '../shared/utils/general-utils';
 import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
 
@@ -24,23 +24,23 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   @ViewChildren('cardElement') cardElement: QueryList<any> = {} as QueryList<any>;
   @Input() card: Card = {} as Card;
   @Input() template: CardTemplate = {} as CardTemplate;
-  @Input() scale: number = 1.0;
-  @Input() lowInk: boolean = false;
-  @Input() cache: boolean = false;
-  @Input() tiltable: boolean = false;
+  @Input() scale = 1.0;
+  @Input() lowInk = false;
+  @Input() cache = false;
+  @Input() tiltable = false;
   @Input() holographic: boolean | undefined = false;
-  @Input() version: number = 0;
-  @Input() showTrimLines: boolean = false;
-  @Input() trimOffsetPx: number = 37.5;
-  @Input() showSafeLines: boolean = false;
-  @Input() safeOffsetPx: number = 75;
+  @Input() version = 0;
+  @Input() showTrimLines = false;
+  @Input() trimOffsetPx = 37.5;
+  @Input() showSafeLines = false;
+  @Input() safeOffsetPx = 75;
 
-  initialWidth: number = 0;
-  initialHeight: number = 0;
+  initialWidth = 0;
+  initialHeight = 0;
   assetUrls: any;
   uuid: string = uuid();
   cachedImageUrl?: string;
-  invalidTemplate: boolean = false;
+  invalidTemplate = false;
   private isLoadedSubject: AsyncSubject<boolean>;
   private isCacheLoadedSubject: AsyncSubject<boolean>;
   private resizeObserver?: ResizeObserver;
@@ -59,7 +59,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
 
   ngAfterViewInit(): void {
     this.resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         const width = entry.contentRect.width || (entry.target as HTMLElement).offsetWidth;
         const height = entry.contentRect.height || (entry.target as HTMLElement).offsetHeight;
 
@@ -138,7 +138,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     const filter = (node: HTMLElement) => {
       return 'style' !== node.localName;
     };
-    return this.imageRendererService.toPng((<any>this.cardElement.get(0)).nativeElement, { pixelRatio: 1.0, filter: filter });
+    return this.imageRendererService.toPng((this.cardElement.get(0) as any).nativeElement, { pixelRatio: 1.0, filter: filter });
   }
 
   public isLoaded() {

@@ -10,7 +10,7 @@ import { Button } from 'primeng/button';
     imports: [Bind, Button]
 })
 export class SiteFooterComponent implements OnInit {
-  appVersion: string = '0.0.0';
+  appVersion = '0.0.0';
 
   constructor() {
     this.appVersion = PackageUtils.getVersion();

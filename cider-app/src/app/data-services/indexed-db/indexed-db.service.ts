@@ -4,6 +4,7 @@ import { SearchParameters } from '../types/search-parameters.type';
 import { SearchResult } from '../types/search-result.type';
 import { SortDirection } from '../types/search-sort.type';
 import { AppDB } from './db';
+import { EqualityCriteria } from '../types/equality-criteria.type';
 
 export class IndexedDbService<Entity, Identity extends string | number> implements EntityService<Entity, Identity> {
 
@@ -22,30 +23,30 @@ export class IndexedDbService<Entity, Identity extends string | number> implemen
   }
 
   getEntityName(entity: Entity): string {
-    return '' + (<any>entity)[this.getIdField()];
+    return String((entity as unknown as Record<string, unknown>)[this.getIdField()]);
   }
 
   getIdField(): string {
     return 'id';
   }
 
-  getFields(equalityCriterias?: {[key: string]: any;}) {
+  getFields(equalityCriterias?: EqualityCriteria) {
     return new Promise<EntityField<Entity>[]>((resolve, reject) => {
       resolve(this.fields);
     });
   }
 
-  getIdToNameMap(equalityCriterias?: {[key: string]: any;}): Promise<Map<Identity, string>> {
+  getIdToNameMap(equalityCriterias?: EqualityCriteria): Promise<Map<Identity, string>> {
     const idField = this.getIdField();
     return this.getAll(equalityCriterias).then(items => items.reduce((map, item) => 
-      map.set((<any>item)[idField], this.getEntityName(item)), new Map()));
+      map.set((item as unknown as Record<string, unknown>)[idField] as Identity, this.getEntityName(item)), new Map<Identity, string>()));
   }
 
   /**
    * Get idToName lookups for each external service used in the entity fields
    * @returns 
    */
-  getLookups(equalityCriterias?: {[key: string]: any;}): Promise<Map<EntityService<any, string | number>, Map<string | number, string>>> {
+  getLookups(equalityCriterias?: EqualityCriteria): Promise<Map<EntityService<unknown, string | number>, Map<string | number, string>>> {
     return this.getFields(equalityCriterias).then(fields => fields
       .filter(field => field.service).map(field => field.service)
       .reduce(async (promiseMap, service) => {
@@ -54,7 +55,7 @@ export class IndexedDbService<Entity, Identity extends string | number> implemen
       }, Promise.resolve(new Map())));
   }
 
-  search(searchParameters: SearchParameters, equalityCriterias?: {[key: string]: any;}): Promise<SearchResult<Entity>> {
+  search(searchParameters: SearchParameters, equalityCriterias?: EqualityCriteria): Promise<SearchResult<Entity>> {
     console.log('searchParameters', searchParameters);
     let query = equalityCriterias ? this.db.table(this.tableName).where(equalityCriterias) 
       : this.db.table(this.tableName).toCollection();
@@ -63,7 +64,7 @@ export class IndexedDbService<Entity, Identity extends string | number> implemen
         query = query.reverse();
       }
     }
-    const filters: {(record: any): boolean}[] = [];
+    const filters: ((record: Record<string, unknown>) => boolean)[] = [];
     if (searchParameters.query) {
       filters.push((record) => JSON.stringify(record).toLowerCase()
         .includes(searchParameters.query?.toLowerCase() || ''));
@@ -96,7 +97,7 @@ export class IndexedDbService<Entity, Identity extends string | number> implemen
     });
   }
 
-  getAll(equalityCriterias?: {[key: string]: any;}): Promise<Entity[]> {
+  getAll(equalityCriterias?: EqualityCriteria): Promise<Entity[]> {
     return equalityCriterias ? this.db.table(this.tableName).where(equalityCriterias).toArray()
       : this.db.table(this.tableName).toArray();
   }
@@ -119,7 +120,7 @@ export class IndexedDbService<Entity, Identity extends string | number> implemen
     return this.db.table(this.tableName).delete(id).then(() => true);
   }
 
-  deleteAll(equalityCriterias?: {[key: string]: any;}): Promise<boolean> {
+  deleteAll(equalityCriterias?: EqualityCriteria): Promise<boolean> {
     return equalityCriterias ? this.db.table(this.tableName).where(equalityCriterias).delete().then(() => true)
       : this.db.table(this.tableName).clear().then(() => true);
   }

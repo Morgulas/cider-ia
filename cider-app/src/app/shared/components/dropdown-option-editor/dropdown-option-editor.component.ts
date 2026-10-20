@@ -1,7 +1,7 @@
 import { Component, forwardRef } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { DropdownOption } from 'src/app/data-services/types/dropdown-option.type';
-import { CommonModule } from '@angular/common';
+
 import { ColorPickerModule } from 'primeng/colorpicker';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
@@ -11,7 +11,7 @@ import { ButtonModule } from 'primeng/button';
     templateUrl: './dropdown-option-editor.component.html',
     styleUrls: ['./dropdown-option-editor.component.scss'],
     standalone: true,
-    imports: [CommonModule, FormsModule, ColorPickerModule, InputTextModule, ButtonModule],
+    imports: [FormsModule, ColorPickerModule, InputTextModule, ButtonModule],
     providers: [
         {
             provide: NG_VALUE_ACCESSOR,

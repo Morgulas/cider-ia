@@ -1,4 +1,3 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GameSimulatorComponent } from './game-simulator.component';
 import { DecksService } from '../data-services/services/decks.service';
 import { CardsService } from '../data-services/services/cards.service';

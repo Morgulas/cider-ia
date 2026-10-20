@@ -56,8 +56,8 @@ export class CardToHtmlPipe implements PipeTransform {
     if (!html || !css) {
       return '';
     }
-    let scopedStyle = css.replace(/([^{}]*\{)/g, `.card-preview.card-${uuid} $1`)
-      .replace(/\!important/g, '');
+    const scopedStyle = css.replace(/([^{}]*\{)/g, `.card-preview.card-${uuid} $1`)
+      .replace(/!important/g, '');
     // Template and card data are untrusted: strip scripts, event handlers and
     // javascript: URLs before handing the result to Angular as trusted HTML.
     // The CSS is sanitized together with the HTML so that a "</style>" in it

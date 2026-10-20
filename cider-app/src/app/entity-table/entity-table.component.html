@@ -215,7 +215,7 @@
   </ng-template>
 </p-table>
 <app-entity-dialog [service]="service" [(visible)]="dialogVisible" [entity]="entity"
-  (onCreate)="clear(dt)"></app-entity-dialog>
+  (created)="clear(dt)"></app-entity-dialog>
 <p-confirmDialog [style]="{width: '450px'}"></p-confirmDialog>
 <p-dialog header="Import Data" [(visible)]="importVisible" [style]="{width: '450px'}" [modal]="true">
   <ng-template pTemplate="content">

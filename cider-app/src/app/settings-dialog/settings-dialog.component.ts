@@ -17,7 +17,7 @@ import { Message } from 'primeng/message';
     imports: [Bind, Dialog, PrimeTemplate, Select, FormsModule, Message, TranslatePipe]
 })
 export class SettingsDialogComponent {
-  @Input() visible: boolean = false;
+  @Input() visible = false;
   @Output() visibleChange: EventEmitter<boolean> = new EventEmitter<boolean>();
 
   /** Available themes for the dropdown */

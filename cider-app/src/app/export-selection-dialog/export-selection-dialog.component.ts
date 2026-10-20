@@ -17,9 +17,9 @@ import { TranslatePipe } from '@ngx-translate/core';
 })
 export class ExportSelectionDialogComponent implements OnInit {
   @Input() records: Card[] = [];
-  @Input() visible: boolean = false;
+  @Input() visible = false;
   @Output() visibleChange: EventEmitter<boolean> = new EventEmitter<boolean>();
-  @Output() onApply: EventEmitter<Card | Card[] | undefined> = new EventEmitter();
+  @Output() applied = new EventEmitter<Card | Card[] | undefined>();
   public cards: Card | Card[] | undefined = undefined;
 
   constructor(public cardsService: CardsService) {
@@ -35,7 +35,7 @@ export class ExportSelectionDialogComponent implements OnInit {
   }
 
   public apply() {
-    this.onApply.emit(this.cards);
+    this.applied.emit(this.cards);
     this.hideDialog();
   }
 

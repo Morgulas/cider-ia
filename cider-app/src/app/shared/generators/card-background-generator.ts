@@ -1,4 +1,3 @@
-import { ColorPalette } from "./color-generator";
 
 /**
  * Defines the types of gradients available for the main background.
@@ -99,7 +98,7 @@ export function generateCardBackground(options: CardBackgroundOptions): string {
   const textureId = `${uniqueId}-texture`;
   const [r, g, b] = colorToRGB(textureColor);
   switch (textureType) {
-    case 'stripes':
+    case 'stripes': {
       const stripeWidth = 10 * textureScale;
       defs.push(`
         <pattern id="${textureId}" patternUnits="userSpaceOnUse" width="${stripeWidth}" height="${stripeWidth}" patternTransform="rotate(45)">
@@ -108,8 +107,9 @@ export function generateCardBackground(options: CardBackgroundOptions): string {
       `);
       textureFill = `<rect width="${width}" height="${height}" fill="url(#${textureId})" opacity="${textureOpacity}" />`;
       break;
+    }
       
-    case 'dots':
+    case 'dots': {
       const dotSize = 15 * textureScale;
       const dotRadius = 1.5 * textureScale;
       defs.push(`
@@ -119,6 +119,7 @@ export function generateCardBackground(options: CardBackgroundOptions): string {
       `);
       textureFill = `<rect width="${width}" height="${height}" fill="url(#${textureId})" opacity="${textureOpacity}" />`;
       break;
+    }
 
     case 'grain':
       defs.push(`
@@ -129,7 +130,7 @@ export function generateCardBackground(options: CardBackgroundOptions): string {
       textureFill = `<rect width="${width}" height="${height}" filter="url(#${textureId})" opacity="${textureOpacity}" style="mix-blend-mode: multiply;"/>`;
       break;
 
-    case 'clouds':
+    case 'clouds': {
       const baseCloudFreqX = (0.02 / textureScale).toFixed(4);
       const baseCloudFreqY = (0.02 / textureScale).toFixed(4);
 
@@ -146,7 +147,8 @@ export function generateCardBackground(options: CardBackgroundOptions): string {
         </filter>`);
       textureFill = `<rect width="100%" height="100%" filter="url(#${textureId})" opacity="${textureOpacity * 2}" />`;
       break;
-    case 'fibers':
+    }
+    case 'fibers': {
       const baseFiberFreqX = (0.01 / textureScale).toFixed(4);
       const baseFiberFreqY = (0.2 / textureScale).toFixed(4);
 
@@ -163,6 +165,7 @@ export function generateCardBackground(options: CardBackgroundOptions): string {
         </filter>`);
       textureFill = `<rect width="100%" height="100%" filter="url(#${textureId})" opacity="${textureOpacity * 2}" />`;
       break;
+    }
 
     case 'marble':
       // FIX: The overlaying rect now has a fill="white". This is crucial.

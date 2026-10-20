@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Asset } from '../types/asset.type';
 import { AppDB } from '../indexed-db/db';
 import { FieldType } from '../types/field-type.type';
-import { AsyncSubject, BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { SearchParameters } from '../types/search-parameters.type';
 import { IndexedDbService } from '../indexed-db/indexed-db.service';
@@ -52,7 +52,7 @@ export class AssetsService extends IndexedDbService<Asset, number> {
       revokeRecursive(this.assetUrls.getValue());
 
       // generate the new URLs
-      let assetUrls = {} as any;
+      const assetUrls = {} as any;
       assets.forEach(asset => {
         let currentLevel = assetUrls;
         if (asset.path) {
@@ -85,14 +85,14 @@ export class AssetsService extends IndexedDbService<Asset, number> {
 
   getByName(name: string): Promise<Asset> {
     return this.getAll().then(assets => {
-      let filteredAssets = assets.filter(asset => asset.name && asset.name.replace(/ /g, '').toLowerCase() === name);
+      const filteredAssets = assets.filter(asset => asset.name && asset.name.replace(/ /g, '').toLowerCase() === name);
       return filteredAssets && filteredAssets.length > 0 ? filteredAssets[0] : {} as Asset;
     });
   }
 
   getByPath(name: string, path: string): Promise<Asset> {
     return this.getAll().then(assets => {
-      let filteredAssets = assets.filter(asset =>
+      const filteredAssets = assets.filter(asset =>
         asset.name && asset.name.replace(/ /g, '').toLowerCase() === name.toLowerCase() &&
         (asset.path || '') === path
       );
@@ -113,9 +113,9 @@ export class AssetsService extends IndexedDbService<Asset, number> {
       return Promise.resolve(entity);
     }
     return entity.file.arrayBuffer().then(buffer => {
-      (<any>entity).buffer = buffer;
-      (<any>entity).type = entity.file.type;
-      (<any>entity).file = undefined;
+      (entity as any).buffer = buffer;
+      (entity as any).type = entity.file.type;
+      (entity as any).file = undefined;
       return entity;
     });
   }
@@ -125,13 +125,13 @@ export class AssetsService extends IndexedDbService<Asset, number> {
    * @param entity 
    */
   private static insertFile(entity: Asset): Asset {
-    if (!entity || !(<any>entity).buffer || !(<any>entity).type) {
+    if (!entity || !(entity as any).buffer || !(entity as any).type) {
       return entity;
     }
-    const blob: Blob = AssetsService.arrayBufferToBlob((<any>entity).buffer, (<any>entity).type);
-    entity.file = new File([blob], entity.name, { type: (<any>entity).type });
-    (<any>entity).buffer = undefined;
-    (<any>entity).type = undefined;
+    const blob: Blob = AssetsService.arrayBufferToBlob((entity as any).buffer, (entity as any).type);
+    entity.file = new File([blob], entity.name, { type: (entity as any).type });
+    (entity as any).buffer = undefined;
+    (entity as any).type = undefined;
     return entity;
   }
 

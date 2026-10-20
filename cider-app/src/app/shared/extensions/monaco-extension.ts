@@ -45,7 +45,7 @@ export default class MonacoExtension {
                         [/[^}]+/, 'metatag'],
                     ],
                 };
-                for (let key in cssTokenizer) {
+                for (const key in cssTokenizer) {
                     handlebarsTokenizer[key] = [
                         [/\{\{/, { token: 'delimiter.handlebars', next: '@handlebars' }],
                         ...cssTokenizer[key]

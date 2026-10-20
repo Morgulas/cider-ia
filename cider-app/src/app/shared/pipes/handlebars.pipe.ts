@@ -11,7 +11,6 @@ export class HandlebarsPipe implements PipeTransform {
 
 
   constructor(domSanitizer: DomSanitizer) {
-    let self = this;
 
     /***********************************
      * Basic Helpers
@@ -115,8 +114,8 @@ export class HandlebarsPipe implements PipeTransform {
      * {{/repeat}}
      */
     Handlebars.registerHelper('repeat', function (count, options) {
-      var accum = '';
-      for (var i = 0; i < count; i++)
+      let accum = '';
+      for (let i = 0; i < count; i++)
         accum += options.fn(options.data.root);
       return accum;
     });
@@ -301,7 +300,7 @@ export class HandlebarsPipe implements PipeTransform {
     if (!css) {
       return '';
     }
-    return css.replace(/\!important/g, '');
+    return css.replace(/!important/g, '');
   }
 
 }

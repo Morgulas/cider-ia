@@ -3,7 +3,6 @@ import { EntityField } from 'src/app/data-services/types/entity-field.type';
 import { EntityService } from 'src/app/data-services/types/entity-service.type';
 import { FieldType } from 'src/app/data-services/types/field-type.type';
 import XlsxUtils from './xlsx-utils';
-import * as XLSX from 'xlsx';
 
 describe('XlsxUtils', () => {
 

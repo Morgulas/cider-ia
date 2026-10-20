@@ -15,7 +15,7 @@ import { EntityTableComponent } from '../entity-table/entity-table.component';
     imports: [PageHeaderComponent, Bind, Card, EntityTableComponent]
 })
 export class DocumentsComponent implements OnInit, OnDestroy {
-  private destroyed$: Subject<boolean> = new Subject();
+  private destroyed$ = new Subject<boolean>();
   cols: EntityField<Document>[] = [];
   documents: Document[] = [];
 

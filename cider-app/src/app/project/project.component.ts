@@ -47,7 +47,7 @@ interface Meter {
 })
 export class ProjectComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
-  projectName: string = 'Cider Project';
+  projectName = 'Cider Project';
   projectInfo: ProjectInfo | undefined;
   deckInfos: DeckInfo[] = [];
   projectMeters: Meter[] = [];

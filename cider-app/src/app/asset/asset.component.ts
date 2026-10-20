@@ -6,7 +6,7 @@ import { Asset } from '../data-services/types/asset.type';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import StringUtils from '../shared/utils/string-utils';
 import FileUtils from '../shared/utils/file-utils';
-import { combineLatest, forkJoin, take } from 'rxjs';
+import { combineLatest } from 'rxjs';
 import { parse } from 'opentype.js';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { Bind } from 'primeng/bind';
@@ -15,7 +15,7 @@ import { Tag } from 'primeng/tag';
 import { ButtonDirective } from 'primeng/button';
 import { FormsModule } from '@angular/forms';
 import { Textarea } from 'primeng/textarea';
-import { NgIf, NgClass, NgFor, UpperCasePipe } from '@angular/common';
+import { NgClass, UpperCasePipe } from '@angular/common';
 import { Tooltip } from 'primeng/tooltip';
 import { InputText } from 'primeng/inputtext';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
@@ -28,38 +28,38 @@ import { FileUrlPipe } from '../shared/pipes/file-url.pipe';
     templateUrl: './asset.component.html',
     styleUrl: './asset.component.scss',
     providers: [MessageService, ConfirmationService],
-    imports: [Bind, Card, Tag, ButtonDirective, FormsModule, Textarea, NgIf, NgClass, Tooltip, NgFor, InputText, EntityDialogComponent, ConfirmDialog, Toast, UpperCasePipe, FileUrlPipe]
+    imports: [Bind, Card, Tag, ButtonDirective, FormsModule, Textarea, NgClass, Tooltip, InputText, EntityDialogComponent, ConfirmDialog, Toast, UpperCasePipe, FileUrlPipe]
 })
 export class AssetComponent {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly math = Math;
   public asset: Asset = {} as Asset;
-  public zoom: number = 1.0;
-  public zoomStep: number = 0.1;
-  dialogVisible: boolean = false;
+  public zoom = 1.0;
+  public zoomStep = 0.1;
+  dialogVisible = false;
   public imageDimensions: { width: number, height: number } = { width: 0, height: 0 };
-  public fileSize: string = '';
-  public fileExtension: string = '';
-  public fileMime: string = '';
-  public fileType: string = '';
+  public fileSize = '';
+  public fileExtension = '';
+  public fileMime = '';
+  public fileType = '';
   assetUrls: any;
-  public fontPreviewFamily: string = '';
-  public previewText: string = 'The quick brown fox jumps over the lazy dog. 1234567890';
-  public previewFontSize: number = 24;
+  public fontPreviewFamily = '';
+  public previewText = 'The quick brown fox jumps over the lazy dog. 1234567890';
+  public previewFontSize = 24;
 
   // Dictionary for 'Copied' state management
-  public copyState: { [key: string]: boolean } = {};
+  public copyState: Record<string, boolean> = {};
   public fontMetadata: any = null;
-  public fontUsageSnippet: string = '';
+  public fontUsageSnippet = '';
 
   // SVG Editor Properties
-  public isSvg: boolean = false;
-  public svgContent: string = '';
-  public originalSvgContent: string = '';
+  public isSvg = false;
+  public svgContent = '';
+  public originalSvgContent = '';
   public svgPreviewUrl: SafeUrl | null = null;
   public svgColors: { original: string, current: string, currentAlpha: number }[] = [];
   public svgStrokeWidths: { original: string, current: number, suffix: string }[] = [];
-  public showSvgEditor: boolean = true;
+  public showSvgEditor = true;
 
   // History for Undo/Redo
   public svgHistory: { colors: { original: string, current: string, currentAlpha: number }[], strokeWidths: { original: string, current: number, suffix: string }[] }[] = [];
@@ -67,7 +67,7 @@ export class AssetComponent {
   // ...
 
 
-  public currentHistoryIndex: number = -1;
+  public currentHistoryIndex = -1;
 
   constructor(
     private route: ActivatedRoute,
@@ -216,14 +216,14 @@ export class AssetComponent {
   }
 
   public updateSvgPreview() {
-    let content = this.originalSvgContent;
+    const content = this.originalSvgContent;
 
     // Apply Colors
     this.svgColors.forEach(color => {
       if (color.original !== color.current) {
         // Creating a global regex to replace all instances of this color
         // Escaping special characters for regex
-        const safeOriginal = color.original.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const safeOriginal = color.original.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
         const regex = new RegExp(`(?<=[:"'])${safeOriginal}(?=['";])|(?<=[:"'])${safeOriginal}$`, 'g');
         // This simple regex might be risky if color strings are very short standard words, but for hex/rgb it's usually fine.
         // Better safety: replace attributes specifically? String replace is faster/easier but less robust.
@@ -259,12 +259,12 @@ export class AssetComponent {
         if (mapped) el.setAttribute('stroke', hexToRgba(mapped.current, mapped.currentAlpha));
       }
 
-      let style = el.getAttribute('style');
+      const style = el.getAttribute('style');
       if (style) {
         let parts = style.split(';').map(p => p.trim()).filter(p => !!p);
         let changed = false;
         parts = parts.map(part => {
-          let [key, val] = part.split(':').map(s => s.trim());
+          const [key, val] = part.split(':').map(s => s.trim());
           if (key === 'fill' || key === 'stroke') {
             const mapped = this.svgColors.find(c => c.original === val);
             if (mapped) {
@@ -461,7 +461,7 @@ export class AssetComponent {
   }
 
   public save(asset: Asset) {
-    const id = (<any>asset)[this.assetsService?.getIdField()];
+    const id = (asset as any)[this.assetsService?.getIdField()];
     this.updateExisting(id, asset);
   }
 
@@ -478,7 +478,7 @@ export class AssetComponent {
       header: 'Delete Entity',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.assetsService?.delete((<any>entity)[this.assetsService?.getIdField()]).then(deleted => {
+        this.assetsService?.delete((entity as any)[this.assetsService?.getIdField()]).then(deleted => {
           // this.messageService.add({severity:'success', summary: 'Successful', detail: 'Entity Deleted', life: 3000});
         });
       }

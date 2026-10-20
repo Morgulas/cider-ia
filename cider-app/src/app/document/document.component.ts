@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, DestroyRef, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { Document } from '../data-services/types/document.type';
@@ -30,13 +30,13 @@ export class DocumentComponent implements OnInit, OnDestroy {
     theme: 'dark'
   };
   /** Mermaid is downloaded only when a markdown document is opened */
-  mermaidReady: boolean = false;
+  mermaidReady = false;
   textDocument: Document = {
     name: "",
     mime: "text/markdown",
     content: ""
   } as Document;
-  disablePanels: boolean = false;
+  disablePanels = false;
   documentChanges: Subject<boolean>;
   private editor: any;
   private monaco: any;
@@ -125,7 +125,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
   }
 
   public save(entity: Document) {
-    const id = (<any>this.textDocument)[this.documentsService?.getIdField()];
+    const id = (this.textDocument as any)[this.documentsService?.getIdField()];
     if (id) {
       this.updateExisting(id, this.textDocument);
     }

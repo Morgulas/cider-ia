@@ -5,7 +5,7 @@ import { TRICK_TEMPLATE } from "./templates/trick-template";
 import { CARD_BACK_TEMPLATE } from "./templates/card-back-template";
 import { Asset } from "src/app/data-services/types/asset.type";
 import { ColorGenerator, ColorPalette } from "../generators/color-generator";
-import { generateRandomArt, generateRandomBadge, generateRandomCardSymbol, generateRandomSymbol } from "../generators/card-symbol-generator";
+import { generateRandomArt, generateRandomBadge, generateRandomSymbol } from "../generators/card-symbol-generator";
 import { generateRandomBanner, generateRandomTextbox } from "../generators/card-textbox-generator";
 import MathUtils from "../utils/math-utils";
 import FileUtils from "../utils/file-utils";

@@ -23,7 +23,7 @@ export default class XlsxUtils {
         records.forEach(record => {
             const values = headers.map(header => {
                 if (header.service) {
-                    return lookups.get(header.service)?.get(<any>record[header.field]);
+                    return lookups.get(header.service)?.get((record[header.field] as any));
                 }
 
                 if (header.type === FieldType.dropdown || header.type === FieldType.dropdownOptions) {
@@ -78,47 +78,47 @@ export default class XlsxUtils {
                     if (header.service) {
                         let foundValue = false;
                         lookups.get(header.service)?.forEach((value, key) => {
-                            let dbValue = String(value).trim();
-                            let csvValue = String((<any>object)[header.header] || '').trim();
+                            const dbValue = String(value).trim();
+                            const csvValue = String((object as any)[header.header] || '').trim();
                             if (dbValue === csvValue) {
-                                (<any>converted)[header.field] = key;
+                                (converted as any)[header.field] = key;
                                 foundValue = true;
                             } else {
                                 // Fallback: try kebab-case comparison
                                 // This handles cases where template names are "My Template" (DB) but "my-template" (CSV)
                                 if (StringUtils.toKebabCase(dbValue) === StringUtils.toKebabCase(csvValue)) {
-                                    (<any>converted)[header.field] = key;
+                                    (converted as any)[header.field] = key;
                                     foundValue = true;
                                 }
                             }
                         });
                         if (!foundValue) {
-                            console.warn(`Could not find value (${(<any>object)[header.header]}) for column: ${header.header}. Available keys:`, [...(lookups.get(header.service)?.values() || [])]);
+                            console.warn(`Could not find value (${(object as any)[header.header]}) for column: ${header.header}. Available keys:`, [...(lookups.get(header.service)?.values() || [])]);
                         }
 
                     } else if (header.type === FieldType.dropdown) {
-                        const val = (<any>object)[header.header];
+                        const val = (object as any)[header.header];
                         if (header.options && header.options.length > 0) {
                             const valid = header.options.some(o => o.value === val);
                             if (!valid) {
                                 console.warn(`Value "${val}" for column "${header.header}" is not in the allowed options: ${header.options.map(o => o.value).join(', ')}`);
                             }
                         }
-                        (<any>converted)[header.field] = val;
+                        (converted as any)[header.field] = val;
                     } else if (header.type === FieldType.checkbox) {
-                        const val = (<any>object)[header.header];
+                        const val = (object as any)[header.header];
                         if (typeof val === 'boolean') {
-                            (<any>converted)[header.field] = val;
+                            (converted as any)[header.field] = val;
                         } else if (typeof val === 'string') {
                             const lower = val.toLowerCase().trim();
-                            (<any>converted)[header.field] = lower === 'true' || lower === '1' || lower === 'yes';
+                            (converted as any)[header.field] = lower === 'true' || lower === '1' || lower === 'yes';
                         } else if (typeof val === 'number') {
-                            (<any>converted)[header.field] = val !== 0;
+                            (converted as any)[header.field] = val !== 0;
                         } else {
-                            (<any>converted)[header.field] = false;
+                            (converted as any)[header.field] = false;
                         }
                     } else {
-                        (<any>converted)[header.field] = (<any>object)[header.header];
+                        (converted as any)[header.field] = (object as any)[header.header];
                     }
                 });
                 return converted;

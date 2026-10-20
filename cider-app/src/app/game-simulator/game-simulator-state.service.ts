@@ -4,7 +4,6 @@ import { DecksService } from '../data-services/services/decks.service';
 import { CardsService } from '../data-services/services/cards.service';
 import { Card } from '../data-services/types/card.type';
 import StringUtils from '../shared/utils/string-utils';
-import { BehaviorSubject, firstValueFrom } from 'rxjs';
 
 @Injectable({
     providedIn: 'root'
@@ -15,8 +14,8 @@ export class GameSimulatorStateService {
     public field: CardZone = { name: 'Field', cards: [] };
     public components: GameComponent[] = [];
     public simulatorPan: Position = { x: 0, y: 0 };
-    public simulatorZoom: number = 0.20;
-    public topZIndex: number = 100;
+    public simulatorZoom = 0.20;
+    public topZIndex = 100;
     public discard: CardStack = {
         name: 'Discard', cards: [], faceUp: true,
         uniqueId: 'discard-pile', // Fixed ID for discard? Or random? Component used random. Let's stick to component logic or init.

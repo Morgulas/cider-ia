@@ -10,6 +10,7 @@ import { DecksService } from './decks.service';
 import { CardAttribute } from '../types/card-attribute.type';
 import StringUtils from 'src/app/shared/utils/string-utils';
 import { DropdownOption } from '../types/dropdown-option.type';
+import { EqualityCriteria } from '../types/equality-criteria.type';
 
 @Injectable({
   providedIn: 'root'
@@ -25,12 +26,12 @@ export class CardsService extends DecksChildService<Card, number> {
     ]);
   }
 
-  override async getFields(equalityCriterias?: { [key: string]: any; }) {
+  override async getFields(equalityCriterias?: EqualityCriteria) {
     const attributes = await this.attributesService.getAll(equalityCriterias);
     return this.fields.concat(attributes.map(attribute => this.cardAttributeToEntityField(attribute)));
   }
 
-  async getFieldsUnfiltered(equalityCriterias?: { [key: string]: any; }) {
+  async getFieldsUnfiltered(equalityCriterias?: EqualityCriteria) {
     const attributes = await this.attributesService.getAllUnfiltered(equalityCriterias);
     return this.fields.concat(attributes.map(attribute => this.cardAttributeToEntityField(attribute)));
   }
@@ -88,7 +89,7 @@ export class CardsService extends DecksChildService<Card, number> {
           field: 'frontCardTemplateId',
           header: attribute.name,
           type: attribute.type,
-          service: <any>this.cardTemplatesService,
+          service: this.cardTemplatesService as any,
           description: attribute.description,
           width: attribute.width
         } as EntityField<Card>;
@@ -98,7 +99,7 @@ export class CardsService extends DecksChildService<Card, number> {
           field: 'backCardTemplateId',
           header: attribute.name,
           type: attribute.type,
-          service: <any>this.cardTemplatesService,
+          service: this.cardTemplatesService as any,
           description: attribute.description,
           width: attribute.width
         } as EntityField<Card>;

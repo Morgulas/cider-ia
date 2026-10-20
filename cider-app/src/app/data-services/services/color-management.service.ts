@@ -18,7 +18,7 @@ export class ColorManagementService {
   private availableProfiles: IccProfile[] = [];
 
   // Cache SoftProofer instances per profile/intent combination
-  private proofers: Map<string, SoftProofer> = new Map();
+  private proofers = new Map<string, SoftProofer>();
 
   constructor(private http: HttpClient) { }
 
@@ -77,7 +77,7 @@ export class ColorManagementService {
   async applySoftProof(
     imageData: ImageData,
     profileName: string,
-    intent: number = 1, // 1 = RelativeColorimetric
+    intent = 1, // 1 = RelativeColorimetric
     options: any = {}
   ): Promise<ImageData> {
     if (!this.wasmReady) {

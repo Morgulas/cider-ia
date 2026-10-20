@@ -72,10 +72,12 @@
 
             <p-step-panel [value]="4" [id]="'preview-panel'">
                 <ng-template #content let-activateCallback="activateCallback">
-                    <div class="card-final-preview" *ngIf="selectedTheme">
-                        <app-card-preview [cache]="false" [card]="selectedTheme" [tiltable]="true" [scale]="previewZoom"
-                            [template]="selectedTheme.frontCardTemplate"></app-card-preview>
-                    </div>
+                    @if (selectedTheme) {
+                        <div class="card-final-preview">
+                            <app-card-preview [cache]="false" [card]="selectedTheme" [tiltable]="true" [scale]="previewZoom"
+                                [template]="selectedTheme.frontCardTemplate"></app-card-preview>
+                        </div>
+                    }
                     <div class="template-form">
                         <label for="templateName">Template Name</label>
                         <input pInputText id="templateName" aria-describedby="name-help" [(ngModel)]="templateName" />

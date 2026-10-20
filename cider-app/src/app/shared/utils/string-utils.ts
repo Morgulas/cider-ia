@@ -63,8 +63,8 @@ export default class StringUtils {
      * @ returns
      */
     public static lastDirectoryFromUrl(url: string) {
-        let index = url.lastIndexOf('/') > 0 ? url.lastIndexOf('/') : url.lastIndexOf('\\');
-        let name = url.substring(index + 1 | 0);
+        const index = url.lastIndexOf('/') > 0 ? url.lastIndexOf('/') : url.lastIndexOf('\\');
+        const name = url.substring(index + 1 | 0);
         return name;
     }
 
@@ -75,7 +75,7 @@ export default class StringUtils {
      * @returns 
      */
     public static getDirectoryFromUrl(url: string) {
-        let index = url.lastIndexOf('/') > 0 ? url.lastIndexOf('/') : url.lastIndexOf('\\');
+        const index = url.lastIndexOf('/') > 0 ? url.lastIndexOf('/') : url.lastIndexOf('\\');
         if (index === -1) return '';
         return url.substring(0, index);
     }
@@ -153,7 +153,7 @@ export default class StringUtils {
      * @param length 
      * @returns 
      */
-    public static generateRandomString(length: number = 10): string {
+    public static generateRandomString(length = 10): string {
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = '';
         for (let i = 0; i < length; i++) {

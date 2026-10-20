@@ -11,14 +11,14 @@ import StringUtils from '../shared/utils/string-utils';
 import { FieldType } from '../data-services/types/field-type.type';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { TranslateModule } from '@ngx-translate/core';
-import { CommonModule } from '@angular/common';
+
 
 @Component({
     selector: 'app-entity-spreadsheet',
     templateUrl: './entity-spreadsheet.component.html',
     styleUrls: ['./entity-spreadsheet.component.scss'],
     standalone: true,
-    imports: [SpreadsheetComponent, ProgressBarModule, TranslateModule, CommonModule]
+    imports: [SpreadsheetComponent, ProgressBarModule, TranslateModule]
 })
 export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
     data: WritableSignal<Cell[][]> = signal([]);
@@ -26,8 +26,8 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
     theme: WritableSignal<SpreadsheetTheme> = signal(longLight);
     isLoading: WritableSignal<boolean> = signal(false);
 
-    private lookups: Map<string, Map<string, number>> = new Map(); // Name -> ID
-    private reverseLookups: Map<string, Map<number, string>> = new Map(); // ID -> Name
+    private lookups = new Map<string, Map<string, number>>(); // Name -> ID
+    private reverseLookups = new Map<string, Map<number, string>>(); // ID -> Name
 
 
     private cards: Card[] = [];

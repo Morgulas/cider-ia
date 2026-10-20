@@ -45,7 +45,7 @@
     @if (!col.hidden && (col.visible ? col.visible(entity) : true)) {
     <div class="p-field">
       <label [for]="col.field">{{col.header}}</label>
-      <input type="text" pInputText [id]="col.field" [(ngModel)]="entity[col.field]" required autofocus />
+      <input type="text" pInputText [id]="col.field" [(ngModel)]="entity[col.field]" required />
     </div>
     }
     }

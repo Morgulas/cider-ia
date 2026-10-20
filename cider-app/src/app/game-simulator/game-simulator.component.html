@@ -98,7 +98,7 @@
         [cdkDragScale]="dragScale" [cdkDragConstrainPosition]="handleDragPosition" [cdkDragDisabled]="isShiftPressed"
         [style.zIndex]="component.zIndex || 10" cdkDrag>
         <div class="tiltable" [class.flipping]="component.flipping">
-          @if (component.type == 'd6') {
+          @if (component.type === 'd6') {
           <div [class]="'component ' + component.className 
                         + ' face-' + component.face" [class.rolling]="component.rolling">
             <div class="pip"></div>
@@ -112,7 +112,7 @@
             <div class="pip"></div>
             <div class="depth"></div>
           </div>
-          } @else if (component.type == 'pawn') {
+          } @else if (component.type === 'pawn') {
           <div [class]="'component ' + component.className" [class.rolling]="component.rolling"
             [class.back]="!component.faceUp">
             
@@ -196,7 +196,7 @@
     <span class="p-input-icon-left full-width-input">
       <i class="pi pi-search"></i>
       <input pInputText type="text" [(ngModel)]="drawSpecificCardSearchQuery" (ngModelChange)="filterCards()"
-        [placeholder]="'controls.search' | translate" class="full-width-input" autofocus />
+        [placeholder]="'controls.search' | translate" class="full-width-input" />
     </span>
     <div class="card-list">
       @for (card of filteredCards; track card.uniqueId) {
@@ -222,7 +222,7 @@
   <div class="dialog-content">
     <label for="stackName" class="font-semibold">{{ 'fields.name' | translate }}</label>
     <input pInputText id="stackName" class="full-width-input" autocomplete="off" [(ngModel)]="renameStackName"
-      (keyup.enter)="saveStackName()" autofocus />
+      (keyup.enter)="saveStackName()" />
   </div>
   <div class="dialog-footer">
     <p-button [label]="'controls.cancel' | translate" severity="secondary" (onClick)="cancelRename()" />

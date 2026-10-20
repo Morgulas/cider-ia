@@ -34,14 +34,14 @@ export class SiteMenuComponent implements OnInit {
 
   selectedDeck$: Observable<Deck | undefined>;
   items: MenuItem[];
-  importVisible: boolean = false;
+  importVisible = false;
   importFile: File | undefined = undefined;
-  public displayLoading: boolean = false;
-  public loadingIndeterminate: boolean = false;
-  public loadingPercent: number = 0;
-  public loadingInfo: string = '';
-  public loadingHeader: string = '';
-  public currentRoute: string = '';
+  public displayLoading = false;
+  public loadingIndeterminate = false;
+  public loadingPercent = 0;
+  public loadingInfo = '';
+  public loadingHeader = '';
+  public currentRoute = '';
   public breadcrumbs: MenuItem[] = [];
   public home: MenuItem | undefined;
 
@@ -123,7 +123,7 @@ export class SiteMenuComponent implements OnInit {
 
     for (let i = 0; i < urlSegments.length; i++) {
       const segment = urlSegments[i];
-      let pathSegment = `/${segment}`;
+      const pathSegment = `/${segment}`;
       currentPath += pathSegment;
       const label = await lastValueFrom(
         this.translate.get(`breadcrumbs.${segment}`).pipe(timeout(1000)))

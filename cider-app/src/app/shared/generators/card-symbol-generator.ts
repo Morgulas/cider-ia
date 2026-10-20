@@ -136,8 +136,8 @@ function generateGeometricPath(
     height: number,
     numPoints: number,
     turbulence: number,
-    isStar: boolean = false,
-    starInnerScale: number = 0.5
+    isStar = false,
+    starInnerScale = 0.5
 ): string {
     const pointsCount = Math.max(3, numPoints);
     const center = { x: width / 2, y: height / 2 };
@@ -320,7 +320,7 @@ export function generateCardSymbol(options?: CardSymbolOptions): string {
     const translateY = (patternHeight - patternHeight * scale) / 2;
 
     // Generate element
-    let pathData = '';
+    let pathData: string;
     let element = '';
     switch(shape.type) {
         case 'blob':
@@ -412,11 +412,10 @@ export function generateRandomCardSymbol(baseOptions: Partial<CardSymbolOptions>
     const randomMirror = mirrorOptions[Math.floor(Math.random() * mirrorOptions.length)];
 
     // Randomize the outline width
-    let randomOutlineWidth = 0;
     const symbolWidth = baseOptions.width || 100; // Use provided width or default
     // Scale outline width based on symbol size, maxing out at 5% of width.
     const maxOutline = Math.max(2, symbolWidth * 0.05);
-    randomOutlineWidth = Math.random() * (maxOutline - 1) + 1;
+    const randomOutlineWidth = Math.random() * (maxOutline - 1) + 1;
 
     // Randomize the numPoints
     const foregroundNumPoints = Math.floor(Math.random() * 9) + 3;

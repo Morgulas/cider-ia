@@ -68,8 +68,8 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   @ViewChildren('frontCards') frontCards: QueryList<CardPreviewComponent> = {} as QueryList<CardPreviewComponent>;
   @ViewChildren('backCards') backCards: QueryList<CardPreviewComponent> = {} as QueryList<CardPreviewComponent>;
 
-  private autoFitDone: boolean = false;
-  private initializationDone: boolean = false;
+  private autoFitDone = false;
+  private initializationDone = false;
 
   public exportType: string = ExportCardsComponent.SHEET_EXPORT;
   public exportOptions: RadioOption[] = [];
@@ -77,56 +77,56 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   public selectedPaper: PaperType;
   public paperWidth: number;
   public paperHeight: number;
-  public paperMarginX: number = 0.4;
-  public paperMarginY: number = 0.4;
-  public paperDpi: number = 300;
-  public cardGap: number = 0.1;
-  public cardsPerPage: number = 6;
+  public paperMarginX = 0.4;
+  public paperMarginY = 0.4;
+  public paperDpi = 300;
+  public cardGap = 0.1;
+  public cardsPerPage = 6;
   public originalCards: Card[] = [];
   public cards: Card[] = [];
   public expandedCards: Card[] = [];
   public slicedCards: Card[][] = [];
   public sheet: Card[] = [];
 
-  public singularCardsPerPage: number = 20;
+  public singularCardsPerPage = 20;
   public slicedSingularCards: Card[][] = [];
   public singularSheet: Card[] = [];
-  public currentSingularPageIndex: number = 0;
+  public currentSingularPageIndex = 0;
 
-  public showFront: boolean = true;
-  public showBack: boolean = true;
-  public showCutMarks: boolean = false;
-  public cutBleed: number = 0.125;
-  public cutMarkLength: number = 0.125;
-  public displayLoading: boolean = false;
+  public showFront = true;
+  public showBack = true;
+  public showCutMarks = false;
+  public cutBleed = 0.125;
+  public cutMarkLength = 0.125;
+  public displayLoading = false;
 
   get cutOffset(): number {
     return Math.max(this.cutBleed, this.cutMarkLength);
   }
-  public loadingPercent: number = 0;
-  public loadingInfo: string = '';
-  public lowInk: boolean = false;
+  public loadingPercent = 0;
+  public loadingInfo = '';
+  public lowInk = false;
   public mirrorBacksX: boolean;
   public mirrorBacksY: boolean;
-  public pixelRatio: number = 1;
-  public individualExportPixelRatio: number = 1;
-  public individualExportUseCardName: boolean = false;
-  public maxTtsPixels: number = 4096;
-  public scale: number = 0.1;
-  public exportSelectionDialogVisible: boolean = false;
-  public excludeCardBacks: boolean = false;
-  public someCardsMissingTemplates: boolean = false;
-  renderCache: boolean = false;
-  public currentPageIndex: number = 0;
-  public showSettings: boolean = true;
-  public softProofMode: string = 'none';
+  public pixelRatio = 1;
+  public individualExportPixelRatio = 1;
+  public individualExportUseCardName = false;
+  public maxTtsPixels = 4096;
+  public scale = 0.1;
+  public exportSelectionDialogVisible = false;
+  public excludeCardBacks = false;
+  public someCardsMissingTemplates = false;
+  renderCache = false;
+  public currentPageIndex = 0;
+  public showSettings = true;
+  public softProofMode = 'none';
   public softProofOptions: RadioOption[] = [];
-  public softProofIntent: number = 0;
-  public softProofEnabled: boolean = false;
+  public softProofIntent = 0;
+  public softProofEnabled = false;
   public softProofFrontImageUrl: string | null = null;
   public softProofBackImageUrl: string | null = null;
-  public simulateUnsharpMask: boolean = true;
-  public isProcessingSoftProof: boolean = false;
+  public simulateUnsharpMask = true;
+  public isProcessingSoftProof = false;
 
   public intentOptions: any[] = [
     { name: 'Perceptual', value: 0 },
@@ -135,11 +135,11 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   ];
 
   // Pan and Zoom properties
-  public isPanning: boolean = false;
-  private panStartX: number = 0;
-  private panStartY: number = 0;
-  private scrollLeftStart: number = 0;
-  private scrollTopStart: number = 0;
+  public isPanning = false;
+  private panStartX = 0;
+  private panStartY = 0;
+  private scrollLeftStart = 0;
+  private scrollTopStart = 0;
 
   zoomOptions: any[] = [
     { label: 's', value: 0.05 },
@@ -662,7 +662,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
           this.loadingInfo = 'Generating sheet ' + sheetIndex + ' '
             + (showFront ? 'front' : 'back') + ' image...';
           const cardSheet = this.cardSheets.first;
-          const imgUri = await limit(() => this.imageRendererService.toPng((<any>cardSheet).nativeElement,
+          const imgUri = await limit(() => this.imageRendererService.toPng((cardSheet as any).nativeElement,
             { pixelRatio: this.pixelRatio, style: { transform: 'none', margin: '0', filter: 'none' } }));
           const imgName = 'sheet-' + (showFront ? 'front-' : 'back-')
             + sheetIndex + '.png';
@@ -709,7 +709,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
 
         this.loadingInfo = 'Generating sheet ' + sheetIndex + ' images...';
         const cardSheets = await Promise.all(this.cardSheets.map(cardSheet => limit(() => {
-          return this.imageRendererService.toPng((<any>cardSheet).nativeElement, {
+          return this.imageRendererService.toPng((cardSheet as any).nativeElement, {
             pixelRatio: 1.0,
             style: { transform: 'none', margin: '0', filter: 'none' },
             onImageErrorHandler: (error) => { console.log('error', error); }
@@ -789,7 +789,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
         this.loadingInfo = 'Generating PNGs for chunk ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
 
         const frontCards$ = this.frontCards.map(async cardPreview => {
-          const imgUri = await limit(() => this.imageRendererService.toPng((<any>cardPreview).element.nativeElement,
+          const imgUri = await limit(() => this.imageRendererService.toPng((cardPreview as any).element.nativeElement,
             { pixelRatio: this.individualExportPixelRatio }));
           const imgIdentifier = this.individualExportUseCardName
             ? StringUtils.toKebabCase(cardPreview.card?.name)
@@ -801,7 +801,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
         let backCards$: Promise<File>[] = [];
         if (!this.excludeCardBacks) {
           backCards$ = this.backCards.map(async cardPreview => {
-            const imgUri = await limit(() => this.imageRendererService.toPng((<any>cardPreview).element.nativeElement,
+            const imgUri = await limit(() => this.imageRendererService.toPng((cardPreview as any).element.nativeElement,
               { pixelRatio: this.individualExportPixelRatio }));
             const imgIdentifier = this.individualExportUseCardName
               ? StringUtils.toKebabCase(cardPreview.card?.name)
@@ -893,8 +893,8 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     } else {
       byteString = unescape(dataUrl.split(',')[1]);
     }
-    var blobArray = new Uint8Array(byteString.length);
-    for (var i = 0; i < byteString.length; i++) {
+    const blobArray = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) {
       blobArray[i] = byteString.charCodeAt(i);
     }
     return new File([blobArray], fileName, { type: mime });
@@ -904,7 +904,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     if (!cardSheet) return null;
     try {
       // 1. Render HTML to Data URL at 1.0 pixel ratio to match print size accurately
-      const imgUri = await this.imageRendererService.toPng((<any>cardSheet).nativeElement, {
+      const imgUri = await this.imageRendererService.toPng((cardSheet as any).nativeElement, {
         pixelRatio: 1.0,
         style: { transform: 'none', margin: '0' }
       });

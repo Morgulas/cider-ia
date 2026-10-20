@@ -21,7 +21,7 @@ export default class MathUtils {
      * @param step 
      * @returns 
      */
-    public static range(start: number, end: number, step: number = 1): number[] {
+    public static range(start: number, end: number, step = 1): number[] {
         const length = Math.floor((end - start + 1) / step);
         return Array.from({ length }, (_, index) => start + index * step);
     }

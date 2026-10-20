@@ -18,11 +18,11 @@
       <ng-template let-cards #list>
         <div class="card-list">
           @for (card of cards; track $index) {
-          @if (sideSelected == 'fronts' || sideSelected == 'both') {
+          @if (sideSelected === 'fronts' || sideSelected === 'both') {
           <app-card-preview [cache]="false" [tiltable]="true" [card]="card" [scale]="zoomLevel"
             [template]="card.frontCardTemplateId | entity: templatesService | async"></app-card-preview>
           }
-          @if (sideSelected == 'backs' || sideSelected == 'both') {
+          @if (sideSelected === 'backs' || sideSelected === 'both') {
           <app-card-preview [cache]="false" [tiltable]="true" [card]="card" [scale]="zoomLevel"
             [template]="card.backCardTemplateId | entity: templatesService | async"></app-card-preview>
           }

@@ -1,4 +1,4 @@
-import { Component, HostListener, ElementRef, NgZone, ViewChild, OnDestroy, OnInit } from '@angular/core';
+import { Component, HostListener, ElementRef, NgZone, ViewChild, OnDestroy, OnInit, AfterViewInit } from '@angular/core';
 import { DecksService } from '../data-services/services/decks.service';
 import { CardsService } from '../data-services/services/cards.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
@@ -6,13 +6,13 @@ import { Card } from '../data-services/types/card.type';
 import { FieldType } from '../data-services/types/field-type.type';
 import { MenuItem } from 'primeng/api';
 import { ContextMenu } from 'primeng/contextmenu';
-import { CdkDragDrop, CdkDragEnd, CdkDragEnter, CdkDragStart, DragRef, Point, moveItemInArray, transferArrayItem, CdkDropListGroup, CdkDrag } from '@angular/cdk/drag-drop';
+import { CdkDragEnd, CdkDragStart, DragRef, Point, CdkDropListGroup, CdkDrag } from '@angular/cdk/drag-drop';
 import StringUtils from '../shared/utils/string-utils';
 import MathUtils from '../shared/utils/math-utils';
 import { EntityField } from '../data-services/types/entity-field.type';
 import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import { GameSimulatorStateService } from './game-simulator-state.service';
-import { CardStack, CardZone, GameCard, GameComponent, Position, Positionable } from './game-simulator.types';
+import { CardStack, GameCard, GameComponent, Position, Positionable } from './game-simulator.types';
 import { NgStyle, AsyncPipe } from '@angular/common';
 import { CardPreviewComponent } from '../card-preview/card-preview.component';
 import { Bind } from 'primeng/bind';
@@ -31,7 +31,7 @@ import { EntityPipe } from '../data-services/pipes/entity.pipe';
     styleUrl: './game-simulator.component.scss',
     imports: [CdkDropListGroup, NgStyle, CdkDrag, CardPreviewComponent, Bind, Dialog, FormsModule, InputText, Button, ContextMenu, DecksComponent, AsyncPipe, EntityPipe, TranslatePipe]
 })
-export class GameSimulatorComponent implements OnInit, OnDestroy {
+export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit {
   private static readonly COLORS = ['copper', 'silver', 'gold', 'crimson',
     'emerald', 'azure', 'lilac', 'ivory', 'charcoal'];
   public static readonly BASE_CARD_WIDTH = 825; // Approximated from visual reference or default - Fallback only
@@ -92,18 +92,18 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
   }
   private lastPanPos = { x: 0, y: 0 };
 
-  zoomMagnifiedLevel: number = 0.40;
+  zoomMagnifiedLevel = 0.40;
   contextMenuItems: MenuItem[] = [];
   hoveredItem: Positionable | undefined;
-  draggingCard: boolean = false;
-  draggingStack: boolean = false;
-  draggingComponent: boolean = false;
+  draggingCard = false;
+  draggingStack = false;
+  draggingComponent = false;
 
-  renameDialogVisible: boolean = false;
-  renameStackName: string = '';
-  shortcutsVisible: boolean = false;
+  renameDialogVisible = false;
+  renameStackName = '';
+  shortcutsVisible = false;
   stackToRename: CardStack | undefined;
-  isZooming: boolean = false;
+  isZooming = false;
   private zoomTimeout: any;
 
   saveStackName() {
@@ -123,8 +123,8 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
     this.shortcutsVisible = true;
   }
 
-  drawSpecificCardDialogVisible: boolean = false;
-  drawSpecificCardSearchQuery: string = '';
+  drawSpecificCardDialogVisible = false;
+  drawSpecificCardSearchQuery = '';
   drawSpecificCardStack: CardStack | undefined;
   filteredCards: GameCard[] = [];
 
@@ -309,21 +309,21 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
     }, 400);
   }
 
-  public drawCard(stack: CardStack, faceUp: boolean = true) {
+  public drawCard(stack: CardStack, faceUp = true) {
     if (stack.cards.length > 0) {
       const drawnCard = stack.cards.pop();
       if (drawnCard) {
         // change position to deck position + offset
         // Reverted to bottom-right offset
-        let newX = stack.pos.x + 600 + (Math.random() * 200 - 100);
-        let newY = stack.pos.y + 300 + (Math.random() * 200 - 100);
+        const newX = stack.pos.x + 600 + (Math.random() * 200 - 100);
+        const newY = stack.pos.y + 300 + (Math.random() * 200 - 100);
 
         let width = GameSimulatorComponent.BASE_CARD_WIDTH;
         let height = GameSimulatorComponent.BASE_CARD_HEIGHT;
 
         const stackEl = document.getElementById(stack.uniqueId);
-        let startX = stack.pos.x;
-        let startY = stack.pos.y;
+        const startX = stack.pos.x;
+        const startY = stack.pos.y;
 
         if (stackEl && this.gameBoundary) {
           const rect = stackEl.getBoundingClientRect();
@@ -388,15 +388,15 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
       drawnCard.rotation = stack.rotation || 0;
       // Position it near the stack it came from for a better user experience
       // Reverted to bottom-right offset
-      let newX = stack.pos.x + 50 + (Math.random() * 20 - 10);
-      let newY = stack.pos.y + 50 + (Math.random() * 20 - 10);
+      const newX = stack.pos.x + 50 + (Math.random() * 20 - 10);
+      const newY = stack.pos.y + 50 + (Math.random() * 20 - 10);
 
       let width = GameSimulatorComponent.BASE_CARD_WIDTH;
       let height = GameSimulatorComponent.BASE_CARD_HEIGHT;
 
       const stackEl = document.getElementById(stack.uniqueId);
-      let startX = stack.pos.x;
-      let startY = stack.pos.y;
+      const startX = stack.pos.x;
+      const startY = stack.pos.y;
 
       if (stackEl) {
         const rect = stackEl.getBoundingClientRect();
@@ -1064,8 +1064,8 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
 
         // Reposition discard pile near the target stack
         // Offset by a bit so it's visible "popped out"
-        let newX = targetStack.pos.x + 120; // Offset to the right
-        let newY = targetStack.pos.y + 20;
+        const newX = targetStack.pos.x + 120; // Offset to the right
+        const newY = targetStack.pos.y + 20;
 
         // Get dimensions for clamping
         let width = GameSimulatorComponent.BASE_CARD_WIDTH;
@@ -1238,7 +1238,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
     });
   }
 
-  private clampPosition(pos: Position, itemWidth: number, itemHeight: number, padding: number = 0): Position {
+  private clampPosition(pos: Position, itemWidth: number, itemHeight: number, padding = 0): Position {
     // Clamping to a large virtual table instead of the viewport
     const TABLE_MIN = GameSimulatorComponent.TABLE_MIN;
     const TABLE_MAX = GameSimulatorComponent.TABLE_MAX;
@@ -1317,8 +1317,8 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
 
     const padding = 20;
 
-    let x = event.clientX;
-    let y = event.clientY;
+    const x = event.clientX;
+    const y = event.clientY;
 
     // Clamp to window
     const minX = width / 2 + padding;
@@ -1330,7 +1330,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
     this.magnifiedPos.y = Math.max(minY, Math.min(maxY, y));
   }
 
-  public getStackDepthStyle(rotation: number = 0) {
+  public getStackDepthStyle(rotation = 0) {
     const rad = rotation * (Math.PI / 180);
     // Target vector is (1, 1) for "Down-Right" bias
     // We want local vector (x, y) such that Rotate(x,y) = (1, 1) relative to screen axes
@@ -1348,7 +1348,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
     };
   }
 
-  public getStackCountStyle(rotation: number = 0) {
+  public getStackCountStyle(rotation = 0) {
     // We want to keep the count at the visual "Bottom Right" corner
     // The container (.card-stack) size is fixed to the base orientation (Portrait)
     // The visual content (.card-wrapper) rotates around the center.
@@ -1356,7 +1356,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
     // Normalized rotation (0, 90, 180, 270)
     const rot = ((rotation % 360) + 360) % 360;
 
-    let style: any = {};
+    let style: any;
 
     // Base position is bottom: 5px, right: 5px
     // Center is 50%, 50%
@@ -1548,7 +1548,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy {
     const cardWidth = GameSimulatorComponent.BASE_CARD_WIDTH;
     const cardHeight = GameSimulatorComponent.BASE_CARD_HEIGHT;
 
-    const checkItem = (item: Positionable, width: number, height: number, considerZoom: boolean = true) => {
+    const checkItem = (item: Positionable, width: number, height: number, considerZoom = true) => {
       // Account for components needing unscaled width but scaled position?
       // Our logic elsewhere scales position and dimensions.
       const screenX = this.simulatorPan.x + (item.pos.x * this.simulatorZoom);

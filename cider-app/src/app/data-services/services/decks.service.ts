@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { Deck } from '../types/deck.type';
 import { IndexedDbService } from '../indexed-db/indexed-db.service';
 import { AppDB } from '../indexed-db/db';

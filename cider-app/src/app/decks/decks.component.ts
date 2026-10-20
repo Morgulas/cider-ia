@@ -18,7 +18,7 @@ import { EntityTableComponent } from '../entity-table/entity-table.component';
 })
 export class DecksComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
-  private destroyed$: Subject<boolean> = new Subject();
+  private destroyed$ = new Subject<boolean>();
   cols: EntityField<Deck>[];
   decks: Deck[];
   selectedDeck: Deck | Deck[] | undefined;

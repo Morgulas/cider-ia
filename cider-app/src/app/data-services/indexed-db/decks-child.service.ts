@@ -1,9 +1,10 @@
-import { first, firstValueFrom } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { DecksService } from '../services/decks.service';
 import { EntityField } from '../types/entity-field.type';
 import { SearchParameters } from '../types/search-parameters.type';
 import { AppDB } from './db';
 import { IndexedDbService } from './indexed-db.service';
+import { EqualityCriteria } from '../types/equality-criteria.type';
 
 export class DecksChildService<Entity, Identity extends string | number> extends IndexedDbService<Entity, Identity> {
   private static readonly DECK_ID: string = 'deckId';
@@ -14,19 +15,19 @@ export class DecksChildService<Entity, Identity extends string | number> extends
     this.decksService = decksService;
   }
 
-  override search(searchParameters: SearchParameters, equalityCriterias?: {[key: string]: any;}) {
+  override search(searchParameters: SearchParameters, equalityCriterias?: EqualityCriteria) {
     return firstValueFrom(this.decksService.getSelectedDeck())
       .then(deck => super.search(searchParameters, 
         {...{deckId: (deck || {}).id}, ...equalityCriterias}));
   }
 
-  override getAll(equalityCriterias?: {[key: string]: any;}) {
+  override getAll(equalityCriterias?: EqualityCriteria) {
     return firstValueFrom(this.decksService.getSelectedDeck())
       .then(deck => super.getAll(
         {...{deckId: (deck || {}).id}, ...equalityCriterias}));
   }
 
-  getAllUnfiltered(equalityCriterias?: {[key: string]: any;}) {
+  getAllUnfiltered(equalityCriterias?: EqualityCriteria) {
     return super.getAll(equalityCriterias);
   }
 
@@ -41,7 +42,7 @@ export class DecksChildService<Entity, Identity extends string | number> extends
     } else {
       return firstValueFrom(this.decksService.getSelectedDeck())
         .then(deck => {
-          (<any>entity)[DecksChildService.DECK_ID] = deck?.id;
+          (entity as unknown as Record<string, unknown>)[DecksChildService.DECK_ID] = deck?.id;
           return super.create(entity);
         });
     }
@@ -53,7 +54,7 @@ export class DecksChildService<Entity, Identity extends string | number> extends
     } else {
       return firstValueFrom(this.decksService.getSelectedDeck())
         .then(deck => {
-          (<any>entity)[DecksChildService.DECK_ID] = deck?.id;
+          (entity as unknown as Record<string, unknown>)[DecksChildService.DECK_ID] = deck?.id;
           return super.update(id, entity);
         });
     }
@@ -63,7 +64,7 @@ export class DecksChildService<Entity, Identity extends string | number> extends
     return super.delete(id);
   }
 
-  override deleteAll(equalityCriterias?: {[key: string]: any;}): Promise<boolean> {
+  override deleteAll(equalityCriterias?: EqualityCriteria): Promise<boolean> {
     return firstValueFrom(this.decksService.getSelectedDeck())
       .then(deck => super.deleteAll(
         {...{deckId: (deck || {}).id}, ...equalityCriterias}));

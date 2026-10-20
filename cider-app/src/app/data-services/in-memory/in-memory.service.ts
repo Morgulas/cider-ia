@@ -18,7 +18,7 @@ export class InMemoryService<Entity, Identity extends string | number> implement
   }
 
   getEntityName(entity: Entity) {
-    return '' + (<any>entity)[this.getIdField()];
+    return '' + (entity as any)[this.getIdField()];
   }
 
   getIdField(): string {

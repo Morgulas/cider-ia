@@ -1,6 +1,7 @@
 import { EntityField } from "./entity-field.type";
 import { SearchParameters } from "./search-parameters.type";
 import { SearchResult } from "./search-result.type";
+import { EqualityCriteria } from './equality-criteria.type';
 
 /**
  * Represents a service that implements CRUD
@@ -12,10 +13,10 @@ import { SearchResult } from "./search-result.type";
 export interface EntityService<Entity, Identity extends string | number> {
     getTableName: () => string;
     getEntityName: (entity: Entity) => string;
-    getFields: (equalityCriterias?: {[key: string]: any;}) => Promise<EntityField<Entity>[]>;
+    getFields: (equalityCriterias?: EqualityCriteria) => Promise<EntityField<Entity>[]>;
     getIdField: () => string;
-    getIdToNameMap: (equalityCriterias?: {[key: string]: any;}) => Promise<Map<Identity, string>>;
-    getLookups: (equalityCriterias?: {[key: string]: any;}) => Promise<Map<EntityService<any, string | number>, Map<string | number, string>>>;
+    getIdToNameMap: (equalityCriterias?: EqualityCriteria) => Promise<Map<Identity, string>>;
+    getLookups: (equalityCriterias?: EqualityCriteria) => Promise<Map<EntityService<any, string | number>, Map<string | number, string>>>;
     search: (searchParameters: SearchParameters) => Promise<SearchResult<Entity>>;
     getAll: () => Promise<Entity[]>;
     get: (id: Identity) => Promise<Entity>;

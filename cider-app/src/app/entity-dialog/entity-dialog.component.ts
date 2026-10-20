@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import { MessageService, PrimeTemplate } from 'primeng/api';
 import { EntityField } from '../data-services/types/entity-field.type';
 import { EntityService } from '../data-services/types/entity-service.type';
@@ -30,12 +30,12 @@ import { ToStringPipe } from '../data-services/pipes/to-string.pipe';
 export class EntityDialogComponent<Entity, Identifier extends string | number> implements OnInit, OnChanges {
   @Input() service: EntityService<Entity, Identifier> | undefined;
   @Input() columns: EntityField<Entity>[] = [];
-  @Input() visible: boolean = false;
+  @Input() visible = false;
   @Input() entity: Entity = {} as Entity;
-  @Input() title: string = '';
+  @Input() title = '';
   @Output() visibleChange: EventEmitter<boolean> = new EventEmitter<boolean>();
-  @Output() onCreate: EventEmitter<Entity> = new EventEmitter<Entity>();
-  loading: boolean = false;
+  @Output() created: EventEmitter<Entity> = new EventEmitter<Entity>();
+  loading = false;
   FieldType = FieldType;
 
   constructor(private messageService: MessageService,
@@ -60,7 +60,7 @@ export class EntityDialogComponent<Entity, Identifier extends string | number> i
     if (!this.service) {
       return;
     }
-    const id = (<any>this.entity)[this.service?.getIdField()];
+    const id = (this.entity as any)[this.service?.getIdField()];
     if (id) {
       this.updateExisting(id, this.entity);
     } else {
@@ -74,7 +74,7 @@ export class EntityDialogComponent<Entity, Identifier extends string | number> i
       this.loading = false;
       this.hideDialog();
       this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Entity Created', life: 3000 });
-      this.onCreate.emit(result);
+      this.created.emit(result);
     }).catch(error => {
       this.loading = false;
     });
@@ -93,7 +93,7 @@ export class EntityDialogComponent<Entity, Identifier extends string | number> i
 
   public uploadFile(entity: Entity, field: string | number | symbol, event: any) {
     if (event?.currentFiles?.length) {
-      (<any>entity)[field] = event.files[0];
+      (entity as any)[field] = event.files[0];
     }
   }
 
