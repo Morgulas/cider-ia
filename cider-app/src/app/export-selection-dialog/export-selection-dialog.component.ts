@@ -1,12 +1,19 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CardsService } from '../data-services/services/cards.service';
 import { Card } from '../data-services/types/card.type';
+import { Bind } from 'primeng/bind';
+import { Dialog } from 'primeng/dialog';
+import { PrimeTemplate } from 'primeng/api';
+import { EntityTableComponent } from '../entity-table/entity-table.component';
+import { ButtonDirective } from 'primeng/button';
+import { Ripple } from 'primeng/ripple';
+import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
     selector: 'app-export-selection-dialog',
     templateUrl: './export-selection-dialog.component.html',
     styleUrls: ['./export-selection-dialog.component.scss'],
-    standalone: false
+    imports: [Bind, Dialog, PrimeTemplate, EntityTableComponent, ButtonDirective, Ripple, TranslatePipe]
 })
 export class ExportSelectionDialogComponent implements OnInit {
   @Input() records: Card[] = [];

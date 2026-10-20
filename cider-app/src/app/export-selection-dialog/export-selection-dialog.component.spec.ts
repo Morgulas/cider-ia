@@ -8,8 +8,8 @@ describe('ExportSelectionDialogComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ExportSelectionDialogComponent ]
-    })
+    imports: [ExportSelectionDialogComponent]
+})
     .compileComponents();
   });
 

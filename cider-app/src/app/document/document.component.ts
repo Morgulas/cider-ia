@@ -4,12 +4,20 @@ import { Document } from '../data-services/types/document.type';
 import { DocumentsService } from '../data-services/services/documents.service';
 import { debounceTime, Subject, Subscription } from 'rxjs';
 import { ThemeService } from '../data-services/theme/theme.service';
+import { Bind } from 'primeng/bind';
+import { Splitter } from 'primeng/splitter';
+import { PrimeTemplate } from 'primeng/api';
+import { Card } from 'primeng/card';
+import { MarkdownComponent } from 'ngx-markdown';
+import { EditorComponent } from 'ngx-monaco-editor-v2';
+import { FormsModule } from '@angular/forms';
+import ScriptLoader from '../shared/utils/script-loader';
 
 @Component({
-  selector: 'app-document',
-  templateUrl: './document.component.html',
-  styleUrl: './document.component.scss',
-  standalone: false
+    selector: 'app-document',
+    templateUrl: './document.component.html',
+    styleUrl: './document.component.scss',
+    imports: [Bind, Splitter, PrimeTemplate, Card, MarkdownComponent, EditorComponent, FormsModule]
 })
 export class DocumentComponent implements OnInit, OnDestroy {
   editorOptions: any = {
@@ -19,6 +27,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
   mermaidOptions: any = {
     theme: 'dark'
   };
+  /** Mermaid is downloaded only when a markdown document is opened */
+  mermaidReady: boolean = false;
   textDocument: Document = {
     name: "",
     mime: "text/markdown",
@@ -85,6 +95,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    ScriptLoader.load('assets/mermaid/mermaid.min.js')
+      .catch(error => console.error('Mermaid could not be loaded, diagrams will not render', error))
+      .finally(() => this.mermaidReady = true);
+
     this.documentChanges.asObservable().pipe(debounceTime(1000))
       .subscribe(() => this.save(this.textDocument));
 

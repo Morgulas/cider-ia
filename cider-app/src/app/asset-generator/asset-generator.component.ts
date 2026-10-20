@@ -6,6 +6,17 @@ import { AssetsService } from '../data-services/services/assets.service';
 import FileUtils from '../shared/utils/file-utils';
 import HtmlSanitizer from '../shared/utils/html-sanitizer';
 import { generateRandomDialogFrame } from '../shared/generators/card-textbox-generator';
+import { Bind } from 'primeng/bind';
+import { Card } from 'primeng/card';
+import { ButtonDirective, Button } from 'primeng/button';
+import { Select } from 'primeng/select';
+import { FormsModule } from '@angular/forms';
+import { Panel } from 'primeng/panel';
+import { InputText } from 'primeng/inputtext';
+import { ColorPicker } from 'primeng/colorpicker';
+import { InputNumber } from 'primeng/inputnumber';
+import { Popover } from 'primeng/popover';
+import { TranslatePipe } from '@ngx-translate/core';
 
 interface AssetTypeOption {
   label: string;
@@ -39,7 +50,7 @@ interface GeneratedSvg {
     selector: 'app-asset-generator',
     templateUrl: './asset-generator.component.html',
     styleUrl: './asset-generator.component.scss',
-    standalone: false
+    imports: [Bind, Card, ButtonDirective, Select, FormsModule, Panel, InputText, ColorPicker, InputNumber, Button, Popover, TranslatePipe]
 })
 export class AssetGeneratorComponent {
   assetOptions: AssetTypeOption[] = [

@@ -3,10 +3,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 import StringUtils from '../utils/string-utils';
 import * as Handlebars from 'handlebars';
 
-@Pipe({
-  name: 'handlebars',
-  standalone: false
-})
+@Pipe({ name: 'handlebars' })
 export class HandlebarsPipe implements PipeTransform {
   private static compiledTemplates = new Map<string, Handlebars.TemplateDelegate>();
   private static readonly MAX_CACHE_SIZE = 500;

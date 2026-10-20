@@ -8,8 +8,8 @@ describe('EntityDialogComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [EntityDialogComponent]
-    })
+    imports: [EntityDialogComponent]
+})
       .compileComponents();
   });
 

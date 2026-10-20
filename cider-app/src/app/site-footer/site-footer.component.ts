@@ -1,11 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import PackageUtils from '../shared/utils/package-utils';
+import { Bind } from 'primeng/bind';
+import { Button } from 'primeng/button';
 
 @Component({
-  selector: 'app-site-footer',
-  templateUrl: './site-footer.component.html',
-  styleUrls: ['./site-footer.component.scss'],
-  standalone: false
+    selector: 'app-site-footer',
+    templateUrl: './site-footer.component.html',
+    styleUrls: ['./site-footer.component.scss'],
+    imports: [Bind, Button]
 })
 export class SiteFooterComponent implements OnInit {
   appVersion: string = '0.0.0';

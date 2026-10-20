@@ -41,14 +41,16 @@
                 "glob": "cider_press_bg.wasm",
                 "input": "node_modules/cider-press",
                 "output": "assets/wasm"
+              },
+              {
+                "glob": "mermaid.min.js",
+                "input": "node_modules/mermaid/dist",
+                "output": "assets/mermaid"
               }
             ],
             "styles": [
               "src/styles.scss",
               "node_modules/oatear-longtable/longtable-styles.css"
-            ],
-            "scripts": [
-              "node_modules/mermaid/dist/mermaid.min.js"
             ],
             "browser": "src/main.ts"
           },
@@ -126,9 +128,6 @@
             "styles": [
               "src/styles.scss",
               "node_modules/oatear-longtable/longtable-styles.css"
-            ],
-            "scripts": [
-              "node_modules/mermaid/dist/mermaid.min.js"
             ]
           }
         },

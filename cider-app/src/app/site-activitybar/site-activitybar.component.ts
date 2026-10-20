@@ -1,12 +1,15 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Route, Router } from '@angular/router';
-import { MenuItem } from 'primeng/api';
+import { MenuItem, PrimeTemplate } from 'primeng/api';
+import { Bind } from 'primeng/bind';
+import { Menubar } from 'primeng/menubar';
+import { SettingsDialogComponent } from '../settings-dialog/settings-dialog.component';
 
 @Component({
     selector: 'app-site-activitybar',
     templateUrl: './site-activitybar.component.html',
     styleUrl: './site-activitybar.component.scss',
-    standalone: false
+    imports: [Bind, Menubar, PrimeTemplate, SettingsDialogComponent]
 })
 export class SiteActivitybarComponent {
   @Input() selectedActivity: string = 'explorer';

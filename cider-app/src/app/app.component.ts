@@ -1,19 +1,20 @@
 import { Component, HostBinding, OnInit } from '@angular/core';
-import { NavigationEnd, Router } from '@angular/router';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 
 import { filter } from 'rxjs';
 import { LocalStorageService } from './data-services/local-storage/local-storage.service';
 import { TranslateService } from '@ngx-translate/core';
 import { ThemeService } from './data-services/theme/theme.service';
+import { SiteTemplateComponent } from './site-template/site-template.component';
 
 // setup in index.html
 declare const gtag: Function;
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss'],
-  standalone: false
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.scss'],
+    imports: [SiteTemplateComponent, RouterOutlet]
 })
 export class AppComponent implements OnInit {
   title = 'cider';

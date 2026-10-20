@@ -1,5 +1,5 @@
 import { Component, NgZone, OnInit } from '@angular/core';
-import { ConfirmationService, MenuItem, MessageService } from 'primeng/api';
+import { ConfirmationService, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
 import { NavigationEnd, Router } from '@angular/router';
 import { ExportProgress } from 'dexie-export-import/dist/export';
 import { ImportProgress } from 'dexie-export-import/dist/import';
@@ -9,14 +9,24 @@ import { AssetsService } from '../data-services/services/assets.service';
 import { DecksService } from '../data-services/services/decks.service';
 import { Deck } from '../data-services/types/deck.type';
 import StringUtils from '../shared/utils/string-utils';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslatePipe } from '@ngx-translate/core';
+import { Bind } from 'primeng/bind';
+import { Menubar } from 'primeng/menubar';
+import { Breadcrumb } from 'primeng/breadcrumb';
+import { ConfirmDialog } from 'primeng/confirmdialog';
+import { Dialog } from 'primeng/dialog';
+import { Message } from 'primeng/message';
+import { FileUpload } from 'primeng/fileupload';
+import { ButtonDirective } from 'primeng/button';
+import { Ripple } from 'primeng/ripple';
+import { ProgressBar } from 'primeng/progressbar';
 
 @Component({
-  selector: 'app-site-menu',
-  templateUrl: './site-menu.component.html',
-  styleUrls: ['./site-menu.component.scss'],
-  providers: [MessageService, ConfirmationService],
-  standalone: false
+    selector: 'app-site-menu',
+    templateUrl: './site-menu.component.html',
+    styleUrls: ['./site-menu.component.scss'],
+    providers: [MessageService, ConfirmationService],
+    imports: [Bind, Menubar, Breadcrumb, ConfirmDialog, Dialog, PrimeTemplate, Message, FileUpload, ButtonDirective, Ripple, ProgressBar, TranslatePipe]
 })
 export class SiteMenuComponent implements OnInit {
 

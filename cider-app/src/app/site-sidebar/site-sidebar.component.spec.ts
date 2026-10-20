@@ -8,8 +8,8 @@ describe('SiteSidebarComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [SiteSidebarComponent]
-    });
+    imports: [SiteSidebarComponent]
+});
     fixture = TestBed.createComponent(SiteSidebarComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

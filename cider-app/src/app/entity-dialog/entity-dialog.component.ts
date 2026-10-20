@@ -1,18 +1,31 @@
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { MessageService } from 'primeng/api';
+import { MessageService, PrimeTemplate } from 'primeng/api';
 import { EntityField } from '../data-services/types/entity-field.type';
 import { EntityService } from '../data-services/types/entity-service.type';
 import { FieldType } from '../data-services/types/field-type.type';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import TranslateUtils from '../shared/utils/translate-utils';
+import { Bind } from 'primeng/bind';
+import { Toast } from 'primeng/toast';
+import { Dialog } from 'primeng/dialog';
+import { Select } from 'primeng/select';
+import { FormsModule } from '@angular/forms';
+import { DropdownOptionEditorComponent } from '../shared/components/dropdown-option-editor/dropdown-option-editor.component';
+import { FileUpload } from 'primeng/fileupload';
+import { InputText } from 'primeng/inputtext';
+import { ButtonDirective } from 'primeng/button';
+import { Ripple } from 'primeng/ripple';
+import { AsyncPipe } from '@angular/common';
+import { EntityListPipe } from '../data-services/pipes/entity-list.pipe';
+import { ToStringPipe } from '../data-services/pipes/to-string.pipe';
 
 @Component({
-  selector: 'app-entity-dialog',
-  templateUrl: './entity-dialog.component.html',
-  styleUrls: ['./entity-dialog.component.scss'],
-  providers: [MessageService],
-  standalone: false
+    selector: 'app-entity-dialog',
+    templateUrl: './entity-dialog.component.html',
+    styleUrls: ['./entity-dialog.component.scss'],
+    providers: [MessageService],
+    imports: [Bind, Toast, Dialog, PrimeTemplate, Select, FormsModule, DropdownOptionEditorComponent, FileUpload, InputText, ButtonDirective, Ripple, AsyncPipe, EntityListPipe, ToStringPipe, TranslatePipe]
 })
 export class EntityDialogComponent<Entity, Identifier extends string | number> implements OnInit, OnChanges {
   @Input() service: EntityService<Entity, Identifier> | undefined;

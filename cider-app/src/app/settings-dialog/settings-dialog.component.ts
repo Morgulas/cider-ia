@@ -1,14 +1,20 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { LocalStorageService } from '../data-services/local-storage/local-storage.service';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import { ThemeService } from '../data-services/theme/theme.service';
 import { CiderThemeConfig } from '../shared/theme-registry';
+import { Bind } from 'primeng/bind';
+import { Dialog } from 'primeng/dialog';
+import { PrimeTemplate } from 'primeng/api';
+import { Select } from 'primeng/select';
+import { FormsModule } from '@angular/forms';
+import { Message } from 'primeng/message';
 
 @Component({
-  selector: 'app-settings-dialog',
-  templateUrl: './settings-dialog.component.html',
-  styleUrl: './settings-dialog.component.scss',
-  standalone: false
+    selector: 'app-settings-dialog',
+    templateUrl: './settings-dialog.component.html',
+    styleUrl: './settings-dialog.component.scss',
+    imports: [Bind, Dialog, PrimeTemplate, Select, FormsModule, Message, TranslatePipe]
 })
 export class SettingsDialogComponent {
   @Input() visible: boolean = false;

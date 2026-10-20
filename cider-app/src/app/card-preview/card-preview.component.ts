@@ -9,13 +9,14 @@ import { CardToHtmlPipe } from '../shared/pipes/template-to-html.pipe';
 import { ImageRendererService } from '../data-services/services/image-renderer.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import GeneralUtils from '../shared/utils/general-utils';
+import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
 
 @Component({
-  selector: 'app-card-preview',
-  templateUrl: './card-preview.component.html',
-  styleUrls: ['./card-preview.component.scss'],
-  standalone: false,
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-card-preview',
+    templateUrl: './card-preview.component.html',
+    styleUrls: ['./card-preview.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [CardToHtmlPipe, SafeUrlPipe]
 })
 export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {
   @ViewChildren('cardElement') cardElement: QueryList<any> = {} as QueryList<any>;

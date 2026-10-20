@@ -4,10 +4,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 /**
  * Create an object url from file
  */
-@Pipe({
-  name: 'fileUrl',
-  standalone: false
-})
+@Pipe({ name: 'fileUrl' })
 export class FileUrlPipe implements PipeTransform {
 
   constructor(private domSanitizer: DomSanitizer) {

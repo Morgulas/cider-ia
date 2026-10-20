@@ -9,9 +9,8 @@ import HtmlSanitizer from '../utils/html-sanitizer';
  * Convert a card template into html
  */
 @Pipe({
-  name: 'cardToHtml',
-  pure: true,
-  standalone: false
+    name: 'cardToHtml',
+    pure: true
 })
 export class CardToHtmlPipe implements PipeTransform {
   private static compiledTemplates = new Map<string, Handlebars.TemplateDelegate>();

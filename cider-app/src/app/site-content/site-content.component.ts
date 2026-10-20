@@ -9,8 +9,7 @@ import { debounceTime } from 'rxjs';
 @Component({
     selector: 'app-site-content',
     templateUrl: './site-content.component.html',
-    styleUrls: ['./site-content.component.scss'],
-    standalone: false
+    styleUrls: ['./site-content.component.scss']
 })
 export class SiteContentComponent implements OnInit {
   protected globalDocument: Document | undefined;

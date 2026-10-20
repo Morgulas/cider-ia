@@ -8,8 +8,8 @@ describe('ExportCardsComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ExportCardsComponent ]
-    })
+    imports: [ExportCardsComponent]
+})
     .compileComponents();
   });
 

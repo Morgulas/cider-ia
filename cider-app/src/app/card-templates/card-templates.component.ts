@@ -1,6 +1,6 @@
 import { Component, OnInit, HostListener, SecurityContext, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService, PrimeTemplate } from 'primeng/api';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { CardsService } from '../data-services/services/cards.service';
 import { CardTemplate } from '../data-services/types/card-template.type';
@@ -8,6 +8,24 @@ import { Card } from '../data-services/types/card.type';
 import { Subject, debounceTime } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { LocalStorageService, PreviewSettings } from '../data-services/local-storage/local-storage.service';
+import { Bind } from 'primeng/bind';
+import { Toast } from 'primeng/toast';
+import { Splitter } from 'primeng/splitter';
+import { Card as Card_1 } from 'primeng/card';
+import { Select } from 'primeng/select';
+import { FormsModule } from '@angular/forms';
+import { ButtonGroup } from 'primeng/buttongroup';
+import { ButtonDirective } from 'primeng/button';
+import { Tooltip } from 'primeng/tooltip';
+import { CardPreviewComponent } from '../card-preview/card-preview.component';
+import { EditorComponent } from 'ngx-monaco-editor-v2';
+import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
+import { ConfirmDialog } from 'primeng/confirmdialog';
+import { Dialog } from 'primeng/dialog';
+import { Checkbox } from 'primeng/checkbox';
+import { InputNumber } from 'primeng/inputnumber';
+import { DecksComponent } from '../decks/decks.component';
+import { TranslatePipe } from '@ngx-translate/core';
 
 const templateCssFront  = 
 `.card {
@@ -54,7 +72,7 @@ const templateHtmlFront =
     templateUrl: './card-templates.component.html',
     styleUrls: ['./card-templates.component.scss'],
     providers: [MessageService, ConfirmationService],
-    standalone: false
+    imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, DecksComponent, TranslatePipe]
 })
 export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('previewSpace') previewSpace!: ElementRef;

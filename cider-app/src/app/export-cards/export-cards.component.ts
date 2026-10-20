@@ -12,17 +12,37 @@ import { lastValueFrom } from 'rxjs';
 import StringUtils from '../shared/utils/string-utils';
 import GeneralUtils from '../shared/utils/general-utils';
 import { ConfirmationService } from 'primeng/api';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import { ColorManagementService } from '../data-services/services/color-management.service';
 
 import { LocalStorageService } from '../data-services/local-storage/local-storage.service';
+import { Bind } from 'primeng/bind';
+import { Card as Card_1 } from 'primeng/card';
+import { SelectButton } from 'primeng/selectbutton';
+import { FormsModule } from '@angular/forms';
+import { ButtonDirective } from 'primeng/button';
+import { Ripple } from 'primeng/ripple';
+import { Tooltip } from 'primeng/tooltip';
+import { ProgressBar } from 'primeng/progressbar';
+import { Paginator } from 'primeng/paginator';
+import { Select } from 'primeng/select';
+import { InputText } from 'primeng/inputtext';
+import { Checkbox } from 'primeng/checkbox';
+import { Message } from 'primeng/message';
+import { ToggleSwitch } from 'primeng/toggleswitch';
+import { ConfirmDialog } from 'primeng/confirmdialog';
+import { ExportSelectionDialogComponent } from '../export-selection-dialog/export-selection-dialog.component';
+import { Dialog } from 'primeng/dialog';
+import { AsyncPipe } from '@angular/common';
+import { EntityPipe } from '../data-services/pipes/entity.pipe';
+import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
 
 @Component({
-  selector: 'app-export-cards',
-  templateUrl: './export-cards.component.html',
-  styleUrls: ['./export-cards.component.scss'],
-  providers: [ConfirmationService],
-  standalone: false
+    selector: 'app-export-cards',
+    templateUrl: './export-cards.component.html',
+    styleUrls: ['./export-cards.component.scss'],
+    providers: [ConfirmationService],
+    imports: [Bind, Card_1, SelectButton, FormsModule, ButtonDirective, Ripple, Tooltip, ProgressBar, CardPreviewComponent, Paginator, Select, InputText, Checkbox, Message, ToggleSwitch, ConfirmDialog, ExportSelectionDialogComponent, Dialog, AsyncPipe, EntityPipe, SafeUrlPipe, TranslatePipe]
 })
 export class ExportCardsComponent implements OnInit, AfterViewChecked {
   private static readonly SINGULAR_EXPORT = 'singular-export';

@@ -6,21 +6,30 @@ import { Card } from '../data-services/types/card.type';
 import { FieldType } from '../data-services/types/field-type.type';
 import { MenuItem } from 'primeng/api';
 import { ContextMenu } from 'primeng/contextmenu';
-import { CdkDragDrop, CdkDragEnd, CdkDragEnter, CdkDragStart, DragRef, Point, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDragEnd, CdkDragEnter, CdkDragStart, DragRef, Point, moveItemInArray, transferArrayItem, CdkDropListGroup, CdkDrag } from '@angular/cdk/drag-drop';
 import StringUtils from '../shared/utils/string-utils';
 import MathUtils from '../shared/utils/math-utils';
 import { EntityField } from '../data-services/types/entity-field.type';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import { GameSimulatorStateService } from './game-simulator-state.service';
 import { CardStack, CardZone, GameCard, GameComponent, Position, Positionable } from './game-simulator.types';
+import { NgStyle, AsyncPipe } from '@angular/common';
+import { CardPreviewComponent } from '../card-preview/card-preview.component';
+import { Bind } from 'primeng/bind';
+import { Dialog } from 'primeng/dialog';
+import { FormsModule } from '@angular/forms';
+import { InputText } from 'primeng/inputtext';
+import { Button } from 'primeng/button';
+import { DecksComponent } from '../decks/decks.component';
+import { EntityPipe } from '../data-services/pipes/entity.pipe';
 
 
 
 @Component({
-  selector: 'app-game-simulator',
-  templateUrl: './game-simulator.component.html',
-  styleUrl: './game-simulator.component.scss',
-  standalone: false
+    selector: 'app-game-simulator',
+    templateUrl: './game-simulator.component.html',
+    styleUrl: './game-simulator.component.scss',
+    imports: [CdkDropListGroup, NgStyle, CdkDrag, CardPreviewComponent, Bind, Dialog, FormsModule, InputText, Button, ContextMenu, DecksComponent, AsyncPipe, EntityPipe, TranslatePipe]
 })
 export class GameSimulatorComponent implements OnInit, OnDestroy {
   private static readonly COLORS = ['copper', 'silver', 'gold', 'crimson',

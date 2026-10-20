@@ -6,7 +6,11 @@ import { CardsService } from '../data-services/services/cards.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
 import { Router } from '@angular/router';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslatePipe } from '@ngx-translate/core';
+import { Bind } from 'primeng/bind';
+import { Card } from 'primeng/card';
+import { MeterGroup } from 'primeng/metergroup';
+import { Button } from 'primeng/button';
 
 interface ProjectInfo {
   name: string;
@@ -38,7 +42,7 @@ interface Meter {
     selector: 'app-project',
     templateUrl: './project.component.html',
     styleUrl: './project.component.scss',
-    standalone: false
+    imports: [Bind, Card, MeterGroup, Button, TranslatePipe]
 })
 export class ProjectComponent implements OnInit {
   projectName: string = 'Cider Project';

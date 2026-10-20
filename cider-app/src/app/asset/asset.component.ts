@@ -8,13 +8,26 @@ import FileUtils from '../shared/utils/file-utils';
 import { combineLatest, forkJoin, take } from 'rxjs';
 import { parse } from 'opentype.js';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+import { Bind } from 'primeng/bind';
+import { Card } from 'primeng/card';
+import { Tag } from 'primeng/tag';
+import { ButtonDirective } from 'primeng/button';
+import { FormsModule } from '@angular/forms';
+import { Textarea } from 'primeng/textarea';
+import { NgIf, NgClass, NgFor, UpperCasePipe } from '@angular/common';
+import { Tooltip } from 'primeng/tooltip';
+import { InputText } from 'primeng/inputtext';
+import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
+import { ConfirmDialog } from 'primeng/confirmdialog';
+import { Toast } from 'primeng/toast';
+import { FileUrlPipe } from '../shared/pipes/file-url.pipe';
 
 @Component({
-  selector: 'app-asset',
-  templateUrl: './asset.component.html',
-  styleUrl: './asset.component.scss',
-  providers: [MessageService, ConfirmationService],
-  standalone: false
+    selector: 'app-asset',
+    templateUrl: './asset.component.html',
+    styleUrl: './asset.component.scss',
+    providers: [MessageService, ConfirmationService],
+    imports: [Bind, Card, Tag, ButtonDirective, FormsModule, Textarea, NgIf, NgClass, Tooltip, NgFor, InputText, EntityDialogComponent, ConfirmDialog, Toast, UpperCasePipe, FileUrlPipe]
 })
 export class AssetComponent {
   protected readonly math = Math;

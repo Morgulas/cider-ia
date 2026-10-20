@@ -5,12 +5,22 @@ import TemplateDefaults, { CardTheme, TemplateDesign } from '../shared/defaults/
 import { ActivatedRoute, Router } from '@angular/router';
 import { AssetsService } from '../data-services/services/assets.service';
 import StringUtils from '../shared/utils/string-utils';
+import { Bind } from 'primeng/bind';
+import { Card } from 'primeng/card';
+import { Stepper, StepList, Step, StepPanels, StepPanel } from 'primeng/stepper';
+import { SelectButton } from 'primeng/selectbutton';
+import { FormsModule } from '@angular/forms';
+import { CardPreviewComponent } from '../card-preview/card-preview.component';
+import { Button } from 'primeng/button';
+import { NgIf } from '@angular/common';
+import { InputText } from 'primeng/inputtext';
+import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
     selector: 'app-template-generator',
     templateUrl: './template-generator.component.html',
     styleUrl: './template-generator.component.scss',
-    standalone: false
+    imports: [Bind, Card, Stepper, StepList, Step, StepPanels, StepPanel, SelectButton, FormsModule, CardPreviewComponent, Button, NgIf, InputText, TranslatePipe]
 })
 export class TemplateGeneratorComponent implements OnInit {
   deckId: number = 0;

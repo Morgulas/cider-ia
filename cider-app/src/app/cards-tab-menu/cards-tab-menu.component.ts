@@ -7,8 +7,7 @@ import { Deck } from '../data-services/types/deck.type';
 @Component({
     selector: 'app-cards-tab-menu',
     templateUrl: './cards-tab-menu.component.html',
-    styleUrls: ['./cards-tab-menu.component.scss'],
-    standalone: false
+    styleUrls: ['./cards-tab-menu.component.scss']
 })
 export class CardsTabMenuComponent implements OnInit {
 

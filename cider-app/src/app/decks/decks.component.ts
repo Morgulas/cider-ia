@@ -4,12 +4,16 @@ import { Subject, take } from 'rxjs';
 import { DecksService } from '../data-services/services/decks.service';
 import { EntityField } from '../data-services/types/entity-field.type';
 import { Deck } from '../data-services/types/deck.type';
+import { PageHeaderComponent } from '../page-header/page-header.component';
+import { Bind } from 'primeng/bind';
+import { Card } from 'primeng/card';
+import { EntityTableComponent } from '../entity-table/entity-table.component';
 
 @Component({
     selector: 'app-decks',
     templateUrl: './decks.component.html',
     styleUrls: ['./decks.component.scss'],
-    standalone: false
+    imports: [PageHeaderComponent, Bind, Card, EntityTableComponent]
 })
 export class DecksComponent implements OnInit, OnDestroy {
   private destroyed$: Subject<boolean> = new Subject();

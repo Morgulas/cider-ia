@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
-import { ConfirmationService, LazyLoadEvent, MenuItem, MessageService } from 'primeng/api';
-import { Table, TableLazyLoadEvent } from 'primeng/table';
+import { ConfirmationService, LazyLoadEvent, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
+import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { EntityField } from '../data-services/types/entity-field.type';
 import { EntityService } from '../data-services/types/entity-service.type';
 import { FieldType } from '../data-services/types/field-type.type';
@@ -9,15 +9,36 @@ import XlsxUtils from '../shared/utils/xlsx-utils';
 import { Subject, debounceTime } from 'rxjs';
 import { TableStat, TokenStat } from './table-stat.type';
 import StringUtils from '../shared/utils/string-utils';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import TranslateUtils from '../shared/utils/translate-utils';
+import { Bind } from 'primeng/bind';
+import { Toast } from 'primeng/toast';
+import { ButtonDirective, Button } from 'primeng/button';
+import { Ripple } from 'primeng/ripple';
+import { Tooltip } from 'primeng/tooltip';
+import { IconField } from 'primeng/iconfield';
+import { InputText } from 'primeng/inputtext';
+import { InputIcon } from 'primeng/inputicon';
+import { MultiSelect } from 'primeng/multiselect';
+import { FormsModule } from '@angular/forms';
+import { Select } from 'primeng/select';
+import { Textarea } from 'primeng/textarea';
+import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
+import { ConfirmDialog } from 'primeng/confirmdialog';
+import { Dialog } from 'primeng/dialog';
+import { Message } from 'primeng/message';
+import { FileUpload } from 'primeng/fileupload';
+import { ContextMenu } from 'primeng/contextmenu';
+import { AsyncPipe } from '@angular/common';
+import { EntityListCachedPipe } from '../data-services/pipes/entity-list-cached.pipe';
+import { FileUrlPipe } from '../shared/pipes/file-url.pipe';
 
 @Component({
     selector: 'app-entity-table',
     templateUrl: './entity-table.component.html',
     styleUrls: ['./entity-table.component.scss'],
     providers: [MessageService, ConfirmationService],
-    standalone: false
+    imports: [Bind, Toast, TableModule, PrimeTemplate, ButtonDirective, Ripple, Tooltip, IconField, InputText, InputIcon, MultiSelect, FormsModule, Select, Textarea, EntityDialogComponent, ConfirmDialog, Dialog, Message, FileUpload, ContextMenu, Button, AsyncPipe, EntityListCachedPipe, FileUrlPipe, TranslatePipe]
 })
 export class EntityTableComponent<Entity, Identifier extends string | number> implements OnInit {
 

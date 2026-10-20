@@ -8,8 +8,8 @@ describe('EntityTableComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [EntityTableComponent]
-    })
+    imports: [EntityTableComponent]
+})
       .compileComponents();
   });
 

@@ -8,8 +8,8 @@ describe('SiteMenuComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [SiteMenuComponent]
-    });
+    imports: [SiteMenuComponent]
+});
     fixture = TestBed.createComponent(SiteMenuComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

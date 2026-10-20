@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ConfirmationService, MenuItem, MessageService, TreeDragDropService, TreeNode } from 'primeng/api';
+import { ConfirmationService, MenuItem, MessageService, TreeDragDropService, TreeNode, PrimeTemplate } from 'primeng/api';
 import { DecksService } from '../data-services/services/decks.service';
 import { AssetsService } from '../data-services/services/assets.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
@@ -7,21 +7,25 @@ import { Action } from 'rxjs/internal/scheduler/Action';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
 import { combineLatest, debounceTime, firstValueFrom, lastValueFrom, merge, timeout } from 'rxjs';
 import StringUtils from '../shared/utils/string-utils';
-import { TreeNodeContextMenuSelectEvent, TreeNodeSelectEvent, TreeNodeDropEvent } from 'primeng/tree';
+import { TreeNodeContextMenuSelectEvent, TreeNodeSelectEvent, TreeNodeDropEvent, Tree } from 'primeng/tree';
 import { Router } from '@angular/router';
 import { EntityService } from '../data-services/types/entity-service.type';
 import { DocumentsService } from '../data-services/services/documents.service';
 import { HttpClient } from '@angular/common/http';
 import { AppDB } from '../data-services/indexed-db/db';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import { Asset } from '../data-services/types/asset.type';
+import { Bind } from 'primeng/bind';
+import { ContextMenu } from 'primeng/contextmenu';
+import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
+import { ConfirmDialog } from 'primeng/confirmdialog';
 
 @Component({
-  selector: 'app-site-sidebar',
-  templateUrl: './site-sidebar.component.html',
-  styleUrls: ['./site-sidebar.component.scss'],
-  providers: [MessageService, ConfirmationService, TreeDragDropService],
-  standalone: false
+    selector: 'app-site-sidebar',
+    templateUrl: './site-sidebar.component.html',
+    styleUrls: ['./site-sidebar.component.scss'],
+    providers: [MessageService, ConfirmationService, TreeDragDropService],
+    imports: [Bind, Tree, PrimeTemplate, ContextMenu, EntityDialogComponent, ConfirmDialog, TranslatePipe]
 })
 export class SiteSidebarComponent implements OnInit {
   deckId: number = 0;

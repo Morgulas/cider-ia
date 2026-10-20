@@ -2,13 +2,24 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { CardsService } from '../data-services/services/cards.service';
 import { Card } from '../data-services/types/card.type';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateService, TranslatePipe } from '@ngx-translate/core';
+import { Bind } from 'primeng/bind';
+import { Card as Card_1 } from 'primeng/card';
+import { SelectButton } from 'primeng/selectbutton';
+import { FormsModule } from '@angular/forms';
+import { IconField } from 'primeng/iconfield';
+import { InputText } from 'primeng/inputtext';
+import { InputIcon } from 'primeng/inputicon';
+import { DataView as DataView_1 } from 'primeng/dataview';
+import { CardPreviewComponent } from '../card-preview/card-preview.component';
+import { AsyncPipe } from '@angular/common';
+import { EntityPipe } from '../data-services/pipes/entity.pipe';
 
 @Component({
     selector: 'app-card-thumbnails',
     templateUrl: './card-thumbnails.component.html',
     styleUrls: ['./card-thumbnails.component.scss'],
-    standalone: false
+    imports: [Bind, Card_1, SelectButton, FormsModule, IconField, InputText, InputIcon, DataView_1, CardPreviewComponent, AsyncPipe, EntityPipe, TranslatePipe]
 })
 export class CardThumbnailsComponent implements OnInit {
   @ViewChild('dv') dv!: DataView;

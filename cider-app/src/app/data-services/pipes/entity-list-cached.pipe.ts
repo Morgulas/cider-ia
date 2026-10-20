@@ -1,10 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { EntityService } from '../types/entity-service.type';
 
-@Pipe({
-    name: 'entityListCached',
-    standalone: false
-})
+@Pipe({ name: 'entityListCached' })
 export class EntityListCachedPipe implements PipeTransform {
 
   async transform(service: EntityService<any, any>, cache: Map<EntityService<any, any>, any[]>): Promise<any[] | undefined> {
