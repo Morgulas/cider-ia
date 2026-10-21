@@ -13,8 +13,12 @@ Seul `web` est exposé ; `api` n'est joignable que par le réseau interne de Doc
 
 ```bash
 cp .env.example .env    # puis adapter les valeurs
-docker compose up -d --build
+docker compose up -d
 ```
+
+Les images ne sont **pas construites sur le serveur** : GitHub les construit à chaque mise à jour de `main`, une fois les tests passés (workflow CI, compter 5 à 10 minutes après un push), et les publie sur `ghcr.io/morgulas/cider-ia-web` et `ghcr.io/morgulas/cider-ia-api`. Un déploiement ne fait que les télécharger (`pull_policy: always`) : quelques secondes. Pour figer une version, `CIDER_VERSION=sha-<commit>` (par défaut `latest`).
+
+Pour construire sur place (version modifiée localement) : `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
 Ouvrir ensuite `http://<hôte>:8080`. Au premier accès, l'application demande de **créer le compte administrateur** : c'est lui qui crée ensuite les autres comptes (menu utilisateur > Utilisateurs).
 

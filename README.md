@@ -59,7 +59,7 @@ Cider a été créé pour les concepteurs qui veulent une liberté créative tot
 Ce fork fonctionne uniquement comme application web, avec un serveur : **comptes utilisateurs** (créés par un administrateur) et **projets enregistrés sur le serveur**, accessibles depuis n'importe quel navigateur. Le dossier de données se choisit dans le `docker-compose`. Voir [`docker/README.md`](docker/README.md) :
 ```bash
 cp .env.example .env
-docker compose up -d --build
+docker compose up -d
 ```
 
 ### Version web d'origine
