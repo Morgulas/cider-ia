@@ -40,3 +40,9 @@
 //         }
 //     }
 // }
+.cards-toolbar {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-bottom: 1px solid var(--p-content-border-color);
+}

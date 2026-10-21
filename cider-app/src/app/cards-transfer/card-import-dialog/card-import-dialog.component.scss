@@ -1,0 +1,111 @@
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1rem;
+  border: 2px dashed var(--p-content-border-color);
+  border-radius: 10px;
+  text-align: center;
+  color: var(--p-text-muted-color);
+
+  i {
+    font-size: 2rem;
+  }
+
+  &.over {
+    border-color: var(--p-primary-color);
+    background: var(--p-content-hover-background);
+  }
+}
+
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  h4 {
+    margin: 0.5rem 0 0;
+  }
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+
+  .file {
+    font-weight: 600;
+    margin-right: 0.5rem;
+  }
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 14rem;
+
+  label {
+    font-weight: 600;
+  }
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1.6rem;
+}
+
+.check,
+.new-column {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 0.35rem 1.5rem;
+}
+
+.column-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.2rem;
+
+  .column-name {
+    font-weight: 600;
+    min-width: 8rem;
+  }
+}
+
+.changes {
+  color: var(--p-text-muted-color);
+  font-size: 0.85rem;
+}
+
+.muted {
+  color: var(--p-text-muted-color);
+}
+
+.progress {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+:host ::ng-deep .block {
+  margin-bottom: 0.75rem;
+}

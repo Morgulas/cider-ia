@@ -1,0 +1,150 @@
+<p-dialog [header]="'cards-transfer.import-title' | translate" [visible]="visible()" (visibleChange)="visible.set($event)"
+  (onShow)="onShow()" [modal]="true" [style]="{ width: '1000px', maxWidth: '96vw' }" [maximizable]="true"
+  [closable]="step() !== 'importing'">
+
+  @if (error()) {
+    <p-message severity="error" [text]="error()!" styleClass="block" />
+  }
+
+  @switch (step()) {
+    @case ('choose') {
+      <div class="drop-zone" [class.over]="dragOver()" (dragover)="onDragOver($event)" (dragleave)="dragOver.set(false)"
+        (drop)="onDrop($event)">
+        <i class="pi pi-file-import"></i>
+        <span>{{ 'cards-transfer.drop-help' | translate }}</span>
+        <p-button [label]="'cards-transfer.choose-file' | translate" icon="pi pi-folder-open" (onClick)="fileInput.click()" />
+        <input #fileInput type="file" accept=".csv,.json,text/csv,application/json" hidden (change)="onFileChosen($event)" />
+        <small class="muted">{{ 'cards-transfer.choose-help' | translate }}</small>
+      </div>
+    }
+
+    @case ('review') {
+      @if (plan(); as p) {
+        <div class="review">
+          <div class="summary">
+            <span class="file"><i class="pi pi-file"></i> {{ fileName }}</span>
+            <p-tag severity="success" [value]="('cards-transfer.count-create' | translate: { n: p.counts.create })" />
+            <p-tag severity="info" [value]="('cards-transfer.count-update' | translate: { n: p.counts.update })" />
+            <p-tag severity="secondary" [value]="('cards-transfer.count-unchanged' | translate: { n: p.counts.unchanged })" />
+            @if (p.counts.error) {
+              <p-tag severity="danger" [value]="('cards-transfer.count-error' | translate: { n: p.counts.error })" />
+            }
+          </div>
+
+          <div class="settings">
+            <div class="field">
+              <label for="import-key">{{ 'cards-transfer.key' | translate }}</label>
+              <p-select inputId="import-key" [options]="keyOptions" optionLabel="label" optionValue="value"
+                [(ngModel)]="keyColumn" (ngModelChange)="replan()" />
+              <small class="muted">{{ 'cards-transfer.key-help' | translate }}</small>
+            </div>
+            <div class="checks">
+              <div class="check">
+                <p-checkbox inputId="import-br" [(ngModel)]="lineBreaksAsHtml" [binary]="true" (ngModelChange)="replan()" />
+                <label for="import-br">{{ 'cards-transfer.line-breaks' | translate }}</label>
+              </div>
+              @if (p.missingOptions.length) {
+                <div class="check">
+                  <p-checkbox inputId="import-options" [(ngModel)]="addMissingOptions" [binary]="true" />
+                  <label for="import-options">{{ 'cards-transfer.add-options' | translate }}</label>
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (keyNotInDeck()) {
+            <p-message severity="warn" [text]="'cards-transfer.key-not-in-deck' | translate: { column: keyColumn }" />
+          } @else if (keyNewInDeck()) {
+            <p-message severity="warn" [text]="'cards-transfer.key-new' | translate: { column: keyColumn }" />
+          }
+          @for (missing of p.missingOptions; track missing.field) {
+            <p-message severity="warn"
+              [text]="'cards-transfer.missing-options' | translate: { attribute: missing.header, values: missing.values.join(', ') }" />
+          }
+          @if (p.unknownTemplates.length) {
+            <p-message severity="warn"
+              [text]="'cards-transfer.unknown-templates' | translate: { names: p.unknownTemplates.join(', ') }" />
+          }
+
+          <h4>{{ 'cards-transfer.columns' | translate }}</h4>
+          <div class="columns">
+            @for (column of p.columns; track column.column) {
+              <div class="column-row">
+                <span class="column-name">{{ column.column }}</span>
+                <i class="pi pi-arrow-right muted"></i>
+                @if (newColumn(column.column); as created) {
+                  <span class="new-column">
+                    <p-checkbox [inputId]="'new-' + column.column" [(ngModel)]="created.create" [binary]="true"
+                      (ngModelChange)="replan()" />
+                    <label [for]="'new-' + column.column">{{ 'cards-transfer.create-attribute' | translate }}</label>
+                    <p-select [options]="typeOptions" optionLabel="label" optionValue="value" [(ngModel)]="created.type"
+                      (ngModelChange)="replan()" [disabled]="!created.create" size="small" />
+                    @if (created.type === 'dropdown' && created.options.length) {
+                      <small class="muted">{{ created.options.length }} {{ 'cards-transfer.options' | translate }}</small>
+                    }
+                    @if (!created.create) {
+                      <small class="muted">{{ 'cards-transfer.ignored' | translate }}</small>
+                    }
+                  </span>
+                } @else if (targetOf(column.column); as target) {
+                  <span>{{ target }}</span>
+                }
+              </div>
+            }
+          </div>
+
+          <h4>{{ 'cards-transfer.cards' | translate }}</h4>
+          <p-table [value]="reviewRows()" [scrollable]="true" scrollHeight="320px" size="small" [rowTrackBy]="trackRow">
+            <ng-template #header>
+              <tr>
+                <th>#</th>
+                <th>{{ keyColumn }}</th>
+                <th>{{ 'cards-transfer.card' | translate }}</th>
+                <th>{{ 'cards-transfer.action' | translate }}</th>
+                <th>{{ 'cards-transfer.changes' | translate }}</th>
+              </tr>
+            </ng-template>
+            <ng-template #body let-row>
+              <tr>
+                <td class="muted">{{ row.line }}</td>
+                <td>{{ row.key }}</td>
+                <td>{{ row.label }}</td>
+                <td>
+                  <p-tag [severity]="row.action === 'create' ? 'success' : row.action === 'update' ? 'info' : row.action === 'error' ? 'danger' : 'secondary'"
+                    [value]="('cards-transfer.action-' + row.action) | translate" />
+                </td>
+                <td class="changes">{{ changesText(row) }}</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      }
+    }
+
+    @case ('importing') {
+      <div class="progress">
+        <p-progressbar mode="indeterminate" [style]="{ height: '6px' }" />
+        <p class="muted">{{ 'cards-transfer.importing' | translate }}</p>
+      </div>
+    }
+
+    @case ('done') {
+      @if (result(); as r) {
+        <p-message severity="success"
+          [text]="'cards-transfer.done' | translate: { created: r.created, updated: r.updated, attributes: r.attributesCreated, options: r.optionsAdded }" />
+      }
+    }
+  }
+
+  <ng-template #footer>
+    @if (step() === 'review') {
+      <p-button [label]="'cards-transfer.other-file' | translate" icon="pi pi-arrow-left" [text]="true"
+        (onClick)="step.set('choose')" />
+      <p-button [label]="'cards-transfer.import' | translate" icon="pi pi-check" [disabled]="!canImport()"
+        (onClick)="apply()" />
+    }
+    @if (step() === 'done') {
+      <p-button [label]="'cards-transfer.close' | translate" icon="pi pi-check" (onClick)="visible.set(false)" />
+    }
+  </ng-template>
+</p-dialog>
