@@ -45,6 +45,14 @@ server {
         try_files $uri =404;
     }
 
+    # Traductions : sans hash dans le nom, revalidées à chaque chargement
+    # (sinon une mise à jour affiche des clés brutes comme « binder.page »)
+    location /assets/i18n/ {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
     # Application monopage : toute route inconnue renvoie vers index.html.
     # Les fichiers de assets/ (Monaco, traductions, wasm) n'ont pas de hash : cache par défaut.
     location / {
