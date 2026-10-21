@@ -91,3 +91,49 @@
         }
     }
 }
+:host ::ng-deep .file-tree .p-tree-node-label {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.file-controls {
+    display: inline-flex;
+    gap: 0.15rem;
+    margin-left: auto;
+    padding-left: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+:host ::ng-deep .p-tree-node-content:hover .file-controls,
+.file-controls:focus-within {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .file-controls {
+        opacity: 1;
+    }
+}
+
+.node-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--p-text-muted-color);
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background: var(--p-content-hover-background);
+        color: var(--p-primary-color);
+    }
+}

@@ -5,6 +5,12 @@
     <ng-template let-node pTemplate="default">
         <span>{{ node.label }}</span>
         <span class="file-controls">
+            @for (action of node.data?.actions ?? []; track action.icon) {
+                <button type="button" class="node-action" [title]="action.label" [attr.aria-label]="action.label"
+                    (click)="$event.stopPropagation(); action.command()">
+                    <i [class]="action.icon"></i>
+                </button>
+            }
             <!-- <p-button *ngIf="node.data.addAction" icon="pi pi-plus" [rounded]="true" [text]="true" />
             <p-button *ngIf="node.data.editAction" icon="pi pi-pencil" [rounded]="true" [text]="true" /> -->
             <!-- <p-button *ngIf="node.data.removeAction" icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger" /> -->

@@ -253,6 +253,17 @@ export class SiteSidebarComponent implements OnInit {
           });
 
           deckChildren.push({
+            label: this.translate.instant('sidebar.illustration-prompt'),
+            data: {
+              url: '/decks/' + deck.id + '/prompt',
+            },
+            icon: 'pi pi-sparkles',
+            styleClass: 'deck-prompt',
+            draggable: false,
+            droppable: false
+          });
+
+          deckChildren.push({
             label: this.translate.instant('sidebar.export-cards'),
             data: {
               url: '/decks/' + deck.id + '/export-cards',
@@ -407,6 +418,22 @@ export class SiteSidebarComponent implements OnInit {
           url: '/assets',
           type: 'asset-root',
           path: '',
+          // shown on the node itself, so folders can be created without a right click
+          actions: [
+            {
+              label: this.translate.instant('sidebar.create-new-folder'),
+              icon: 'pi pi-folder-plus',
+              command: () => this.openCreateFolderDialog('')
+            },
+            {
+              label: this.translate.instant('sidebar.add-new-asset'),
+              icon: 'pi pi-plus',
+              command: () => this.openCreateDialog(this.assetsService,
+                this.translate.instant('sidebar.create-new-asset'), {
+                name: `asset-${Math.random().toString(36).substr(2, 9)}`
+              })
+            }
+          ],
           contextMenu: [
             {
               label: this.translate.instant('sidebar.add-new-asset'),
@@ -461,6 +488,22 @@ export class SiteSidebarComponent implements OnInit {
           data: {
             type: 'asset-folder',
             path: folderPath,
+            actions: [
+              {
+                label: this.translate.instant('sidebar.create-new-folder'),
+                icon: 'pi pi-folder-plus',
+                command: () => this.openCreateFolderDialog(folderPath)
+              },
+              {
+                label: this.translate.instant('sidebar.add-new-asset'),
+                icon: 'pi pi-plus',
+                command: () => this.openCreateDialog(this.assetsService,
+                  this.translate.instant('sidebar.create-new-asset'), {
+                  name: `asset-${Math.random().toString(36).substr(2, 9)}`,
+                  path: folderPath
+                })
+              }
+            ],
             contextMenu: [
               {
                 label: this.translate.instant('sidebar.add-new-asset'),

@@ -1,5 +1,6 @@
 import { Component, OnDestroy, computed, inject, input, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Button } from 'primeng/button';
 import { Checkbox } from 'primeng/checkbox';
@@ -22,7 +23,7 @@ import { CurrentProjectService } from '../../server/current-project.service';
 import { apiErrorMessage } from '../../server/server.types';
 import StringUtils from '../../shared/utils/string-utils';
 import { AiService } from '../ai.service';
-import { assetFieldsInTemplate, defaultPromptTemplate, PromptVariable, promptVariables, renderCardPrompt } from '../card-prompt';
+import { assetFieldsInTemplate, defaultPromptTemplate, renderCardPrompt } from '../card-prompt';
 import { renderPrompt } from '../illustration-prompt';
 
 interface Proposal {
@@ -57,6 +58,7 @@ export class CardIllustrationDialogComponent implements OnDestroy {
   private readonly cards = inject(CardsService);
   private readonly currentProject = inject(CurrentProjectService);
   private readonly translate = inject(TranslateService);
+  private readonly router = inject(Router);
 
   readonly visible = model(false);
   readonly card = input<Card | null>(null);
@@ -65,14 +67,9 @@ export class CardIllustrationDialogComponent implements OnDestroy {
 
   // prompt
   private deck: Deck | null = null;
-  protected template = '';
-  private savedTemplate = '';
+  private template = '';
   protected prompt = '';
-  protected readonly templateError = signal<string | null>(null);
-  protected readonly variables = signal<PromptVariable[]>([]);
-  protected readonly editingTemplate = signal(false);
   protected readonly copied = signal(false);
-  protected readonly savingTemplate = signal(false);
 
   // server generation
   protected style = '';
@@ -82,6 +79,9 @@ export class CardIllustrationDialogComponent implements OnDestroy {
   protected provider: string | null = null;
 
   protected assetName = '';
+  /** asset folder the image goes to ('' = top level), remembered per project */
+  protected folder = '';
+  protected readonly folderOptions = signal<{ label: string; value: string }[]>([]);
   /**
    * Card attribute in which the asset name is written, so the card's templates
    * show the image ({{index assets card.<field>}}); 'name' needs no writing.
@@ -119,21 +119,25 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     const card = this.card();
     this.error.set(null);
     this.copied.set(false);
-    this.editingTemplate.set(false);
     this.clearProposals();
     document.addEventListener('paste', this.pasteListener);
-    this.style = this.loadStyle();
+    this.style = this.loadSetting('style');
     this.assetName = StringUtils.toKebabCase(card?.name ?? '') || 'illustration';
     if (card) {
       this.deck = (await this.decks.get(card.deckId)) ?? null;
       const attributes = await this.attributes.getAll({ deckId: card.deckId });
-      this.variables.set(promptVariables(attributes));
-      this.savedTemplate = this.deck?.illustrationPrompt
+      this.template = this.deck?.illustrationPrompt
         || defaultPromptTemplate(this.translate.instant('server.ai.prompt-default-intro'), attributes);
-      this.template = this.savedTemplate;
       this.renderPrompt();
       await this.findImageLink(card, attributes);
     }
+    const folders = await this.assets.getFolders();
+    this.folderOptions.set([
+      { label: this.translate.instant('server.ai.folder-root'), value: '' },
+      ...folders.map(path => ({ label: path, value: path })),
+    ]);
+    const remembered = this.loadSetting('folder');
+    this.folder = folders.includes(remembered) ? remembered : '';
     await this.checkExistingAsset();
     const status = await this.ai.refreshStatus();
     this.provider = status?.defaultImageProvider ?? null;
@@ -149,59 +153,26 @@ export class CardIllustrationDialogComponent implements OnDestroy {
    * Prompt
    *********************************************************************/
 
-  /** The prompt of this card, from the template (any edit of the prompt itself is replaced) */
-  protected renderPrompt(): void {
+  /** The prompt of this card, from the deck template */
+  private renderPrompt(): void {
     const card = this.card();
     if (!card) {
       return;
     }
     const rendered = renderCardPrompt(this.template, card, this.deck?.name ?? '');
-    this.templateError.set(rendered.error ?? null);
-    if (!rendered.error) {
-      this.prompt = rendered.text;
-      this.copied.set(false);
+    this.prompt = rendered.error ? '' : rendered.text;
+    if (rendered.error) {
+      this.error.set(this.translate.instant('server.ai.template-error') + ' ' + rendered.error);
     }
   }
 
-  protected templateChanged(): boolean {
-    return this.template !== this.savedTemplate;
-  }
-
-  protected insertVariable(textarea: HTMLTextAreaElement, token: string): void {
-    const start = textarea.selectionStart ?? this.template.length;
-    const end = textarea.selectionEnd ?? start;
-    this.template = this.template.slice(0, start) + token + this.template.slice(end);
-    this.renderPrompt();
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + token.length, start + token.length);
-    });
-  }
-
-  /** Saves the template in the deck: every card of the deck uses it (and it is saved with the project) */
-  protected async saveTemplate(): Promise<void> {
-    if (!this.deck) {
-      return;
-    }
-    this.savingTemplate.set(true);
-    try {
-      this.deck = await this.decks.update(this.deck.id, { ...this.deck, illustrationPrompt: this.template });
-      this.savedTemplate = this.template;
-    } catch (error) {
-      this.error.set(error instanceof Error ? error.message : String(error));
-    } finally {
-      this.savingTemplate.set(false);
-    }
-  }
-
-  protected async resetTemplate(): Promise<void> {
+  /** The deck template has its own page */
+  protected openDeckPrompt(): void {
     const card = this.card();
-    if (!card) {
-      return;
+    this.visible.set(false);
+    if (card) {
+      void this.router.navigateByUrl(`/decks/${card.deckId}/prompt`);
     }
-    const attributes = await this.attributes.getAll({ deckId: card.deckId });
-    this.template = defaultPromptTemplate(this.translate.instant('server.ai.prompt-default-intro'), attributes);
-    this.renderPrompt();
   }
 
   /**
@@ -293,7 +264,7 @@ export class CardIllustrationDialogComponent implements OnDestroy {
   protected async generate(): Promise<void> {
     this.error.set(null);
     this.generating.set(true);
-    this.saveStyle();
+    this.saveSetting('style', this.style);
     try {
       const result = await this.ai.generateImages({
         subject: this.prompt,
@@ -321,7 +292,8 @@ export class CardIllustrationDialogComponent implements OnDestroy {
   protected async checkExistingAsset(): Promise<void> {
     const wanted = StringUtils.toKebabCase(this.assetName);
     const assets = await this.assets.getAll();
-    this.existingAsset.set(assets.find(asset => !asset.path && StringUtils.toKebabCase(asset.name) === wanted) ?? null);
+    this.existingAsset.set(assets.find(asset => (asset.path ?? '') === this.folder
+      && StringUtils.toKebabCase(asset.name) === wanted) ?? null);
   }
 
   /**
@@ -365,8 +337,9 @@ export class CardIllustrationDialogComponent implements OnDestroy {
       if (existing) {
         await this.assets.update(existing.id, { ...existing, file: proposal.blob });
       } else {
-        await this.assets.create({ name, file: proposal.blob, path: '' } as Asset);
+        await this.assets.create({ name, file: proposal.blob, path: this.folder } as Asset);
       }
+      this.saveSetting('folder', this.folder);
       await this.linkToCard(name);
       this.saved.emit();
       this.visible.set(false);
@@ -400,14 +373,14 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     this.selected.set(null);
   }
 
-  /** The illustration style is remembered per project, to keep the cards consistent */
-  private styleKey(): string | null {
+  /** Style and folder are remembered per project, to keep the cards consistent */
+  private settingKey(setting: string): string | null {
     const project = this.currentProject.project();
-    return project ? `cider.ai.style.${project.id}` : null;
+    return project ? `cider.ai.${setting}.${project.id}` : null;
   }
 
-  private loadStyle(): string {
-    const key = this.styleKey();
+  private loadSetting(setting: string): string {
+    const key = this.settingKey(setting);
     try {
       return key ? localStorage.getItem(key) ?? '' : '';
     } catch {
@@ -415,14 +388,14 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     }
   }
 
-  private saveStyle(): void {
-    const key = this.styleKey();
+  private saveSetting(setting: string, value: string): void {
+    const key = this.settingKey(setting);
     try {
       if (key) {
-        localStorage.setItem(key, this.style);
+        localStorage.setItem(key, value);
       }
     } catch {
-      // the style is a convenience: not remembered if storage is unavailable
+      // a convenience: not remembered if storage is unavailable
     }
   }
 }

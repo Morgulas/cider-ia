@@ -1,0 +1,49 @@
+<p-card styleClass="page-card">
+  <div class="page">
+    <div class="header">
+      <div>
+        <h2>{{ 'server.ai.deck-prompt-title' | translate }}@if (deck) { : {{ deck.name }} }</h2>
+        <p class="muted">{{ 'server.ai.deck-prompt-subtitle' | translate }}</p>
+      </div>
+      <div class="actions">
+        <p-button [label]="'server.ai.template-default' | translate" icon="pi pi-undo" [text]="true"
+          (onClick)="useDefault()" />
+        <p-button [label]="'server.ai.template-save' | translate" icon="pi pi-save"
+          [disabled]="!changed() || !!templateError() || saving()" [loading]="saving()" (onClick)="save()" />
+      </div>
+    </div>
+
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" />
+    }
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" />
+    }
+
+    <div class="columns">
+      <section class="column">
+        <label for="deck-prompt-template">{{ 'server.ai.template' | translate }}</label>
+        <textarea #templateArea pTextarea id="deck-prompt-template" name="template" rows="18" class="code"
+          [(ngModel)]="template" (ngModelChange)="render()"></textarea>
+        <div class="variables">
+          <span class="muted">{{ 'server.ai.variables' | translate }}</span>
+          @for (variable of variables(); track variable.token) {
+            <button type="button" class="chip" (click)="insertVariable(templateArea, variable.token)"
+              [title]="variable.token">{{ variable.label }}</button>
+          }
+        </div>
+        <small class="muted">{{ 'server.ai.template-help' | translate }}</small>
+        @if (templateError()) {
+          <p-message severity="warn" [text]="('server.ai.template-error' | translate) + ' ' + templateError()" />
+        }
+      </section>
+
+      <section class="column">
+        <label for="deck-prompt-card">{{ 'server.ai.preview-card' | translate }}</label>
+        <p-select inputId="deck-prompt-card" [options]="cards" optionLabel="name" [(ngModel)]="previewCard"
+          (ngModelChange)="render()" [filter]="true" filterBy="name" [placeholder]="'server.ai.no-card' | translate" />
+        <pre class="preview">{{ preview() }}</pre>
+      </section>
+    </div>
+  </div>
+</p-card>

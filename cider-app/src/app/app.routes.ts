@@ -34,6 +34,7 @@ export const routes: Routes = [
       { path: 'decks/:deckId/cards', loadComponent: () => import('./cards/cards.component').then(m => m.CardsComponent), canActivate: [DeckGuard] },
       { path: 'decks/:deckId/cards/listing', loadComponent: () => import('./cards/cards.component').then(m => m.CardsComponent), canActivate: [DeckGuard] },
       { path: 'decks/:deckId/cards/thumbnails', loadComponent: () => import('./card-thumbnails/card-thumbnails.component').then(m => m.CardThumbnailsComponent), canActivate: [DeckGuard] },
+      { path: 'decks/:deckId/prompt', loadComponent: () => import('./ai/deck-prompt/deck-prompt.component').then(m => m.DeckPromptComponent), canActivate: [DeckGuard] },
       { path: 'decks/:deckId/cards/attributes', loadComponent: () => import('./card-attributes/card-attributes.component').then(m => m.CardAttributesComponent), canActivate: [DeckGuard] },
       { path: 'decks/:deckId/templates/generator', loadComponent: () => import('./template-generator/template-generator.component').then(m => m.TemplateGeneratorComponent), canActivate: [DeckGuard] },
       { path: 'decks/:deckId/templates/:templateId', loadComponent: () => import('./card-templates/card-templates.component').then(m => m.CardTemplatesComponent), canActivate: [DeckGuard] },

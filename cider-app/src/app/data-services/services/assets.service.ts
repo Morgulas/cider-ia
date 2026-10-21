@@ -67,6 +67,26 @@ export class AssetsService extends IndexedDbService<Asset, number> {
         }
         currentLevel[StringUtils.toKebabCase(asset.name)] = URL.createObjectURL(asset.file);
       });
+      // An asset moved into a folder stays reachable by its name alone
+      // ({{assets.demon}}, {{index assets card.image}}), unless that name is
+      // taken at the top level: tidying assets into folders does not break templates.
+      const addAliases = (level: any) => {
+        Object.keys(level).forEach(key => {
+          const value = level[key];
+          if (typeof value === 'string') {
+            if (level !== assetUrls && !(key in assetUrls)) {
+              assetUrls[key] = value;
+            }
+          } else if (value && typeof value === 'object') {
+            addAliases(value);
+          }
+        });
+      };
+      Object.keys(assetUrls).forEach(key => {
+        if (assetUrls[key] && typeof assetUrls[key] === 'object') {
+          addAliases(assetUrls[key]);
+        }
+      });
       return assetUrls;
     }).then(assetUrls => this.assetUrls.next(assetUrls)).then(() => this.isLoadingSubject.next(false));
   }

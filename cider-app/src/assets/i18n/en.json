@@ -60,7 +60,8 @@
         "assets": "Assets",
         "thumbnails": "Thumbnails",
         "listing": "Listing",
-        "export-cards": "Export Cards"
+        "export-cards": "Export Cards",
+        "prompt": "Illustration prompt"
     },
     "menu": {
         "file": "File",
@@ -110,7 +111,8 @@
         "folder-deleted": "Folder Deleted",
         "confirm-folder-delete-message": "Are you sure you want to delete folder '{{folderPath}}' and all its contents? This cannot be undone.",
         "delete-entity": "Delete Entity",
-        "entity-deleted": "Entity deleted"
+        "entity-deleted": "Entity deleted",
+        "illustration-prompt": "Illustration prompt"
     },
     "export": {
         "sheet-export": "Card Sheet",
@@ -356,8 +358,7 @@
             "prompt-preview": "Prompt sent to the service",
             "prompt-title": "1. Prompt",
             "image-title": "2. Image",
-            "template-edit": "Deck prompt template",
-            "template-hide": "Hide the template",
+            "template-edit": "Edit the deck prompt",
             "template": "Prompt template (shared by every card of the deck)",
             "variables": "Insert an attribute:",
             "template-help": "Attributes are written like in card templates, e.g. {{card.description}}. Conditional parts: {{#if card.lore}}Lore: {{card.lore}}{{/if}}.",
@@ -381,7 +382,14 @@
             "link-name-help": "The template shows the asset that has the name of the card.",
             "link-help": "The asset name is written in the \"{{attribute}}\" attribute of this card, which the template uses to pick its image.",
             "link-none-help": "The image is only added to the assets.",
-            "link-no-template": "The templates of this card show no image chosen per card. Use {{index assets card.<attribute>}} in the template, e.g. in an <img> tag."
+            "link-no-template": "The templates of this card show no image chosen per card. Use {{index assets card.<attribute>}} in the template, e.g. in an <img> tag.",
+            "deck-prompt-title": "Illustration prompt",
+            "deck-prompt-subtitle": "Text that describes the illustration of each card of the deck, filled with the card's attributes. The illustration window of every card (✨ in Thumbnails) starts from it.",
+            "preview-card": "Preview with the card",
+            "no-card": "No card in this deck",
+            "template-saved": "Prompt template saved for the deck.",
+            "folder": "Folder",
+            "folder-root": "Assets (top level)"
         },
         "ai-settings": {
             "title": "AI settings",

@@ -6,37 +6,9 @@
     <section class="column">
       <div class="section-title">
         <h3>{{ 'server.ai.prompt-title' | translate }}</h3>
-        <p-button [label]="(editingTemplate() ? 'server.ai.template-hide' : 'server.ai.template-edit') | translate"
-          icon="pi pi-pencil" [text]="true" size="small" (onClick)="editingTemplate.set(!editingTemplate())" />
+        <p-button [label]="'server.ai.template-edit' | translate" icon="pi pi-pencil" [text]="true" size="small"
+          (onClick)="openDeckPrompt()" />
       </div>
-
-      @if (editingTemplate()) {
-        <div class="template-editor">
-          <label for="ai-template">{{ 'server.ai.template' | translate }}</label>
-          <textarea #templateArea pTextarea id="ai-template" name="template" rows="9" [(ngModel)]="template"
-            (ngModelChange)="renderPrompt()" class="code"></textarea>
-          <div class="variables">
-            <span class="muted">{{ 'server.ai.variables' | translate }}</span>
-            @for (variable of variables(); track variable.token) {
-              <button type="button" class="chip" (click)="insertVariable(templateArea, variable.token)"
-                [title]="variable.token">
-                {{ variable.label }}
-              </button>
-            }
-          </div>
-          <small class="muted">{{ 'server.ai.template-help' | translate }}</small>
-          @if (templateError()) {
-            <p-message severity="warn" [text]="('server.ai.template-error' | translate) + ' ' + templateError()" />
-          }
-          <div class="actions">
-            <p-button [label]="'server.ai.template-default' | translate" icon="pi pi-undo" [text]="true" size="small"
-              (onClick)="resetTemplate()" />
-            <p-button [label]="'server.ai.template-save' | translate" icon="pi pi-save" size="small"
-              [disabled]="!templateChanged() || !!templateError() || savingTemplate()" [loading]="savingTemplate()"
-              (onClick)="saveTemplate()" />
-          </div>
-        </div>
-      }
 
       <label for="ai-prompt">{{ 'server.ai.prompt' | translate }}</label>
       <textarea #promptArea pTextarea id="ai-prompt" name="prompt" rows="12" [(ngModel)]="prompt"
@@ -127,6 +99,9 @@
           <label for="ai-asset-name">{{ 'server.ai.asset-name' | translate }}</label>
           <input pInputText id="ai-asset-name" name="assetName" [(ngModel)]="assetName" (ngModelChange)="checkExistingAsset()"
             aria-describedby="ai-asset-help" />
+          <label for="ai-folder">{{ 'server.ai.folder' | translate }}</label>
+          <p-select inputId="ai-folder" name="folder" [options]="folderOptions()" optionLabel="label" optionValue="value"
+            [(ngModel)]="folder" (ngModelChange)="checkExistingAsset()" />
           @if (existingAsset()) {
             <small id="ai-asset-help" class="muted">{{ 'server.ai.asset-replace' | translate }}</small>
           }
