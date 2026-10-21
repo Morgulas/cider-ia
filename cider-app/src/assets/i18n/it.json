@@ -164,5 +164,21 @@
         "show-trim-lines": "Show Trim/Cut Lines",
         "show-safe-lines": "Show Safe Area Lines",
         "offset-from-edge": "Offset From Edge"
+    },
+    "binder": {
+        "view": "View",
+        "view-binder": "Binder",
+        "view-grid": "Grid",
+        "page": "Page",
+        "pages": "Pages",
+        "cards": "cards",
+        "first": "First page",
+        "previous": "Previous page",
+        "next": "Next page",
+        "last": "Last page",
+        "previous-card": "Previous card",
+        "next-card": "Next card",
+        "turn-over": "Turn card over",
+        "close": "Close"
     }
 }

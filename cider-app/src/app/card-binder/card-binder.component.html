@@ -1,0 +1,123 @@
+<div class="binder-wrap">
+  <div class="stage" #stage (pointerdown)="onPointerDown($event)" (pointerup)="onPointerUp($event)"
+    (pointercancel)="onPointerUp($event)">
+    @if (cardW) {
+    <div class="binder" [class.spread]="spread" [class.flipping]="!!flip"
+      [style.--card-w.px]="cardW" [style.--card-h.px]="cardH">
+      <div class="pages">
+        @if (spread) {
+        <div class="page left">
+          <ng-container *ngTemplateOutlet="pageTpl; context: { $implicit: leftPage }"></ng-container>
+        </div>
+        }
+        <div class="page right">
+          <ng-container *ngTemplateOutlet="pageTpl; context: { $implicit: rightPage }"></ng-container>
+        </div>
+
+        @if (flip) {
+        <div class="leaf" #leaf [class.from-left]="flip.fromLeft" [class.incoming]="flip.incoming">
+          <div class="face recto page" [class.left]="flip.fromLeft" [class.right]="!flip.fromLeft">
+            <ng-container *ngTemplateOutlet="pageTpl; context: { $implicit: flip.front }"></ng-container>
+          </div>
+          <div class="face verso page" [class.left]="!flip.fromLeft" [class.right]="flip.fromLeft">
+            <ng-container *ngTemplateOutlet="pageTpl; context: { $implicit: flip.back }"></ng-container>
+          </div>
+          <div class="leaf-shade" #leafShade></div>
+        </div>
+        }
+
+        <div class="spine" aria-hidden="true">
+          <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+        </div>
+      </div>
+
+      @if (canNext && !flip) {
+      <button type="button" class="corner corner-next" (click)="next()"
+        [attr.aria-label]="'binder.next' | translate"></button>
+      }
+      @if (canPrev && !flip) {
+      <button type="button" class="corner corner-prev" [class.single]="!spread" (click)="prev()"
+        [attr.aria-label]="'binder.previous' | translate"></button>
+      }
+    </div>
+    }
+  </div>
+
+  <div class="binder-nav">
+    <p-button icon="pi pi-angle-double-left" [text]="true" [rounded]="true" [disabled]="!canPrev"
+      (onClick)="first()" [ariaLabel]="'binder.first' | translate" [pTooltip]="'binder.first' | translate" />
+    <p-button icon="pi pi-angle-left" [text]="true" [rounded]="true" [disabled]="!canPrev"
+      (onClick)="prev()" [ariaLabel]="'binder.previous' | translate" [pTooltip]="'binder.previous' | translate" />
+    <span class="page-report">
+      {{ (pageLabel().includes('–') ? 'binder.pages' : 'binder.page') | translate }} {{ pageLabel() }} / {{ pages.length }}
+      <span class="card-total">· {{ totalCards }} {{ 'binder.cards' | translate }}</span>
+    </span>
+    <p-button icon="pi pi-angle-right" [text]="true" [rounded]="true" [disabled]="!canNext"
+      (onClick)="next()" [ariaLabel]="'binder.next' | translate" [pTooltip]="'binder.next' | translate" />
+    <p-button icon="pi pi-angle-double-right" [text]="true" [rounded]="true" [disabled]="!canNext"
+      (onClick)="last()" [ariaLabel]="'binder.last' | translate" [pTooltip]="'binder.last' | translate" />
+  </div>
+</div>
+
+<!-- Une page : 9 pochettes -->
+<ng-template #pageTpl let-index>
+  @if (index >= 0 && index < pages.length) {
+  <div class="sheet">
+    <div class="holes" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="pockets">
+      @for (item of pages[index]; track $index) {
+      @if (item) {
+      <button type="button" class="pocket filled" [attr.data-index]="indexOf(item)"
+        [attr.aria-label]="item.card.name" [title]="item.card.name" (click)="openZoom(item, $event)">
+        <app-card-fit [card]="item.card" (measured)="onMeasured($event)"
+          [template]="(item.side === 'front' ? item.card.frontCardTemplateId : item.card.backCardTemplateId) | entity: templatesService | async" />
+        <span class="sheen" aria-hidden="true"></span>
+      </button>
+      } @else {
+      <div class="pocket empty" aria-hidden="true"><span class="sheen"></span></div>
+      }
+      }
+    </div>
+    <div class="folio">{{ index + 1 }}</div>
+  </div>
+  } @else {
+  <div class="sheet blank"></div>
+  }
+</ng-template>
+
+<!-- Carte agrandie -->
+@if (zoomItem; as item) {
+<div class="zoom-layer" #zoomLayer (click)="closeZoom()" role="dialog" aria-modal="true" [attr.aria-label]="item.card.name">
+  <div class="zoom-body" (click)="$event.stopPropagation()">
+    <div class="zoom-card" #zoomCard [style.width.px]="zoomW" [style.height.px]="zoomH">
+      <div class="zoom-flipper" [class.turned]="zoomBack" (click)="turnZoomed()">
+        <div class="zoom-face">
+          <app-card-fit [card]="item.card" [maxScale]="4"
+            [template]="zoomTemplateId('front') | entity: templatesService | async" />
+        </div>
+        <div class="zoom-face zoom-back">
+          @if (zoomBack) {
+          <app-card-fit [card]="item.card" [maxScale]="4"
+            [template]="zoomTemplateId('back') | entity: templatesService | async" />
+          }
+        </div>
+      </div>
+    </div>
+    <div class="zoom-toolbar">
+      <p-button icon="pi pi-chevron-left" [rounded]="true" severity="secondary" [disabled]="zoomIndex <= 0"
+        (onClick)="zoomPrev()" [ariaLabel]="'binder.previous-card' | translate" [pTooltip]="'binder.previous-card' | translate" />
+      <span class="zoom-title">{{ item.card.name }}</span>
+      <p-button icon="pi pi-sync" [rounded]="true" severity="secondary" (onClick)="turnZoomed()"
+        [ariaLabel]="'binder.turn-over' | translate" [pTooltip]="'binder.turn-over' | translate" />
+      @if (aiEnabled) {
+      <p-button icon="pi pi-sparkles" [rounded]="true" severity="secondary" (onClick)="illustrate.emit(item.card)"
+        [ariaLabel]="('server.ai.dialog-title' | translate) + ' : ' + item.card.name" [pTooltip]="'server.ai.dialog-title' | translate" />
+      }
+      <p-button icon="pi pi-chevron-right" [rounded]="true" severity="secondary" [disabled]="zoomIndex >= items.length - 1"
+        (onClick)="zoomNext()" [ariaLabel]="'binder.next-card' | translate" [pTooltip]="'binder.next-card' | translate" />
+      <p-button icon="pi pi-times" [rounded]="true" [text]="true" (onClick)="closeZoom()"
+        [ariaLabel]="'binder.close' | translate" [pTooltip]="'binder.close' | translate" />
+    </div>
+  </div>
+</div>
+}

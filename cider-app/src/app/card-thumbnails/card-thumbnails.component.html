@@ -1,17 +1,30 @@
 <p-card styleClass="page-card tabbed-card">
   <div class="card-controls">
+    <p-selectButton [options]="viewOptions" [(ngModel)]="view" class="p-mr-3" optionValue="value"
+      required="true" allowEmpty="false" (onChange)="onViewChange()" [ariaLabel]="'binder.view' | translate">
+      <ng-template #item let-option>
+        <i [class]="option.icon" [pTooltip]="option.tooltip" tooltipPosition="bottom" [attr.aria-label]="option.tooltip"></i>
+      </ng-template>
+    </p-selectButton>
+    @if (view === 'grid') {
     <p-selectButton [options]="zoomOptions" [(ngModel)]="zoomLevel" class="p-mr-3" optionLabel="label"
       optionValue="value" required="true" allowEmpty="false"></p-selectButton>
+    }
     <p-selectButton [options]="sideOptions" [(ngModel)]="sideSelected" class="p-mr-3" optionLabel="label"
-      optionValue="value" required="true" allowEmpty="false"></p-selectButton>
+      optionValue="value" required="true" allowEmpty="false" (onChange)="refreshBinder()"></p-selectButton>
     <p-selectButton [options]="copyOptions" [(ngModel)]="copySelected" class="p-mr-3" optionLabel="label"
       optionValue="value" required="true" (onChange)="refreshCards()" allowEmpty="false"></p-selectButton>
     <div class="filler"></div>
     <p-iconfield>
-      <input type="text" pInputText [placeholder]="'controls.search' | translate" (input)="filter($event)" />
+      <input type="text" pInputText [placeholder]="'controls.search' | translate" [value]="searchText" (input)="filter($event)" />
       <p-inputicon styleClass="pi pi-search" />
     </p-iconfield>
   </div>
+  @if (view === 'binder') {
+  <div class="card-binder">
+    <app-card-binder [items]="binderItems" (illustrate)="openIllustration($event)" />
+  </div>
+  } @else {
   <div class="card-thumbnails">
     <p-dataview #dv [value]="thumbnailCards" [rows]="25" [paginator]="true" paginatorPosition="bottom"
       [filterBy]="filterFields" [alwaysShowPaginator]="false" [showCurrentPageReport]="true">
@@ -36,6 +49,7 @@
       </ng-template>
     </p-dataview>
   </div>
+  }
 </p-card>
 <app-card-illustration-dialog [(visible)]="illustrationVisible" [card]="illustrationCard"
   (saved)="refreshCards()" />

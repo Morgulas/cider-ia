@@ -19,12 +19,15 @@ import { Button } from 'primeng/button';
 import { Tooltip } from 'primeng/tooltip';
 import { AiService } from '../ai/ai.service';
 import { CardIllustrationDialogComponent } from '../ai/card-illustration-dialog/card-illustration-dialog.component';
+import { BinderItem, CardBinderComponent } from '../card-binder/card-binder.component';
+
+const VIEW_KEY = 'cider.thumbnails.view';
 
 @Component({
     selector: 'app-card-thumbnails',
     templateUrl: './card-thumbnails.component.html',
     styleUrls: ['./card-thumbnails.component.scss'],
-    imports: [Bind, Card_1, SelectButton, FormsModule, IconField, InputText, InputIcon, DataView_1, CardPreviewComponent, AsyncPipe, EntityPipe, TranslatePipe, Button, Tooltip, CardIllustrationDialogComponent]
+    imports: [Bind, Card_1, SelectButton, FormsModule, IconField, InputText, InputIcon, DataView_1, CardPreviewComponent, AsyncPipe, EntityPipe, TranslatePipe, Button, Tooltip, CardIllustrationDialogComponent, CardBinderComponent]
 })
 export class CardThumbnailsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
@@ -33,6 +36,14 @@ export class CardThumbnailsComponent implements OnInit {
   protected illustrationCard: Card | null = null;
   @ViewChild('dv') dv!: DataView;
   thumbnailCards: Card[] = [];
+  /** Cartes du classeur, après filtre et choix des faces. */
+  binderItems: BinderItem[] = [];
+  searchText = '';
+  view: 'binder' | 'grid' = CardThumbnailsComponent.loadView();
+  viewOptions: any[] = [
+    { icon: 'pi pi-book', value: 'binder', tooltip: 'Classeur' },
+    { icon: 'pi pi-th-large', value: 'grid', tooltip: 'Grille' }
+  ];
   zoomLevel = 0.3;
   zoomOptions: any[] = [
     { label: 's', value: 0.2 },
@@ -63,6 +74,7 @@ export class CardThumbnailsComponent implements OnInit {
     void this.ai.refreshStatus();
     this.cardsService.getFields().then(fields => {
       this.filterFields = fields.map(field => field.field).join(',');
+      this.refreshBinder();
     });
 
     // update side options labels and copy options labels
@@ -73,6 +85,8 @@ export class CardThumbnailsComponent implements OnInit {
       this.sideOptions[2].label = this.translate.instant('controls.both');
       this.copyOptions[0].label = this.translate.instant('controls.singles');
       this.copyOptions[1].label = this.translate.instant('controls.copies');
+      this.viewOptions[0].tooltip = this.translate.instant('binder.view-binder');
+      this.viewOptions[1].tooltip = this.translate.instant('binder.view-grid');
     });
   }
 
@@ -89,11 +103,58 @@ export class CardThumbnailsComponent implements OnInit {
         }
       });
       this.thumbnailCards = expandedList;
+      this.refreshBinder();
     });
   }
 
   filter(input: any) {
-    (this.dv as any).filter(input.target.value, 'contains');
+    this.searchText = input.target.value;
+    if (this.dv) {
+      (this.dv as any).filter(this.searchText, 'contains');
+    }
+    this.refreshBinder();
+  }
+
+  /** Recalcule le contenu du classeur : même filtre que la grille, faces choisies. */
+  refreshBinder(): void {
+    const query = this.searchText.trim().toLocaleLowerCase();
+    const fields = this.filterFields ? this.filterFields.split(',') : ['name'];
+    const cards = query
+      ? this.thumbnailCards.filter(card => fields.some(field => {
+        const value = (card as any)[field];
+        return value !== undefined && value !== null && String(value).toLocaleLowerCase().includes(query);
+      }))
+      : this.thumbnailCards;
+    const items: BinderItem[] = [];
+    for (const card of cards) {
+      if (this.sideSelected !== 'backs') {
+        items.push({ card, side: 'front' });
+      }
+      if (this.sideSelected !== 'fronts') {
+        items.push({ card, side: 'back' });
+      }
+    }
+    this.binderItems = items;
+  }
+
+  onViewChange(): void {
+    try {
+      localStorage.setItem(VIEW_KEY, this.view);
+    } catch {
+      // stockage indisponible : le choix vaut pour cette visite seulement
+    }
+    if (this.view === 'grid' && this.searchText) {
+      // la grille se crée maintenant : on lui réapplique la recherche en cours
+      setTimeout(() => this.dv && (this.dv as any).filter(this.searchText, 'contains'));
+    }
+  }
+
+  private static loadView(): 'binder' | 'grid' {
+    try {
+      return localStorage.getItem(VIEW_KEY) === 'grid' ? 'grid' : 'binder';
+    } catch {
+      return 'binder';
+    }
   }
 
 

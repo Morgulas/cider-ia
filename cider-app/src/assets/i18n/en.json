@@ -611,5 +611,21 @@
         "origin-delete": "Deletion",
         "origin-undo": "Undo",
         "origin-illustration": "Illustration"
+    },
+    "binder": {
+        "view": "View",
+        "view-binder": "Binder",
+        "view-grid": "Grid",
+        "page": "Page",
+        "pages": "Pages",
+        "cards": "cards",
+        "first": "First page",
+        "previous": "Previous page",
+        "next": "Next page",
+        "last": "Last page",
+        "previous-card": "Previous card",
+        "next-card": "Next card",
+        "turn-over": "Turn card over",
+        "close": "Close"
     }
 }

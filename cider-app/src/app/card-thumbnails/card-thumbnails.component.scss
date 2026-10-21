@@ -14,7 +14,8 @@
             flex-direction: column;
             min-height: 0;
 
-            .card-thumbnails {
+            .card-thumbnails,
+            .card-binder {
                 flex: 1;
                 min-height: 0;
             }
@@ -43,6 +44,7 @@
 
 :host ::ng-deep .card-controls {
     display: flex;
+    align-items: center;
     margin-bottom: 14px;
 
     .filler {

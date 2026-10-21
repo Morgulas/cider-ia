@@ -573,5 +573,21 @@
         "origin-delete": "Suppression",
         "origin-undo": "Annulation",
         "origin-illustration": "Illustration"
+    },
+    "binder": {
+        "view": "Affichage",
+        "view-binder": "Classeur",
+        "view-grid": "Grille",
+        "page": "Page",
+        "pages": "Pages",
+        "cards": "cartes",
+        "first": "Première page",
+        "previous": "Page précédente",
+        "next": "Page suivante",
+        "last": "Dernière page",
+        "previous-card": "Carte précédente",
+        "next-card": "Carte suivante",
+        "turn-over": "Retourner la carte",
+        "close": "Fermer"
     }
 }

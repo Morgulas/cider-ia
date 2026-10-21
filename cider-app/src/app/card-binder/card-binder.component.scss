@@ -1,0 +1,436 @@
+// Classeur de cartes : couverture en cuir, pages anthracite, pochettes en plastique.
+// Les couleurs du classeur sont fixes (c'est un objet) et lisibles en thème clair comme sombre.
+
+$cover-pad: 14px;
+$page-pad: 18px;
+$gap: 10px;
+$folio: 26px;
+
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+
+  --binder-cover: #3a2a22;
+  --binder-cover-dark: #241913;
+  --binder-stitch: rgba(232, 200, 160, 0.35);
+  --binder-page: #2c2f34;
+  --binder-page-edge: #24262a;
+  --binder-pocket: rgba(255, 255, 255, 0.035);
+  --binder-pocket-line: rgba(255, 255, 255, 0.14);
+  --binder-ink: rgba(255, 255, 255, 0.45);
+}
+
+.binder-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+// ----- Couverture et pages -----
+
+.binder {
+  --sheet-w: calc(3 * var(--card-w) + 2 * #{$gap} + 2 * #{$page-pad});
+  --sheet-h: calc(3 * var(--card-h) + 2 * #{$gap} + 2 * #{$page-pad} + #{$folio});
+  position: relative;
+  padding: $cover-pad;
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.07), transparent 60%),
+    linear-gradient(160deg, var(--binder-cover), var(--binder-cover-dark));
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  // couture le long du bord
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border: 1.5px dashed var(--binder-stitch);
+    border-radius: 10px;
+    pointer-events: none;
+  }
+}
+
+.pages {
+  position: relative;
+  display: flex;
+  perspective: 2400px;
+  transform-style: preserve-3d;
+}
+
+.page {
+  width: var(--sheet-w);
+  height: var(--sheet-h);
+  position: relative;
+}
+
+.sheet {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: $page-pad;
+  padding-bottom: $page-pad + $folio;
+  background: var(--binder-page);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+
+  &.blank {
+    padding: 0;
+  }
+}
+
+// ombre et arrondi du côté de la reliure
+.page.right .sheet,
+.leaf .face.right .sheet {
+  border-radius: 2px 6px 6px 2px;
+  background:
+    linear-gradient(to right, rgba(0, 0, 0, 0.35), transparent 28px),
+    var(--binder-page);
+}
+
+.page.left .sheet,
+.leaf .face.left .sheet {
+  border-radius: 6px 2px 2px 6px;
+  background:
+    linear-gradient(to left, rgba(0, 0, 0, 0.35), transparent 28px),
+    var(--binder-page);
+}
+
+// perforations côté reliure
+.holes {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+  padding: 18% 0;
+  pointer-events: none;
+
+  span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--binder-cover-dark);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+  }
+}
+
+.page.right .holes,
+.leaf .face.right .holes {
+  left: 4px;
+}
+
+.page.left .holes,
+.leaf .face.left .holes {
+  right: 4px;
+}
+
+.pockets {
+  display: grid;
+  grid-template-columns: repeat(3, var(--card-w));
+  grid-template-rows: repeat(3, var(--card-h));
+  gap: $gap;
+}
+
+.pocket {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  box-sizing: border-box;
+  padding: 4px;
+  margin: 0;
+  border: 1px solid var(--binder-pocket-line);
+  border-radius: 6px;
+  background: var(--binder-pocket);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+  font: inherit;
+  color: inherit;
+
+  &.filled {
+    cursor: zoom-in;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+
+    &:hover {
+      transform: translateY(-3px);
+      border-color: rgba(255, 255, 255, 0.28);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--p-primary-color, #f0b35a);
+      outline-offset: 2px;
+    }
+  }
+
+  &.empty {
+    opacity: 0.6;
+  }
+
+  app-card-fit {
+    border-radius: 4px;
+  }
+}
+
+// reflet du plastique
+.sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 28%, transparent 40%,
+      transparent 70%, rgba(255, 255, 255, 0.06) 85%, transparent 100%);
+  // rabat de la pochette, en haut
+  box-shadow: inset 0 10px 0 -8px rgba(255, 255, 255, 0.12);
+}
+
+.folio {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--binder-ink);
+}
+
+// ----- Reliure -----
+
+.spine {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: 50%;
+  width: 26px;
+  transform: translateX(-50%) translateZ(2px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+  padding: 18% 0;
+  pointer-events: none;
+  z-index: 5;
+
+  .ring {
+    width: 26px;
+    height: 12px;
+    border-radius: 8px;
+    background: linear-gradient(to bottom, #f4f4f4, #9a9ea4 45%, #d9dcdf 60%, #6d7177);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+  }
+}
+
+.binder:not(.spread) .spine {
+  left: 0;
+}
+
+// ----- Feuille qui tourne -----
+
+.leaf {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  z-index: 4;
+
+  &.from-left {
+    left: 0;
+    transform-origin: right center;
+  }
+
+  .face {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.35);
+  }
+
+  .verso {
+    transform: rotateY(180deg);
+  }
+
+  .leaf-shade {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.6), transparent 70%);
+    transform: translateZ(1px);
+  }
+
+  &.incoming {
+    transform: rotateY(-180deg);
+  }
+}
+
+.binder:not(.spread) .leaf {
+  left: 0;
+  width: 100%;
+}
+
+.binder.flipping .pocket {
+  pointer-events: none;
+}
+
+// ----- Coins à tirer -----
+
+.corner {
+  position: absolute;
+  bottom: $cover-pad;
+  width: 34px;
+  height: 34px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 6;
+  opacity: 0.85;
+  transition: width 0.18s ease, height 0.18s ease, opacity 0.18s ease;
+
+  &:hover,
+  &:focus-visible {
+    width: 52px;
+    height: 52px;
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--p-primary-color, #f0b35a);
+  }
+}
+
+.corner-next {
+  right: $cover-pad;
+  border-radius: 0 0 6px 0;
+  background: linear-gradient(135deg, transparent 50%, #4a4f57 50%, #5d636c 75%, #3a3e45 100%);
+  box-shadow: -2px -2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.corner-prev {
+  left: $cover-pad;
+  border-radius: 0 0 0 6px;
+  background: linear-gradient(225deg, transparent 50%, #4a4f57 50%, #5d636c 75%, #3a3e45 100%);
+  box-shadow: 2px -2px 6px rgba(0, 0, 0, 0.25);
+}
+
+// ----- Navigation -----
+
+.binder-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 10px;
+
+  .page-report {
+    min-width: 170px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card-total {
+    opacity: 0.6;
+  }
+}
+
+// ----- Carte agrandie (déplacée dans <body>) -----
+
+.zoom-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 12, 14, 0.72);
+  backdrop-filter: blur(4px);
+  cursor: zoom-out;
+}
+
+.zoom-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  cursor: default;
+}
+
+.zoom-card {
+  perspective: 1800px;
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+}
+
+.zoom-flipper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(.45, .05, .35, 1);
+  cursor: pointer;
+
+  &.turned {
+    transform: rotateY(180deg);
+  }
+}
+
+.zoom-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.zoom-back {
+  transform: rotateY(180deg);
+}
+
+.zoom-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: var(--p-content-background, #1e1e1e);
+  color: var(--p-text-color, #eee);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+
+  .zoom-title {
+    max-width: 40vw;
+    padding: 0 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zoom-flipper,
+  .pocket.filled,
+  .corner {
+    transition: none;
+  }
+}
