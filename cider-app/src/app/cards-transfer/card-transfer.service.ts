@@ -7,8 +7,9 @@ import { Card } from '../data-services/types/card.type';
 import { DropdownOption } from '../data-services/types/dropdown-option.type';
 import { FieldType } from '../data-services/types/field-type.type';
 import {
-  CardFile, DeckColumn, exportCsv, exportJson, FieldDefinition, ImportPlan, planImport, PlanOptions
+  CardFile, DeckColumn, DefinitionType, exportCsv, exportJson, FieldDefinition, ImportPlan, planImport, PlanOptions
 } from './card-transfer';
+import { replaceInText, ReplaceOptions } from './selection-tools';
 
 export interface DeckData {
   columns: DeckColumn[];
@@ -177,5 +178,123 @@ export class CardTransferService {
         await this.cards.update(id, { ...card, [field]: value } as Card, true);
       }
     }
+  }
+
+  /** Writes the given identifiers in a field, card by card (ids and values in the same order) */
+  async renumber(ids: number[], field: string, values: string[]): Promise<void> {
+    for (let i = 0; i < ids.length; i++) {
+      await this.setField([ids[i]], field, values[i]);
+    }
+  }
+
+  /**
+   * Search and replace in text fields of cards. With apply false nothing is
+   * written: returns how many replacements would be made, and in how many cards.
+   */
+  async replaceInCards(ids: number[], fields: string[], search: string, replacement: string,
+    options: ReplaceOptions, apply: boolean): Promise<{ cards: number; replacements: number }> {
+    let cards = 0;
+    let replacements = 0;
+    for (const id of ids) {
+      const card = (await this.cards.getAllUnfiltered({ id }))[0] as unknown as Record<string, unknown> | undefined;
+      if (!card) {
+        continue;
+      }
+      const changes: Record<string, unknown> = {};
+      for (const field of fields) {
+        const value = card[field];
+        if (typeof value !== 'string') {
+          continue;
+        }
+        const result = replaceInText(value, search, replacement, options);
+        if (result.count > 0) {
+          changes[field] = result.text;
+          replacements += result.count;
+        }
+      }
+      if (Object.keys(changes).length > 0) {
+        cards++;
+        if (apply) {
+          await this.cards.update(id, { ...card, ...changes } as unknown as Card, true);
+        }
+      }
+    }
+    return { cards, replacements };
+  }
+
+  /**
+   * Copies (or moves) cards to another deck. Attributes are matched by name;
+   * those the target deck lacks are created there (same type and options) when
+   * asked, otherwise their values are left behind. Templates are matched by
+   * name; returns the template names the target deck does not have.
+   */
+  async transferCards(sourceDeckId: number, targetDeckId: number, ids: number[], move: boolean,
+    createAttributes: boolean): Promise<{ transferred: number; attributesCreated: number; missingTemplates: string[] }> {
+    const source = await this.load(sourceDeckId);
+    let target = await this.load(targetDeckId);
+    const key = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const attributeColumns = source.columns.filter(c => !c.template && !['name', 'count'].includes(c.field));
+
+    let attributesCreated = 0;
+    if (createAttributes) {
+      const missing = attributeColumns.filter(c => !target.columns.some(t => key(t.header) === key(c.header)));
+      const definitions = missing.map(c => ({
+        name: c.header,
+        type: (['numeric', 'dropdown', 'checkbox'].includes(c.type) ? c.type : 'text') as DefinitionType,
+        options: c.options ?? [],
+      }));
+      attributesCreated = await this.createAttributes(targetDeckId, definitions, target.attributes);
+      if (attributesCreated > 0) {
+        target = await this.load(targetDeckId);
+      }
+    }
+
+    const fieldMap = new Map<string, string>();
+    for (const column of attributeColumns) {
+      const match = target.columns.find(t => !t.template && key(t.header) === key(column.header));
+      if (match) {
+        fieldMap.set(column.field, match.field);
+      }
+    }
+    const templateIds = new Map(target.templates.map(t => [key(t.name), t.id]));
+    const sourceTemplateNames = new Map(source.templates.map(t => [t.id, t.name]));
+    const missingTemplates = new Set<string>();
+    const templateFor = (id: number | undefined) => {
+      const name = id === undefined ? undefined : sourceTemplateNames.get(id);
+      if (!name) {
+        return undefined;
+      }
+      const targetId = templateIds.get(key(name));
+      if (targetId === undefined) {
+        missingTemplates.add(name);
+      }
+      return targetId;
+    };
+
+    let transferred = 0;
+    for (const id of ids) {
+      const card = source.cards.find(c => c.id === id) as unknown as Record<string, unknown> | undefined;
+      if (!card) {
+        continue;
+      }
+      const copy: Record<string, unknown> = {
+        deckId: targetDeckId,
+        name: card['name'],
+        count: card['count'] ?? 1,
+        frontCardTemplateId: templateFor(card['frontCardTemplateId'] as number | undefined),
+        backCardTemplateId: templateFor(card['backCardTemplateId'] as number | undefined),
+      };
+      for (const [from, to] of fieldMap) {
+        if (card[from] !== undefined) {
+          copy[to] = card[from];
+        }
+      }
+      await this.cards.create(copy as unknown as Card, true);
+      if (move) {
+        await this.cards.delete(id);
+      }
+      transferred++;
+    }
+    return { transferred, attributesCreated, missingTemplates: [...missingTemplates] };
   }
 }

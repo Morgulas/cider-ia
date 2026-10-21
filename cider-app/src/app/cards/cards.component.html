@@ -25,6 +25,9 @@
                     [text]="true" size="small" (onClick)="duplicate()" [disabled]="busy()" />
                 <p-button icon="pi pi-sparkles" [label]="'cards-selection.copy-prompts' | translate" severity="secondary"
                     [text]="true" size="small" (onClick)="copyPrompts()" [disabled]="busy()" />
+                <p-button icon="pi pi-ellipsis-h" [label]="'cards-selection.more' | translate" severity="secondary"
+                    [text]="true" size="small" (onClick)="moreMenu.toggle($event)" [disabled]="busy()" />
+                <p-menu #moreMenu [model]="moreItems" [popup]="true" />
                 <p-button icon="pi pi-trash" [label]="'cards-selection.delete' | translate" severity="danger"
                     [text]="true" size="small" (onClick)="confirmDelete()" [disabled]="busy()" />
             </div>
@@ -72,5 +75,9 @@
             [loading]="busy()" (onClick)="applyBulkEdit()" />
     </ng-template>
 </p-dialog>
+
+<app-renumber-dialog [(visible)]="renumberVisible" [deckId]="deckId" [ids]="actionIds()" (done)="afterAction($event)" />
+<app-transfer-dialog [(visible)]="transferVisible" [deckId]="deckId" [ids]="actionIds()" (done)="afterAction($event)" />
+<app-replace-dialog [(visible)]="replaceVisible" [deckId]="deckId" [ids]="actionIds()" (done)="afterAction($event)" />
 
 <p-confirmDialog [style]="{ width: '450px' }" />

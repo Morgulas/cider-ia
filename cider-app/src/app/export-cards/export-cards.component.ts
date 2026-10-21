@@ -1,3 +1,4 @@
+import { ActivatedRoute } from '@angular/router';
 import { AfterViewChecked, Component, OnInit, QueryList, ViewChildren, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CardPreviewComponent } from '../card-preview/card-preview.component';
@@ -148,6 +149,8 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     { label: 'xl', value: 0.4 }
   ];
 
+  private readonly route = inject(ActivatedRoute);
+
   constructor(cardsService: CardsService,
     public templatesService: CardTemplatesService,
     private imageRendererService: ImageRendererService,
@@ -160,7 +163,11 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       const cardsWithTemplatesDefined = cards.filter(card => card.frontCardTemplateId);
       this.someCardsMissingTemplates = cards.length != cardsWithTemplatesDefined.length;
       this.originalCards = cardsWithTemplatesDefined;
-      this.cards = cardsWithTemplatesDefined;
+      // opened from the card list with a selection: only those cards (?ids=1,2,3)
+      const ids = (this.route.snapshot.queryParamMap.get('ids') ?? '').split(',').map(Number).filter(Number.isInteger);
+      this.cards = ids.length > 0
+        ? cardsWithTemplatesDefined.filter(card => ids.includes(card.id))
+        : cardsWithTemplatesDefined;
       this.updateExpandedCards();
       this.updateSlices();
     });

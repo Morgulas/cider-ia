@@ -1,0 +1,28 @@
+<p-dialog [header]="'cards-selection.replace-title' | translate: { n: ids().length }" [visible]="visible()"
+  (visibleChange)="visible.set($event)" (onShow)="onShow()" [modal]="true" [style]="{ width: '520px', maxWidth: '95vw' }">
+  <div class="form">
+    <label for="replace-search">{{ 'cards-selection.search' | translate }}</label>
+    <input pInputText id="replace-search" [(ngModel)]="search" (ngModelChange)="count()" />
+    <label for="replace-with">{{ 'cards-selection.replace-with' | translate }}</label>
+    <input pInputText id="replace-with" [(ngModel)]="replacement" />
+    <label for="replace-fields">{{ 'cards-selection.in-fields' | translate }}</label>
+    <p-multiselect inputId="replace-fields" [options]="columns" optionLabel="header" optionValue="field"
+      [(ngModel)]="fields" (ngModelChange)="count()" display="chip" appendTo="body" />
+    <div class="check">
+      <p-checkbox inputId="replace-case" [(ngModel)]="caseSensitive" [binary]="true" (ngModelChange)="count()" />
+      <label for="replace-case">{{ 'cards-selection.case-sensitive' | translate }}</label>
+    </div>
+    <div class="check">
+      <p-checkbox inputId="replace-word" [(ngModel)]="wholeWord" [binary]="true" (ngModelChange)="count()" />
+      <label for="replace-word">{{ 'cards-selection.whole-word' | translate }}</label>
+    </div>
+    @if (found(); as f) {
+      <p-message [severity]="f.replacements ? 'info' : 'warn'"
+        [text]="'cards-selection.found' | translate: { n: f.replacements, cards: f.cards }" />
+    }
+  </div>
+  <ng-template #footer>
+    <p-button [label]="'cards-selection.replace-all' | translate" icon="pi pi-check" (onClick)="apply()"
+      [disabled]="!search || !fields.length || !found()?.replacements || busy()" [loading]="busy()" />
+  </ng-template>
+</p-dialog>

@@ -1,0 +1,31 @@
+<p-dialog [header]="'cards-selection.transfer-title' | translate: { n: ids().length }" [visible]="visible()"
+  (visibleChange)="visible.set($event)" (onShow)="onShow()" [modal]="true" [style]="{ width: '480px', maxWidth: '95vw' }">
+  <div class="form">
+    @if (targets.length === 0) {
+      <p-message severity="info" [text]="'cards-selection.transfer-no-deck' | translate" />
+    } @else {
+      <label for="transfer-deck">{{ 'cards-selection.target-deck' | translate }}</label>
+      <p-select inputId="transfer-deck" [options]="targets" optionLabel="name" [(ngModel)]="target" appendTo="body" />
+      <div class="check">
+        <p-radiobutton inputId="transfer-copy" name="mode" value="copy" [(ngModel)]="mode" />
+        <label for="transfer-copy">{{ 'cards-selection.mode-copy' | translate }}</label>
+      </div>
+      <div class="check">
+        <p-radiobutton inputId="transfer-move" name="mode" value="move" [(ngModel)]="mode" />
+        <label for="transfer-move">{{ 'cards-selection.mode-move' | translate }}</label>
+      </div>
+      <div class="check">
+        <p-checkbox inputId="transfer-attributes" [(ngModel)]="createAttributes" [binary]="true" />
+        <label for="transfer-attributes">{{ 'cards-selection.create-attributes' | translate }}</label>
+      </div>
+      <small class="muted">{{ 'cards-selection.transfer-help' | translate }}</small>
+    }
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" />
+    }
+  </div>
+  <ng-template #footer>
+    <p-button [label]="(mode === 'move' ? 'cards-selection.mode-move' : 'cards-selection.mode-copy') | translate"
+      icon="pi pi-check" (onClick)="apply()" [disabled]="!target || busy()" [loading]="busy()" />
+  </ng-template>
+</p-dialog>

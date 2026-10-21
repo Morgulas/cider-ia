@@ -1,0 +1,42 @@
+<p-dialog [header]="'cards-selection.renumber-title' | translate: { n: ids().length }" [visible]="visible()"
+  (visibleChange)="visible.set($event)" (onShow)="onShow()" [modal]="true" [style]="{ width: '560px', maxWidth: '95vw' }">
+  <div class="form">
+    <label for="renumber-field">{{ 'cards-selection.field' | translate }}</label>
+    <p-select inputId="renumber-field" [options]="columns" optionLabel="header" [(ngModel)]="column"
+      (ngModelChange)="suggest()" appendTo="body" />
+    <div class="row">
+      <div class="field">
+        <label for="renumber-prefix">{{ 'cards-selection.prefix' | translate }}</label>
+        <input pInputText id="renumber-prefix" [(ngModel)]="prefix" (ngModelChange)="update()" />
+      </div>
+      <div class="field">
+        <label for="renumber-start">{{ 'cards-selection.start' | translate }}</label>
+        <p-inputnumber inputId="renumber-start" [(ngModel)]="start" (ngModelChange)="update()" [min]="0"
+          [useGrouping]="false" />
+      </div>
+      <div class="field">
+        <label for="renumber-digits">{{ 'cards-selection.digits' | translate }}</label>
+        <p-inputnumber inputId="renumber-digits" [(ngModel)]="digits" (ngModelChange)="update()" [min]="1" [max]="10"
+          [showButtons]="true" />
+      </div>
+    </div>
+    <small class="muted">{{ 'cards-selection.renumber-help' | translate }}</small>
+    @if (conflicts().length) {
+      <p-message severity="error" [text]="'cards-selection.renumber-conflicts' | translate: { values: conflicts().join(', ') }" />
+    }
+    <div class="preview">
+      @for (row of preview(); track $index) {
+        <div class="preview-row">
+          <span class="name">{{ row.name }}</span>
+          <span class="muted">{{ row.before || '—' }}</span>
+          <i class="pi pi-arrow-right muted"></i>
+          <strong>{{ row.after }}</strong>
+        </div>
+      }
+    </div>
+  </div>
+  <ng-template #footer>
+    <p-button [label]="'cards-selection.apply' | translate" icon="pi pi-check" (onClick)="apply()"
+      [disabled]="!column || conflicts().length > 0 || busy()" [loading]="busy()" />
+  </ng-template>
+</p-dialog>

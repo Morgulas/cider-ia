@@ -1,6 +1,6 @@
 import { Component, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ConfirmationService, MenuItem } from 'primeng/api';
 import { Button } from 'primeng/button';
@@ -17,6 +17,9 @@ import { defaultPromptTemplate, renderCardPrompt } from '../ai/card-prompt';
 import { DeckColumn } from '../cards-transfer/card-transfer';
 import { CardImportDialogComponent } from '../cards-transfer/card-import-dialog/card-import-dialog.component';
 import { CardTransferService } from '../cards-transfer/card-transfer.service';
+import { RenumberDialogComponent } from '../cards-transfer/selection-dialogs/renumber-dialog.component';
+import { ReplaceDialogComponent } from '../cards-transfer/selection-dialogs/replace-dialog.component';
+import { TransferDialogComponent } from '../cards-transfer/selection-dialogs/transfer-dialog.component';
 import { DecksService } from '../data-services/services/decks.service';
 import { EntitySpreadsheetComponent } from '../entity-spreadsheet/entity-spreadsheet.component';
 import { copyText } from '../shared/utils/clipboard';
@@ -33,10 +36,12 @@ import FileUtils from '../shared/utils/file-utils';
     styleUrls: ['./cards.component.scss'],
     providers: [ConfirmationService],
     imports: [Card_1, Button, Menu, Message, Dialog, Select, Checkbox, InputNumber, Textarea, ConfirmDialog, FormsModule,
-        TranslatePipe, EntitySpreadsheetComponent, CardImportDialogComponent]
+        TranslatePipe, EntitySpreadsheetComponent, CardImportDialogComponent, RenumberDialogComponent,
+        TransferDialogComponent, ReplaceDialogComponent]
 })
 export class CardsComponent {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly transfer = inject(CardTransferService);
   private readonly decks = inject(DecksService);
   private readonly translate = inject(TranslateService);
@@ -58,12 +63,42 @@ export class CardsComponent {
   protected readonly selection = signal<number[]>([]);
 
   constructor() {
+    this.moreItems = [
+      { label: this.translate.instant('cards-selection.renumber'), icon: 'pi pi-sort-numeric-up',
+        command: () => void this.openDialog(() => this.renumberVisible = true) },
+      { label: this.translate.instant('cards-selection.transfer'), icon: 'pi pi-arrow-right-arrow-left',
+        command: () => void this.openDialog(() => this.transferVisible = true) },
+      { label: this.translate.instant('cards-selection.replace'), icon: 'pi pi-search',
+        command: () => void this.openDialog(() => this.replaceVisible = true) },
+      { separator: true },
+      { label: this.translate.instant('cards-selection.print'), icon: 'pi pi-file-pdf',
+        command: () => void this.printSelection() },
+    ];
     effect(() => {
       const ids = this.sheet()?.selectedCardIds() ?? [];
       if (ids.length > 0) {
         this.selection.set(ids);
       }
     });
+  }
+
+  /** Opens a selection dialog once the pending spreadsheet edits are written */
+  private async openDialog(show: () => void): Promise<void> {
+    await this.sheet()?.flush();
+    this.actionIds.set([...this.selection()]);
+    show();
+  }
+
+  /** A dialog changed cards: message, then the spreadsheet is reloaded */
+  protected afterAction(text: string): void {
+    this.message.set({ severity: 'success', text });
+    this.reload();
+  }
+
+  /** Card export page (PDF, images) limited to the selected cards */
+  protected async printSelection(): Promise<void> {
+    await this.sheet()?.flush();
+    await this.router.navigate(['/decks', this.deckId, 'export-cards'], { queryParams: { ids: this.selection().join(',') } });
   }
 
   protected clearSelection(): void {
@@ -74,6 +109,13 @@ export class CardsComponent {
     { label: 'CSV', icon: 'pi pi-file-excel', command: () => void this.export('csv', this.selection()) },
     { label: 'JSON', icon: 'pi pi-code', command: () => void this.export('json', this.selection()) },
   ];
+
+  /** cards a dialog acts on, taken when it opens */
+  protected readonly actionIds = signal<number[]>([]);
+  protected renumberVisible = false;
+  protected transferVisible = false;
+  protected replaceVisible = false;
+  protected moreItems: MenuItem[] = [];
 
   // bulk edit
   protected bulkVisible = false;
