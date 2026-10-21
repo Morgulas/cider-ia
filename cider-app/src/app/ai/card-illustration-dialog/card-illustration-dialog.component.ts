@@ -1,4 +1,4 @@
-import { Component, OnDestroy, computed, inject, input, model, signal } from '@angular/core';
+import { Component, OnDestroy, computed, inject, input, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Button } from 'primeng/button';
@@ -11,15 +11,18 @@ import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
 import { AssetsService } from '../../data-services/services/assets.service';
 import { CardAttributesService } from '../../data-services/services/card-attributes.service';
+import { CardTemplatesService } from '../../data-services/services/card-templates.service';
+import { CardsService } from '../../data-services/services/cards.service';
 import { DecksService } from '../../data-services/services/decks.service';
 import { Asset } from '../../data-services/types/asset.type';
 import { Card } from '../../data-services/types/card.type';
+import { CardAttribute } from '../../data-services/types/card-attribute.type';
 import { Deck } from '../../data-services/types/deck.type';
 import { CurrentProjectService } from '../../server/current-project.service';
 import { apiErrorMessage } from '../../server/server.types';
 import StringUtils from '../../shared/utils/string-utils';
 import { AiService } from '../ai.service';
-import { defaultPromptTemplate, PromptVariable, promptVariables, renderCardPrompt } from '../card-prompt';
+import { assetFieldsInTemplate, defaultPromptTemplate, PromptVariable, promptVariables, renderCardPrompt } from '../card-prompt';
 import { renderPrompt } from '../illustration-prompt';
 
 interface Proposal {
@@ -50,11 +53,15 @@ export class CardIllustrationDialogComponent implements OnDestroy {
   private readonly assets = inject(AssetsService);
   private readonly decks = inject(DecksService);
   private readonly attributes = inject(CardAttributesService);
+  private readonly templates = inject(CardTemplatesService);
+  private readonly cards = inject(CardsService);
   private readonly currentProject = inject(CurrentProjectService);
   private readonly translate = inject(TranslateService);
 
   readonly visible = model(false);
   readonly card = input<Card | null>(null);
+  /** an image was saved (and maybe linked to the card): the card list should reload */
+  readonly saved = output<void>();
 
   // prompt
   private deck: Deck | null = null;
@@ -75,6 +82,13 @@ export class CardIllustrationDialogComponent implements OnDestroy {
   protected provider: string | null = null;
 
   protected assetName = '';
+  /**
+   * Card attribute in which the asset name is written, so the card's templates
+   * show the image ({{index assets card.<field>}}); 'name' needs no writing.
+   */
+  protected linkField: string | null = null;
+  protected readonly linkOptions = signal<{ label: string; value: string | null }[]>([]);
+  protected readonly templateShowsImage = signal(true);
   protected readonly dragOver = signal(false);
   protected readonly generating = signal(false);
   protected readonly saving = signal(false);
@@ -118,6 +132,7 @@ export class CardIllustrationDialogComponent implements OnDestroy {
         || defaultPromptTemplate(this.translate.instant('server.ai.prompt-default-intro'), attributes);
       this.template = this.savedTemplate;
       this.renderPrompt();
+      await this.findImageLink(card, attributes);
     }
     await this.checkExistingAsset();
     const status = await this.ai.refreshStatus();
@@ -309,6 +324,31 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     this.existingAsset.set(assets.find(asset => !asset.path && StringUtils.toKebabCase(asset.name) === wanted) ?? null);
   }
 
+  /**
+   * Looks in the card's front and back templates for the attribute that picks
+   * the card's image. Without one, the image can still be linked through any
+   * attribute (the template then has to use it).
+   */
+  private async findImageLink(card: Card, attributes: CardAttribute[]): Promise<void> {
+    const templates = await this.templates.getAll({ deckId: card.deckId });
+    const used = templates.filter(t => t.id === card.frontCardTemplateId || t.id === card.backCardTemplateId);
+    const fields = assetFieldsInTemplate(used.map(t => `${t.html ?? ''}\n${t.css ?? ''}`).join('\n'));
+    const labelOf = (field: string) => field === 'name'
+      ? this.translate.instant('server.ai.link-name')
+      : attributes.find(a => !a.isSystem && StringUtils.toKebabCase(a.name) === field)?.name ?? field;
+    const others = attributes
+      .filter(a => !a.isSystem && !fields.includes(StringUtils.toKebabCase(a.name)))
+      .map(a => ({ label: a.name, value: StringUtils.toKebabCase(a.name) as string | null }));
+    this.templateShowsImage.set(fields.length > 0);
+    this.linkOptions.set([
+      ...fields.map(field => ({ label: labelOf(field), value: field as string | null })),
+      ...others,
+      { label: this.translate.instant('server.ai.link-none'), value: null },
+    ]);
+    // an attribute of the template first: the card name only when the template uses nothing else
+    this.linkField = fields.find(field => field !== 'name') ?? (fields.includes('name') ? 'name' : null);
+  }
+
   /** Saves the selected image as an asset, replacing the asset of the same name if there is one */
   protected async save(): Promise<void> {
     const index = this.selected();
@@ -327,11 +367,30 @@ export class CardIllustrationDialogComponent implements OnDestroy {
       } else {
         await this.assets.create({ name, file: proposal.blob, path: '' } as Asset);
       }
+      await this.linkToCard(name);
+      this.saved.emit();
       this.visible.set(false);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  protected linkLabel(): string {
+    return this.linkOptions().find(option => option.value === this.linkField)?.label ?? '';
+  }
+
+  /** Writes the asset name in the card attribute used by its templates */
+  private async linkToCard(assetName: string): Promise<void> {
+    const card = this.card();
+    const field = this.linkField;
+    if (!card || !field || field === 'name') {
+      return;
+    }
+    const current = (await this.cards.get(card.id)) ?? card;
+    if ((current as unknown as Record<string, unknown>)[field] !== assetName) {
+      await this.cards.update(card.id, { ...current, [field]: assetName } as Card, true);
     }
   }
 

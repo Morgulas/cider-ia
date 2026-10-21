@@ -71,3 +71,18 @@ export function renderCardPrompt(template: string, card: Card, deckName: string)
     return { text: '', error: error instanceof Error ? error.message : String(error) };
   }
 }
+
+/**
+ * Card attributes a template uses to pick an asset for each card, such as
+ * {{index assets card.illustration}} or url({{lookup assets card.image}}):
+ * saving an illustration means writing its asset name in that attribute.
+ */
+export function assetFieldsInTemplate(source: string): string[] {
+  const fields: string[] = [];
+  for (const match of source.matchAll(/\b(?:index|lookup)\s+(?:@root\.)?assets\s+card\.([^\s)}]+)/g)) {
+    if (!fields.includes(match[1])) {
+      fields.push(match[1]);
+    }
+  }
+  return fields;
+}

@@ -305,7 +305,6 @@
             "choose": "Choisissez une image",
             "asset-name": "Nom de la ressource",
             "asset-replace": "Une ressource porte déjà ce nom : elle sera remplacée.",
-            "asset-help": "Nommée comme la carte, l'image s'affiche dans les modèles qui montrent la ressource portant le nom de la carte.",
             "replace": "Remplacer",
             "save": "Enregistrer comme ressource",
             "generation-failed": "La génération a échoué.",
@@ -330,7 +329,14 @@
             "drop-help": "Collez l'image (Ctrl+V), déposez-la ici ou choisissez le fichier.",
             "choose-file": "Choisir un fichier",
             "paste-no-image": "Le presse-papiers ne contient pas d'image : copiez l'image elle-même (clic droit > Copier l'image).",
-            "not-an-image": "Seules les images peuvent être utilisées."
+            "not-an-image": "Seules les images peuvent être utilisées.",
+            "link": "Afficher sur la carte via",
+            "link-name": "Le nom de la carte (ressource nommée comme la carte)",
+            "link-none": "Rien (ressource seulement)",
+            "link-name-help": "Le modèle affiche la ressource qui porte le nom de la carte.",
+            "link-help": "Le nom de la ressource est écrit dans l'attribut « {{attribute}} » de cette carte, que le modèle utilise pour choisir son image.",
+            "link-none-help": "L'image est seulement ajoutée aux ressources.",
+            "link-no-template": "Les modèles de cette carte n'affichent pas d'image choisie par carte. Utilisez {{index assets card.<attribut>}} dans le modèle, par ex. dans une balise <img>."
         },
         "ai-settings": {
             "title": "Paramètres IA",

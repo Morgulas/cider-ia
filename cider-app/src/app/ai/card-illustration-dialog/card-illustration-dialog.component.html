@@ -127,13 +127,24 @@
           <label for="ai-asset-name">{{ 'server.ai.asset-name' | translate }}</label>
           <input pInputText id="ai-asset-name" name="assetName" [(ngModel)]="assetName" (ngModelChange)="checkExistingAsset()"
             aria-describedby="ai-asset-help" />
-          <small id="ai-asset-help" class="muted">
-            @if (existingAsset()) {
-              {{ 'server.ai.asset-replace' | translate }}
+          @if (existingAsset()) {
+            <small id="ai-asset-help" class="muted">{{ 'server.ai.asset-replace' | translate }}</small>
+          }
+          <label for="ai-link">{{ 'server.ai.link' | translate }}</label>
+          <p-select inputId="ai-link" name="linkField" [options]="linkOptions()" optionLabel="label" optionValue="value"
+            [(ngModel)]="linkField" />
+          <small class="muted">
+            @if (linkField === 'name') {
+              {{ 'server.ai.link-name-help' | translate }}
+            } @else if (linkField) {
+              {{ 'server.ai.link-help' | translate: { attribute: linkLabel() } }}
             } @else {
-              {{ 'server.ai.asset-help' | translate }}
+              {{ 'server.ai.link-none-help' | translate }}
             }
           </small>
+          @if (!templateShowsImage()) {
+            <p-message severity="warn" [text]="'server.ai.link-no-template' | translate" />
+          }
           <p-button icon="pi pi-check" [label]="(existingAsset() ? 'server.ai.replace' : 'server.ai.save') | translate"
             [disabled]="selected() === null || saving() || !assetName.trim()" [loading]="saving()" (onClick)="save()" />
         </div>

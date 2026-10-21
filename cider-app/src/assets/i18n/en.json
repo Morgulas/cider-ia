@@ -348,7 +348,6 @@
             "choose": "Choose an image",
             "asset-name": "Asset name",
             "asset-replace": "An asset with this name exists and will be replaced.",
-            "asset-help": "Named after the card, the image appears in templates that show the asset matching the card name.",
             "replace": "Replace",
             "save": "Save as asset",
             "generation-failed": "The generation failed.",
@@ -373,7 +372,14 @@
             "drop-help": "Paste the image (Ctrl+V), drop it here or choose the file.",
             "choose-file": "Choose a file",
             "paste-no-image": "The clipboard holds no image: copy the image itself (right click > Copy image).",
-            "not-an-image": "Only images can be used."
+            "not-an-image": "Only images can be used.",
+            "link": "Show it on the card through",
+            "link-name": "The card name (asset named after the card)",
+            "link-none": "Nothing (asset only)",
+            "link-name-help": "The template shows the asset that has the name of the card.",
+            "link-help": "The asset name is written in the \"{{attribute}}\" attribute of this card, which the template uses to pick its image.",
+            "link-none-help": "The image is only added to the assets.",
+            "link-no-template": "The templates of this card show no image chosen per card. Use {{index assets card.<attribute>}} in the template, e.g. in an <img> tag."
         },
         "ai-settings": {
             "title": "AI settings",

@@ -1,7 +1,7 @@
 import { CardAttribute } from '../data-services/types/card-attribute.type';
 import { Card } from '../data-services/types/card.type';
 import { FieldType } from '../data-services/types/field-type.type';
-import { defaultPromptTemplate, promptVariables, renderCardPrompt } from './card-prompt';
+import { assetFieldsInTemplate, defaultPromptTemplate, promptVariables, renderCardPrompt } from './card-prompt';
 
 const attribute = (id: number, name: string, isSystem = false): CardAttribute =>
   ({ id, deckId: 1, name, type: FieldType.text, description: '', options: [], order: id, isSystem });
@@ -32,5 +32,13 @@ describe('card prompt', () => {
   it('reports a template that cannot be read', () => {
     const rendered = renderCardPrompt('{{#if card.name}}open', { name: 'x' } as unknown as Card, '');
     expect(rendered.error).toBeTruthy();
+  });
+});
+
+describe('asset fields in templates', () => {
+  it('finds the card attributes used to pick an asset', () => {
+    const html = '<img src="{{index assets card.illustration}}"><div style="background: url({{lookup assets card.fond}})">'
+      + '{{assets.card-back}} {{index assets card.illustration}} {{index assets "fixed"}} {{#with (index assets card.name)}}{{/with}}';
+    expect(assetFieldsInTemplate(html)).toEqual(['illustration', 'fond', 'name']);
   });
 });

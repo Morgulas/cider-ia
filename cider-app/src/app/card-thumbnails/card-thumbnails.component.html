@@ -37,4 +37,5 @@
     </p-dataview>
   </div>
 </p-card>
-<app-card-illustration-dialog [(visible)]="illustrationVisible" [card]="illustrationCard" />
+<app-card-illustration-dialog [(visible)]="illustrationVisible" [card]="illustrationCard"
+  (saved)="refreshCards()" />
