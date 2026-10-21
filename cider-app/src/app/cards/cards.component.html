@@ -6,9 +6,71 @@
             [text]="true" size="small" (onClick)="export('csv')" />
         <p-button [label]="'cards-transfer.export-json' | translate" icon="pi pi-code" severity="secondary"
             [text]="true" size="small" (onClick)="export('json')" />
+
+        <span class="fill"></span>
+
+        @if (selection().length > 0) {
+            <!-- mousedown stopped: the spreadsheet clears its selection on any click outside it -->
+            <div class="selection" role="toolbar" [attr.aria-label]="'cards-selection.toolbar' | translate"
+                (mousedown)="$event.stopPropagation()">
+                <span class="count">{{ 'cards-selection.count' | translate: { n: selection().length } }}</span>
+                <p-button icon="pi pi-times" [rounded]="true" [text]="true" size="small" severity="secondary"
+                    [ariaLabel]="'cards-selection.clear' | translate" (onClick)="clearSelection()" />
+                <p-button icon="pi pi-download" [label]="'cards-selection.export' | translate" severity="secondary"
+                    [text]="true" size="small" (onClick)="exportMenu.toggle($event)" [disabled]="busy()" />
+                <p-menu #exportMenu [model]="exportItems" [popup]="true" />
+                <p-button icon="pi pi-pencil" [label]="'cards-selection.edit' | translate" severity="secondary"
+                    [text]="true" size="small" (onClick)="openBulkEdit()" [disabled]="busy()" />
+                <p-button icon="pi pi-copy" [label]="'cards-selection.duplicate' | translate" severity="secondary"
+                    [text]="true" size="small" (onClick)="duplicate()" [disabled]="busy()" />
+                <p-button icon="pi pi-sparkles" [label]="'cards-selection.copy-prompts' | translate" severity="secondary"
+                    [text]="true" size="small" (onClick)="copyPrompts()" [disabled]="busy()" />
+                <p-button icon="pi pi-trash" [label]="'cards-selection.delete' | translate" severity="danger"
+                    [text]="true" size="small" (onClick)="confirmDelete()" [disabled]="busy()" />
+            </div>
+        } @else {
+            <small class="hint">{{ 'cards-selection.hint' | translate }}</small>
+        }
     </div>
+    @if (message(); as m) {
+        <p-message [severity]="m.severity" [text]="m.text" styleClass="toolbar-message" [life]="5000" />
+    }
     @if (showSheet()) {
         <app-entity-spreadsheet></app-entity-spreadsheet>
     }
 </p-card>
+
 <app-card-import-dialog [(visible)]="importVisible" [deckId]="deckId" (imported)="reload()" />
+
+<p-dialog [header]="'cards-selection.edit-title' | translate: { n: selection().length }" [(visible)]="bulkVisible"
+    [modal]="true" [style]="{ width: '480px', maxWidth: '95vw' }">
+    <div class="bulk-form">
+        <label for="bulk-field">{{ 'cards-selection.field' | translate }}</label>
+        <p-select inputId="bulk-field" [options]="bulkColumns" optionLabel="header" [(ngModel)]="bulkColumn"
+            (ngModelChange)="bulkValue = null" [filter]="true" filterBy="header" appendTo="body" />
+        @if (bulkColumn; as column) {
+            <label for="bulk-value">{{ 'cards-selection.value' | translate }}</label>
+            @if (column.template) {
+                <p-select inputId="bulk-value" [options]="bulkTemplates" optionLabel="name" optionValue="id"
+                    [(ngModel)]="bulkValue" appendTo="body" />
+            } @else if (column.type === 'dropdown') {
+                <p-select inputId="bulk-value" [options]="column.options ?? []" [(ngModel)]="bulkValue" [editable]="true"
+                    appendTo="body" />
+            } @else if (column.type === 'checkbox') {
+                <p-checkbox inputId="bulk-value" [(ngModel)]="bulkValue" [binary]="true" />
+            } @else if (column.type === 'numeric') {
+                <p-inputnumber inputId="bulk-value" [(ngModel)]="bulkValue" [useGrouping]="false" mode="decimal"
+                    [maxFractionDigits]="4" />
+            } @else {
+                <textarea pTextarea id="bulk-value" rows="4" [(ngModel)]="bulkValue"></textarea>
+            }
+            <small class="muted">{{ 'cards-selection.edit-help' | translate }}</small>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'cards-selection.apply' | translate" icon="pi pi-check" [disabled]="!bulkColumn || busy()"
+            [loading]="busy()" (onClick)="applyBulkEdit()" />
+    </ng-template>
+</p-dialog>
+
+<p-confirmDialog [style]="{ width: '450px' }" />

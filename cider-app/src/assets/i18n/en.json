@@ -485,5 +485,28 @@
         "done": "Import finished: {{created}} card(s) created, {{updated}} updated, {{attributes}} attribute(s) created, {{options}} value(s) added to lists.",
         "other-file": "Another file",
         "close": "Close"
+    },
+    "cards-selection": {
+        "toolbar": "Selection actions",
+        "count": "{{n}} card(s) selected",
+        "export": "Export",
+        "edit": "Edit a field",
+        "duplicate": "Duplicate",
+        "copy-prompts": "Copy prompts",
+        "delete": "Delete",
+        "hint": "Select rows (click their number, Shift or Ctrl to add more) to act on them.",
+        "file-suffix": "selection",
+        "delete-confirm": "Delete {{n}} card(s)? This cannot be undone.",
+        "deleted": "{{n}} card(s) deleted.",
+        "copy-suffix": "(copy)",
+        "duplicated": "{{n}} card(s) duplicated. The identifiers (CardID) of the copies are empty.",
+        "edit-title": "Edit {{n}} card(s)",
+        "field": "Field",
+        "value": "New value",
+        "edit-help": "All selected cards get the same value.",
+        "apply": "Apply",
+        "edited": "\"{{field}}\" changed on {{n}} card(s).",
+        "prompts-copied": "Prompts of {{n}} card(s) copied: paste them into your chatbot.",
+        "clear": "Clear the selection"
     }
 }

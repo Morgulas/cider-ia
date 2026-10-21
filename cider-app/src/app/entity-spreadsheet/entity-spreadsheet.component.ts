@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal, viewChild, WritableSignal } from '@angular/core';
 import { CardsService } from '../data-services/services/cards.service';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
 import { ThemeService } from '../data-services/theme/theme.service';
@@ -35,6 +35,62 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
     private subscriptions: Subscription = new Subscription();
 
     private dataChangeSubject = new Subject<Cell[][]>();
+    /** last grid not yet written to the database (changes are written after a 1 s pause) */
+    private pendingData: Cell[][] | null = null;
+    private processing: Promise<void> = Promise.resolve();
+
+    private readonly sheet = viewChild(SpreadsheetComponent);
+
+    /**
+     * Cards of the selected rows (every row touched by a selection range, in
+     * the order shown). The spreadsheet keeps its rows in "model" order and
+     * shows them sorted or filtered: the visual rows are mapped back.
+     */
+    readonly selectedCardIds = computed<number[]>(() => {
+        const sheet = this.sheet() as unknown as {
+            selectionRanges: () => { start: { row: number }; end: { row: number } }[];
+            displayedRows: () => { originalModelIndex: number }[];
+        } | undefined;
+        if (!sheet) {
+            return [];
+        }
+        const grid = this.data();
+        const displayed = sheet.displayedRows();
+        const ids: number[] = [];
+        for (const range of sheet.selectionRanges()) {
+            const from = Math.min(range.start.row, range.end.row);
+            const to = Math.max(range.start.row, range.end.row);
+            for (let visual = Math.max(0, from); visual <= to && visual < displayed.length; visual++) {
+                const id = EntitySpreadsheetComponent.rowId(grid[displayed[visual].originalModelIndex]);
+                if (id !== undefined && !ids.includes(id)) {
+                    ids.push(id);
+                }
+            }
+        }
+        return ids;
+    });
+
+    /**
+     * The card id of a grid row. It is stored on every cell: the spreadsheet
+     * copies rows ([...row]) on each edit, which keeps the cells but not
+     * properties set on the row array itself.
+     */
+    private static rowId(row: Cell[] | undefined): number | undefined {
+        if (!row) {
+            return undefined;
+        }
+        const fromRow = (row as unknown as { recordId?: number }).recordId;
+        if (fromRow !== undefined) {
+            return fromRow;
+        }
+        const cell = row.find(c => (c as unknown as { recordId?: number }).recordId !== undefined);
+        return (cell as unknown as { recordId?: number } | undefined)?.recordId;
+    }
+
+    private static setRowId(row: Cell[], id: number): void {
+        (row as unknown as { recordId?: number }).recordId = id;
+        row.forEach(cell => (cell as unknown as { recordId?: number }).recordId = id);
+    }
     private columnChangeSubject = new Subject<ColumnConfig[]>();
 
     constructor(
@@ -44,7 +100,7 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
         private decksService: DecksService
     ) {
         this.subscriptions.add(
-            this.dataChangeSubject.pipe(debounceTime(1000)).subscribe(data => this.processDataChange(data))
+            this.dataChangeSubject.pipe(debounceTime(1000)).subscribe(data => void this.flush(data))
         );
         this.subscriptions.add(
             this.columnChangeSubject.pipe(debounceTime(1000)).subscribe(config => this.processColumnChange(config))
@@ -58,6 +114,17 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.subscriptions.unsubscribe();
+        // an edit made less than a second ago is still written
+        void this.flush();
+    }
+
+    /** Writes the pending changes of the grid now; resolves when every write is done */
+    flush(data: Cell[][] | null = this.pendingData): Promise<void> {
+        if (data) {
+            this.pendingData = null;
+            this.processing = this.processing.then(() => this.processDataChange(data));
+        }
+        return this.processing;
     }
 
     private async loadData(): Promise<void> {
@@ -150,8 +217,10 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
 
                 row.push({ value: val !== undefined && val !== null ? val : '' });
             });
-            // Stash ID for safe retrieval even if rows are reordered
-            (row as any).recordId = card.id;
+            // Stash the ID for safe retrieval even if rows are reordered or copied
+            if (card.id !== undefined) {
+                EntitySpreadsheetComponent.setRowId(row, card.id);
+            }
             return row;
         });
 
@@ -175,6 +244,7 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
     }
 
     onDataChanged(newData: Cell[][]): void {
+        this.pendingData = newData;
         this.dataChangeSubject.next(newData);
     }
 
@@ -185,17 +255,12 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
 
             for (let rowIndex = 0; rowIndex < newData.length; rowIndex++) {
                 const row = newData[rowIndex];
-                // Try to find by stashed ID first, fall back to index if missing
-                const recordId = (row as any).recordId;
-                let originalCard: Card | undefined;
-
-                if (recordId !== undefined) {
-                    originalCard = this.cards.find(c => c.id === recordId);
-                } else {
-                    if (rowIndex < this.cards.length) {
-                        originalCard = this.cards[rowIndex];
-                    }
-                }
+                // rows without an id are new: matching by position could write a
+                // row into another card once rows were deleted or inserted
+                const recordId = EntitySpreadsheetComponent.rowId(row);
+                const originalCard: Card | undefined = recordId !== undefined
+                    ? this.cards.find(c => c.id === recordId)
+                    : undefined;
 
                 if (originalCard) {
                     const updatedCard: any = { ...originalCard };
@@ -250,21 +315,22 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
                             const createdCard = await this.cardsService.create(newCard);
 
                             // Attach the new ID to the row so subsequent edits update this card
-                            (row as any).recordId = createdCard.id;
-
-                            // Add to local cache at the correct position if possible, 
-                            // or just ensure lookup finds it next time.
-                            if (rowIndex >= this.cards.length) {
-                                this.cards.push(createdCard);
-                            } else {
-                                this.cards[rowIndex] = createdCard;
-                            }
+                            EntitySpreadsheetComponent.setRowId(row, createdCard.id);
+                            this.cards.push(createdCard);
                         } catch (error) {
                             console.error('Error creating card:', error);
                         }
                     }
                 }
             }
+
+            // rows deleted in the grid: their cards are deleted
+            const idsInGrid = new Set(newData.map(row => EntitySpreadsheetComponent.rowId(row)).filter(id => id !== undefined));
+            const removed = this.cards.filter(card => card.id !== undefined && !idsInGrid.has(card.id));
+            for (const card of removed) {
+                await this.cardsService.delete(card.id);
+            }
+            this.cards = this.cards.filter(card => !removed.includes(card));
         } finally {
             this.isLoading.set(false);
         }

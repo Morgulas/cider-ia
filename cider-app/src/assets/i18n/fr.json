@@ -447,5 +447,28 @@
         "done": "Import terminé : {{created}} carte(s) créée(s), {{updated}} modifiée(s), {{attributes}} attribut(s) créé(s), {{options}} valeur(s) ajoutée(s) aux listes.",
         "other-file": "Autre fichier",
         "close": "Fermer"
+    },
+    "cards-selection": {
+        "toolbar": "Actions sur la sélection",
+        "count": "{{n}} carte(s) sélectionnée(s)",
+        "export": "Exporter",
+        "edit": "Modifier un champ",
+        "duplicate": "Dupliquer",
+        "copy-prompts": "Copier les prompts",
+        "delete": "Supprimer",
+        "hint": "Sélectionnez des lignes (clic sur leur numéro, Maj ou Ctrl pour en ajouter) pour agir dessus.",
+        "file-suffix": "selection",
+        "delete-confirm": "Supprimer {{n}} carte(s) ? Cette action est définitive.",
+        "deleted": "{{n}} carte(s) supprimée(s).",
+        "copy-suffix": "(copie)",
+        "duplicated": "{{n}} carte(s) dupliquée(s). Les identifiants (CardID) des copies sont vides.",
+        "edit-title": "Modifier {{n}} carte(s)",
+        "field": "Champ",
+        "value": "Nouvelle valeur",
+        "edit-help": "La même valeur est donnée à toutes les cartes sélectionnées.",
+        "apply": "Appliquer",
+        "edited": "« {{field}} » modifié sur {{n}} carte(s).",
+        "prompts-copied": "Prompts de {{n}} carte(s) copiés : collez-les dans votre chatbot.",
+        "clear": "Désélectionner"
     }
 }

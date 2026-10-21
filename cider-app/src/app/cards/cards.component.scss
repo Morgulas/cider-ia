@@ -14,14 +14,14 @@
         display: flex;
         flex-direction: column;
         height: 100%;
-        padding: 0; // optional: maximize space
+        padding: 0;
     }
 
     .p-card-content {
         flex: 1;
-        display: flex; // crucial for children to fill
+        display: flex;
         flex-direction: column;
-        padding: 0; // optional: maximize space
+        padding: 0;
         height: 100%;
     }
 
@@ -30,19 +30,58 @@
     }
 }
 
-// :host ::ng-deep .p-tabview {
-//     .p-tabview-nav-content {
-//         i, span {
-//             vertical-align: middle;
-//         }
-//         span {
-//             margin: 0 .5rem;
-//         }
-//     }
-// }
 .cards-toolbar {
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 0.25rem;
     padding: 0.25rem 0.5rem;
     border-bottom: 1px solid var(--p-content-border-color);
+
+    .fill {
+        flex: 1;
+    }
+}
+
+.selection {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.15rem;
+    padding: 0 0.25rem 0 0.75rem;
+    border-left: 1px solid var(--p-content-border-color);
+
+    .count {
+        font-weight: 600;
+        margin-right: 0.35rem;
+        white-space: nowrap;
+    }
+}
+
+.hint {
+    color: var(--p-text-muted-color);
+    padding-right: 0.5rem;
+}
+
+:host ::ng-deep .toolbar-message {
+    margin: 0.35rem 0.5rem;
+}
+
+.bulk-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    label {
+        font-weight: 600;
+    }
+
+    textarea {
+        width: 100%;
+        resize: vertical;
+    }
+}
+
+.muted {
+    color: var(--p-text-muted-color);
 }

@@ -123,11 +123,59 @@ export class CardTransferService {
     return { created, updated };
   }
 
-  async export(deckId: number, deckName: string, format: 'csv' | 'json'): Promise<Blob> {
+  /** The cards of the deck, or only those whose id is given, in the order of the ids */
+  async export(deckId: number, deckName: string, format: 'csv' | 'json', ids?: number[]): Promise<Blob> {
     const deck = await this.load(deckId);
-    const cards = deck.cards as unknown as Record<string, unknown>[];
+    const selected = ids
+      ? ids.map(id => deck.cards.find(card => card.id === id)).filter((card): card is Card => !!card)
+      : deck.cards;
+    const cards = selected as unknown as Record<string, unknown>[];
     return format === 'csv'
       ? new Blob([exportCsv(deck.columns, cards, deck.templates)], { type: 'text/csv;charset=utf-8' })
       : new Blob([exportJson(deckName, deck.columns, cards, deck.templates)], { type: 'application/json' });
+  }
+
+  /*********************************************************************
+   * Actions on a selection of cards
+   *********************************************************************/
+
+  async deleteCards(ids: number[]): Promise<void> {
+    for (const id of ids) {
+      await this.cards.delete(id);
+    }
+  }
+
+  /**
+   * Copies of the cards, named "<name> (copie)". Identifier-like attributes
+   * (CardID...) are emptied: two cards must not share an identifier.
+   */
+  async duplicateCards(deckId: number, ids: number[], suffix: string): Promise<number> {
+    const deck = await this.load(deckId);
+    const identifiers = deck.columns.filter(column => ['cardid', 'id', 'code', 'ref', 'reference']
+      .includes(column.header.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '')));
+    let created = 0;
+    for (const id of ids) {
+      const card = deck.cards.find(c => c.id === id);
+      if (!card) {
+        continue;
+      }
+      const copy = { ...card } as unknown as Record<string, unknown>;
+      delete copy['id'];
+      copy['name'] = `${card.name ?? ''} ${suffix}`.trim();
+      identifiers.forEach(column => copy[column.field] = '');
+      await this.cards.create(copy as unknown as Card, true);
+      created++;
+    }
+    return created;
+  }
+
+  /** Gives the same value to one field of several cards */
+  async setField(ids: number[], field: string, value: unknown): Promise<void> {
+    for (const id of ids) {
+      const card = (await this.cards.getAllUnfiltered({ id }))[0];
+      if (card) {
+        await this.cards.update(id, { ...card, [field]: value } as Card, true);
+      }
+    }
   }
 }
