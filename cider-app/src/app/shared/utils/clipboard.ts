@@ -19,7 +19,7 @@ export async function copyText(text: string): Promise<boolean> {
   area.style.opacity = '0';
   document.body.appendChild(area);
   area.select();
-  let done = false;
+  let done: boolean;
   try {
     // deprecated but still the only way without a secure context
     done = document.execCommand('copy');

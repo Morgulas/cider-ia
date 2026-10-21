@@ -253,8 +253,7 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
         try {
             const currentConfig = this.columnConfig();
 
-            for (let rowIndex = 0; rowIndex < newData.length; rowIndex++) {
-                const row = newData[rowIndex];
+            for (const row of newData) {
                 // rows without an id are new: matching by position could write a
                 // row into another card once rows were deleted or inserted
                 const recordId = EntitySpreadsheetComponent.rowId(row);
