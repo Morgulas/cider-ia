@@ -63,6 +63,10 @@ Dans Dockhand, les variables de `.env.example` se renseignent dans les variables
 
 ## IA : illustrations de cartes
 
+**Sans clé d'API (gratuit)** : dans **Vignettes**, le bouton ✨ d'une carte ouvre la fenêtre d'illustration, disponible pour tous les comptes. Elle construit le prompt de la carte à partir du **modèle de prompt du deck** (bouton « Modèle de prompt du deck », enregistré avec le projet) : les attributs s'y insèrent comme dans les modèles de cartes (`{{card.name}}`, `{{card.description}}`, `{{#if card.lore}}…{{/if}}`). On copie le prompt dans un chatbot (ChatGPT, Gemini…), puis on colle (Ctrl+V), dépose ou choisit l'image obtenue : elle est enregistrée comme ressource nommée comme la carte.
+
+La génération directe dans l'application, décrite ci-dessous, nécessite un service d'images : les clés gratuites d'OpenAI et de Gemini ne donnent pas accès à la génération d'images par API.
+
 Le serveur peut générer les illustrations des cartes avec **OpenAI**, **Google Gemini** ou un **ComfyUI** local. Un service est disponible dès que sa clé (ou son URL) est renseignée ; avec plusieurs services, l'utilisateur choisit dans la fenêtre de génération, `CIDER_IMAGE_PROVIDER` fixant celui proposé par défaut.
 
 **Tout se règle aussi depuis l'interface** : menu **Paramètres IA** (administrateurs). Services, clés, modèles, qualité, délai, quota des nouveaux comptes, workflow ComfyUI et **modèle de prompt**. Les variables ci-dessous ne sont que les valeurs de départ : ce qui est modifié dans l'interface est enregistré dans `ai-settings.json` (dossier de données) et prend le dessus, sans redémarrage. Le bouton « Revenir aux valeurs Docker » efface ces réglages. Les clés saisies dans l'interface sont stockées en clair dans ce fichier (lisible uniquement par le serveur) et ne sont jamais réaffichées : protéger le dossier de données en conséquence.

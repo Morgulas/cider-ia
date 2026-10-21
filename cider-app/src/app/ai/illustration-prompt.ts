@@ -1,16 +1,6 @@
-import { Card } from '../data-services/types/card.type';
-
 /** Placeholders of the prompt template (same list as the server) */
 export const PROMPT_PLACEHOLDERS = ['style', 'subject', 'card_name', 'no_text'] as const;
 export type PromptValues = Partial<Record<(typeof PROMPT_PLACEHOLDERS)[number], string>>;
-
-/** Subject suggested for a card's illustration: its name and, if any, its description */
-export function suggestedSubject(card: Card): string {
-  const values = card as unknown as Record<string, unknown>;
-  const description = typeof values['description'] === 'string' ? values['description'].trim() : '';
-  const name = (card.name ?? '').trim();
-  return [name ? `"${name}".` : '', description].filter(part => part !== '').join(' ');
-}
 
 const PLACEHOLDER = /\{\{\s*([a-z_]+)\s*\}\}/g;
 

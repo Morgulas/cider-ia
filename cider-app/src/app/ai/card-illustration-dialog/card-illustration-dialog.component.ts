@@ -10,23 +10,34 @@ import { ProgressBar } from 'primeng/progressbar';
 import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
 import { AssetsService } from '../../data-services/services/assets.service';
+import { CardAttributesService } from '../../data-services/services/card-attributes.service';
+import { DecksService } from '../../data-services/services/decks.service';
 import { Asset } from '../../data-services/types/asset.type';
 import { Card } from '../../data-services/types/card.type';
+import { Deck } from '../../data-services/types/deck.type';
 import { CurrentProjectService } from '../../server/current-project.service';
 import { apiErrorMessage } from '../../server/server.types';
 import StringUtils from '../../shared/utils/string-utils';
 import { AiService } from '../ai.service';
-import { renderPrompt, suggestedSubject } from '../illustration-prompt';
+import { defaultPromptTemplate, PromptVariable, promptVariables, renderCardPrompt } from '../card-prompt';
+import { renderPrompt } from '../illustration-prompt';
 
 interface Proposal {
   blob: Blob;
   url: string;
 }
 
+/** Largest image accepted by paste or drop (the generated images are far smaller) */
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+
 /**
- * Generates an illustration for a card with the server's image service, and
- * saves the chosen image as a project asset named after the card: templates
- * that use {{index assets card.name}} show it right away.
+ * Illustration of a card:
+ *  1. a prompt built from the deck's prompt template and the card's attributes,
+ *     to copy into a chatbot (ChatGPT, Gemini...), or to send to the server's
+ *     image service when AI is enabled for the account;
+ *  2. the resulting image, pasted, dropped, chosen or generated;
+ *  3. saved as a project asset named after the card: templates that use
+ *     {{index assets card.name}} show it right away.
  */
 @Component({
   selector: 'app-card-illustration-dialog',
@@ -37,20 +48,34 @@ interface Proposal {
 export class CardIllustrationDialogComponent implements OnDestroy {
   protected readonly ai = inject(AiService);
   private readonly assets = inject(AssetsService);
+  private readonly decks = inject(DecksService);
+  private readonly attributes = inject(CardAttributesService);
   private readonly currentProject = inject(CurrentProjectService);
   private readonly translate = inject(TranslateService);
 
   readonly visible = model(false);
   readonly card = input<Card | null>(null);
 
+  // prompt
+  private deck: Deck | null = null;
+  protected template = '';
+  private savedTemplate = '';
+  protected prompt = '';
+  protected readonly templateError = signal<string | null>(null);
+  protected readonly variables = signal<PromptVariable[]>([]);
+  protected readonly editingTemplate = signal(false);
+  protected readonly copied = signal(false);
+  protected readonly savingTemplate = signal(false);
+
+  // server generation
   protected style = '';
-  protected subject = '';
   protected noText = true;
   protected aspectRatio = '3:4';
   protected count = 2;
   protected provider: string | null = null;
-  protected assetName = '';
 
+  protected assetName = '';
+  protected readonly dragOver = signal(false);
   protected readonly generating = signal(false);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -68,18 +93,32 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     return status ? Math.max(0, status.monthlyImages - status.imagesThisMonth) : 0;
   });
 
+  private readonly pasteListener = (event: ClipboardEvent) => this.onPaste(event);
+
   ngOnDestroy(): void {
+    document.removeEventListener('paste', this.pasteListener);
     this.clearProposals();
   }
 
-  /** Called when the dialog opens: fresh status, suggested texts */
+  /** Called when the dialog opens: deck template, prompt of the card, status */
   protected async onShow(): Promise<void> {
     const card = this.card();
     this.error.set(null);
+    this.copied.set(false);
+    this.editingTemplate.set(false);
     this.clearProposals();
+    document.addEventListener('paste', this.pasteListener);
     this.style = this.loadStyle();
-    this.subject = card ? suggestedSubject(card) : '';
     this.assetName = StringUtils.toKebabCase(card?.name ?? '') || 'illustration';
+    if (card) {
+      this.deck = (await this.decks.get(card.deckId)) ?? null;
+      const attributes = await this.attributes.getAll({ deckId: card.deckId });
+      this.variables.set(promptVariables(attributes));
+      this.savedTemplate = this.deck?.illustrationPrompt
+        || defaultPromptTemplate(this.translate.instant('server.ai.prompt-default-intro'), attributes);
+      this.template = this.savedTemplate;
+      this.renderPrompt();
+    }
     await this.checkExistingAsset();
     const status = await this.ai.refreshStatus();
     this.provider = status?.defaultImageProvider ?? null;
@@ -87,7 +126,153 @@ export class CardIllustrationDialogComponent implements OnDestroy {
   }
 
   protected onHide(): void {
+    document.removeEventListener('paste', this.pasteListener);
     this.clearProposals();
+  }
+
+  /*********************************************************************
+   * Prompt
+   *********************************************************************/
+
+  /** The prompt of this card, from the template (any edit of the prompt itself is replaced) */
+  protected renderPrompt(): void {
+    const card = this.card();
+    if (!card) {
+      return;
+    }
+    const rendered = renderCardPrompt(this.template, card, this.deck?.name ?? '');
+    this.templateError.set(rendered.error ?? null);
+    if (!rendered.error) {
+      this.prompt = rendered.text;
+      this.copied.set(false);
+    }
+  }
+
+  protected templateChanged(): boolean {
+    return this.template !== this.savedTemplate;
+  }
+
+  protected insertVariable(textarea: HTMLTextAreaElement, token: string): void {
+    const start = textarea.selectionStart ?? this.template.length;
+    const end = textarea.selectionEnd ?? start;
+    this.template = this.template.slice(0, start) + token + this.template.slice(end);
+    this.renderPrompt();
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
+
+  /** Saves the template in the deck: every card of the deck uses it (and it is saved with the project) */
+  protected async saveTemplate(): Promise<void> {
+    if (!this.deck) {
+      return;
+    }
+    this.savingTemplate.set(true);
+    try {
+      this.deck = await this.decks.update(this.deck.id, { ...this.deck, illustrationPrompt: this.template });
+      this.savedTemplate = this.template;
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.savingTemplate.set(false);
+    }
+  }
+
+  protected async resetTemplate(): Promise<void> {
+    const card = this.card();
+    if (!card) {
+      return;
+    }
+    const attributes = await this.attributes.getAll({ deckId: card.deckId });
+    this.template = defaultPromptTemplate(this.translate.instant('server.ai.prompt-default-intro'), attributes);
+    this.renderPrompt();
+  }
+
+  /**
+   * Copies the prompt. The clipboard API only exists on HTTPS (or localhost):
+   * on a local network address the text is selected and copied the old way.
+   */
+  protected async copyPrompt(textarea: HTMLTextAreaElement): Promise<void> {
+    let done = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(this.prompt);
+        done = true;
+      } catch {
+        done = false;
+      }
+    }
+    if (!done) {
+      textarea.focus();
+      textarea.select();
+      // deprecated but still the only way without a secure context
+      done = document.execCommand('copy');
+    }
+    this.copied.set(done);
+    if (!done) {
+      this.error.set(this.translate.instant('server.ai.copy-failed'));
+    }
+  }
+
+  /*********************************************************************
+   * Image: pasted, dropped, chosen or generated
+   *********************************************************************/
+
+  private onPaste(event: ClipboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    const image = Array.from(event.clipboardData?.items ?? [])
+      .find(item => item.kind === 'file' && item.type.startsWith('image/'))?.getAsFile();
+    // pasting text in a field stays a normal paste
+    if (image) {
+      event.preventDefault();
+      this.addImages([image]);
+    } else if (target && !['TEXTAREA', 'INPUT'].includes(target.tagName)) {
+      this.error.set(this.translate.instant('server.ai.paste-no-image'));
+    }
+  }
+
+  protected onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragOver.set(false);
+    this.addImages(Array.from(event.dataTransfer?.files ?? []));
+  }
+
+  protected onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.dragOver.set(true);
+  }
+
+  protected onFileChosen(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.addImages(Array.from(input.files ?? []));
+    input.value = '';
+  }
+
+  private addImages(files: Blob[]): void {
+    const images = files.filter(file => file.type.startsWith('image/') && file.size <= MAX_IMAGE_BYTES);
+    if (images.length === 0) {
+      this.error.set(this.translate.instant('server.ai.not-an-image'));
+      return;
+    }
+    this.error.set(null);
+    const added = images.map(blob => ({ blob, url: URL.createObjectURL(blob) }));
+    this.proposals.update(list => [...list, ...added]);
+    this.selected.set(this.proposals().length - 1);
+  }
+
+  /** The prompt sent to the server: the administrator's template framing the card prompt */
+  protected serverPromptPreview(): string {
+    const status = this.ai.status();
+    if (!status) {
+      return '';
+    }
+    return renderPrompt(status.promptTemplate, {
+      subject: this.prompt,
+      style: this.style,
+      card_name: this.card()?.name ?? '',
+      no_text: this.noText ? status.noTextInstruction : '',
+    });
   }
 
   protected async generate(): Promise<void> {
@@ -96,7 +281,7 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     this.saveStyle();
     try {
       const result = await this.ai.generateImages({
-        subject: this.subject,
+        subject: this.prompt,
         style: this.style,
         cardName: this.card()?.name ?? '',
         noText: this.noText,
@@ -112,20 +297,6 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     } finally {
       this.generating.set(false);
     }
-  }
-
-  /** The prompt that will be sent: the administrator's template filled with the fields */
-  protected promptPreview(): string {
-    const status = this.ai.status();
-    if (!status) {
-      return '';
-    }
-    return renderPrompt(status.promptTemplate, {
-      subject: this.subject,
-      style: this.style,
-      card_name: this.card()?.name ?? '',
-      no_text: this.noText ? status.noTextInstruction : '',
-    });
   }
 
   protected select(index: number): void {
@@ -178,13 +349,21 @@ export class CardIllustrationDialogComponent implements OnDestroy {
 
   private loadStyle(): string {
     const key = this.styleKey();
-    return key ? localStorage.getItem(key) ?? '' : '';
+    try {
+      return key ? localStorage.getItem(key) ?? '' : '';
+    } catch {
+      return '';
+    }
   }
 
   private saveStyle(): void {
     const key = this.styleKey();
-    if (key) {
-      localStorage.setItem(key, this.style);
+    try {
+      if (key) {
+        localStorage.setItem(key, this.style);
+      }
+    } catch {
+      // the style is a convenience: not remembered if storage is unavailable
     }
   }
 }

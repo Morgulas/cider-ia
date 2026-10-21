@@ -1,66 +1,113 @@
 <p-dialog [header]="('server.ai.dialog-title' | translate) + (card()?.name ? ' : ' + card()!.name : '')"
   [visible]="visible()" (visibleChange)="visible.set($event)" (onShow)="onShow()" (onHide)="onHide()"
-  [modal]="true" [style]="{ width: '760px', maxWidth: '95vw' }" [dismissableMask]="!generating()">
+  [modal]="true" [style]="{ width: '980px', maxWidth: '96vw' }" [dismissableMask]="!generating()">
   <div class="layout">
-    <form class="settings" (ngSubmit)="generate()" #form="ngForm">
-      <label for="ai-style">{{ 'server.ai.style' | translate }}</label>
-      <textarea pTextarea id="ai-style" name="style" rows="2" [(ngModel)]="style" maxlength="1000"
-        [placeholder]="'server.ai.style-placeholder' | translate" aria-describedby="ai-style-help"></textarea>
-      <small id="ai-style-help" class="muted">{{ 'server.ai.style-help' | translate }}</small>
-
-      <label for="ai-subject">{{ 'server.ai.subject' | translate }}</label>
-      <textarea pTextarea id="ai-subject" name="subject" rows="4" [(ngModel)]="subject" required maxlength="2500"></textarea>
-
-      <div class="checkbox">
-        <p-checkbox inputId="ai-no-text" name="noText" [(ngModel)]="noText" [binary]="true" />
-        <label for="ai-no-text">{{ 'server.ai.no-text' | translate }}</label>
+    <!-- 1. prompt -->
+    <section class="column">
+      <div class="section-title">
+        <h3>{{ 'server.ai.prompt-title' | translate }}</h3>
+        <p-button [label]="(editingTemplate() ? 'server.ai.template-hide' : 'server.ai.template-edit') | translate"
+          icon="pi pi-pencil" [text]="true" size="small" (onClick)="editingTemplate.set(!editingTemplate())" />
       </div>
 
-      <div class="row">
-        <div class="field">
-          <label for="ai-ratio">{{ 'server.ai.aspect-ratio' | translate }}</label>
-          <p-select inputId="ai-ratio" name="aspectRatio" [options]="ratioOptions()" optionLabel="label"
-            optionValue="value" [(ngModel)]="aspectRatio" />
-        </div>
-        <div class="field">
-          <label for="ai-count">{{ 'server.ai.count' | translate }}</label>
-          <p-select inputId="ai-count" name="count" [options]="countOptions()" optionLabel="label"
-            optionValue="value" [(ngModel)]="count" />
-        </div>
-        @if ((ai.status()?.imageProviders?.length ?? 0) > 1) {
-          <div class="field grow">
-            <label for="ai-provider">{{ 'server.ai.provider' | translate }}</label>
-            <p-select inputId="ai-provider" name="provider" [options]="ai.status()!.imageProviders" optionLabel="label"
-              optionValue="id" [(ngModel)]="provider" />
+      @if (editingTemplate()) {
+        <div class="template-editor">
+          <label for="ai-template">{{ 'server.ai.template' | translate }}</label>
+          <textarea #templateArea pTextarea id="ai-template" name="template" rows="9" [(ngModel)]="template"
+            (ngModelChange)="renderPrompt()" class="code"></textarea>
+          <div class="variables">
+            <span class="muted">{{ 'server.ai.variables' | translate }}</span>
+            @for (variable of variables(); track variable.token) {
+              <button type="button" class="chip" (click)="insertVariable(templateArea, variable.token)"
+                [title]="variable.token">
+                {{ variable.label }}
+              </button>
+            }
           </div>
-        }
-      </div>
-
-      <details class="preview">
-        <summary>{{ 'server.ai.prompt-preview' | translate }}</summary>
-        <pre>{{ promptPreview() }}</pre>
-        <small class="muted">{{ 'server.ai.prompt-preview-help' | translate }}</small>
-      </details>
-
-      <p class="muted quota">
-        {{ 'server.ai.quota' | translate: { remaining: remaining(), total: ai.status()?.monthlyImages ?? 0 } }}
-      </p>
-
-      @if (!ai.imagesAvailable()) {
-        <p-message severity="warn" [text]="'server.ai.unavailable' | translate" />
+          <small class="muted">{{ 'server.ai.template-help' | translate }}</small>
+          @if (templateError()) {
+            <p-message severity="warn" [text]="('server.ai.template-error' | translate) + ' ' + templateError()" />
+          }
+          <div class="actions">
+            <p-button [label]="'server.ai.template-default' | translate" icon="pi pi-undo" [text]="true" size="small"
+              (onClick)="resetTemplate()" />
+            <p-button [label]="'server.ai.template-save' | translate" icon="pi pi-save" size="small"
+              [disabled]="!templateChanged() || !!templateError() || savingTemplate()" [loading]="savingTemplate()"
+              (onClick)="saveTemplate()" />
+          </div>
+        </div>
       }
 
-      <p-button type="submit" icon="pi pi-sparkles" [label]="'server.ai.generate' | translate" [loading]="generating()"
-        [disabled]="!form.valid || generating() || !ai.imagesAvailable() || remaining() < count" />
-    </form>
+      <label for="ai-prompt">{{ 'server.ai.prompt' | translate }}</label>
+      <textarea #promptArea pTextarea id="ai-prompt" name="prompt" rows="12" [(ngModel)]="prompt"
+        (ngModelChange)="copied.set(false)"></textarea>
+      <div class="actions">
+        <small class="muted">{{ 'server.ai.prompt-help' | translate }}</small>
+        <p-button [label]="(copied() ? 'server.ai.copied' : 'server.ai.copy') | translate"
+          [icon]="copied() ? 'pi pi-check' : 'pi pi-copy'" [disabled]="!prompt.trim()" (onClick)="copyPrompt(promptArea)" />
+      </div>
 
-    <section class="results" [attr.aria-busy]="generating()">
+      @if (ai.imagesAvailable()) {
+        <details class="generate">
+          <summary>{{ 'server.ai.generate-here' | translate }}</summary>
+          <form class="settings" (ngSubmit)="generate()" #form="ngForm">
+            <label for="ai-style">{{ 'server.ai.style' | translate }}</label>
+            <input pInputText id="ai-style" name="style" [(ngModel)]="style" maxlength="1000"
+              [placeholder]="'server.ai.style-placeholder' | translate" />
+            <div class="checkbox">
+              <p-checkbox inputId="ai-no-text" name="noText" [(ngModel)]="noText" [binary]="true" />
+              <label for="ai-no-text">{{ 'server.ai.no-text' | translate }}</label>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="ai-ratio">{{ 'server.ai.aspect-ratio' | translate }}</label>
+                <p-select inputId="ai-ratio" name="aspectRatio" [options]="ratioOptions()" optionLabel="label"
+                  optionValue="value" [(ngModel)]="aspectRatio" />
+              </div>
+              <div class="field">
+                <label for="ai-count">{{ 'server.ai.count' | translate }}</label>
+                <p-select inputId="ai-count" name="count" [options]="countOptions()" optionLabel="label"
+                  optionValue="value" [(ngModel)]="count" />
+              </div>
+              @if ((ai.status()?.imageProviders?.length ?? 0) > 1) {
+                <div class="field grow">
+                  <label for="ai-provider">{{ 'server.ai.provider' | translate }}</label>
+                  <p-select inputId="ai-provider" name="provider" [options]="ai.status()!.imageProviders"
+                    optionLabel="label" optionValue="id" [(ngModel)]="provider" />
+                </div>
+              }
+            </div>
+            <details class="preview">
+              <summary>{{ 'server.ai.prompt-preview' | translate }}</summary>
+              <pre>{{ serverPromptPreview() }}</pre>
+            </details>
+            <p class="muted">
+              {{ 'server.ai.quota' | translate: { remaining: remaining(), total: ai.status()?.monthlyImages ?? 0 } }}
+            </p>
+            <p-button type="submit" icon="pi pi-sparkles" [label]="'server.ai.generate' | translate"
+              [loading]="generating()" [disabled]="!prompt.trim() || generating() || remaining() < count" />
+          </form>
+        </details>
+      }
+    </section>
+
+    <!-- 2. image -->
+    <section class="column" [attr.aria-busy]="generating()">
+      <h3>{{ 'server.ai.image-title' | translate }}</h3>
+      <div class="drop-zone" [class.over]="dragOver()" (dragover)="onDragOver($event)"
+        (dragleave)="dragOver.set(false)" (drop)="onDrop($event)">
+        <i class="pi pi-image"></i>
+        <span>{{ 'server.ai.drop-help' | translate }}</span>
+        <p-button [label]="'server.ai.choose-file' | translate" icon="pi pi-folder-open" severity="secondary"
+          [outlined]="true" size="small" (onClick)="fileInput.click()" />
+        <input #fileInput type="file" accept="image/*" multiple hidden (change)="onFileChosen($event)" />
+      </div>
+
       @if (generating()) {
         <p-progressbar mode="indeterminate" [style]="{ height: '6px' }" />
         <p class="muted">{{ 'server.ai.generating' | translate }}</p>
-      } @else if (proposals().length === 0) {
-        <p class="muted empty">{{ 'server.ai.results-empty' | translate }}</p>
-      } @else {
+      }
+      @if (proposals().length > 0) {
         <div class="grid">
           @for (proposal of proposals(); track proposal.url; let i = $index) {
             <button type="button" class="proposal" [class.selected]="selected() === i" (click)="select(i)"

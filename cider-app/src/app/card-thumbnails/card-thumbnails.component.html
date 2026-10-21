@@ -22,11 +22,9 @@
           <div class="card-item">
             <app-card-preview [cache]="false" [tiltable]="true" [card]="card" [scale]="zoomLevel"
               [template]="card.frontCardTemplateId | entity: templatesService | async"></app-card-preview>
-            @if (ai.imagesAvailable()) {
-              <p-button class="ai-button" icon="pi pi-sparkles" [rounded]="true" severity="secondary"
-                [pTooltip]="'server.ai.dialog-title' | translate" [ariaLabel]="('server.ai.dialog-title' | translate) + ' : ' + card.name"
-                (onClick)="openIllustration(card)" />
-            }
+            <p-button class="ai-button" icon="pi pi-sparkles" [rounded]="true" severity="secondary"
+              [pTooltip]="'server.ai.dialog-title' | translate" [ariaLabel]="('server.ai.dialog-title' | translate) + ' : ' + card.name"
+              (onClick)="openIllustration(card)" />
           </div>
           }
           @if (sideSelected === 'backs' || sideSelected === 'both') {
