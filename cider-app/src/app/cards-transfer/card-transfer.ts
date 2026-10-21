@@ -65,7 +65,7 @@ export function headerKey(header: string): string {
  *********************************************************************/
 
 export function parseCardFile(content: ArrayBuffer, fileName: string): CardFile {
-  const text = new TextDecoder('utf-8').decode(content).replace(/^﻿/, '');
+  const text = new TextDecoder('utf-8').decode(content).replace(/^\uFEFF/, '');
   const trimmed = text.trimStart();
   if (/\.json$/i.test(fileName) || trimmed.startsWith('{') || trimmed.startsWith('[')) {
     return parseJson(text);
@@ -391,7 +391,7 @@ export function exportCsv(deckColumns: DeckColumn[], cards: Record<string, unkno
   for (const card of cards) {
     lines.push(deckColumns.map(column => quote(exportValue(card, column, templateNames))).join(';'));
   }
-  return '﻿' + lines.join('\r\n') + '\r\n';
+  return '\uFEFF' + lines.join('\r\n') + '\r\n';
 }
 
 /** JSON in the cartes-fangh format, with the attribute definitions */

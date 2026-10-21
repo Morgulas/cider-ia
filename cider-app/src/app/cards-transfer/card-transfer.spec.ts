@@ -17,7 +17,7 @@ const deckColumns: DeckColumn[] = [
 ];
 const templates = [{ id: 7, name: 'Test' }, { id: 8, name: 'Modèle Verso' }];
 
-const csv = '﻿CardID;Name;Count;Front Template;Back Template;Classe;Niveau;Rareté;Description\r\n'
+const csv = '\uFEFFCardID;Name;Count;Front Template;Back Template;Classe;Niveau;Rareté;Description\r\n'
   + 'LDF001;Grimoire niveau 1;1;Test;Modèle Verso;Mage;1;Commune;"Ligne 1.\nLigne ""2""."\r\n'
   + 'LDF002;Grimoire niveau 2;2;test;Inconnu;Voleur;;Rare;Simple\r\n'
   + 'LDF001;Doublon;1;Test;Modèle Verso;Mage;1;Commune;x\r\n';
@@ -92,7 +92,7 @@ describe('card transfer', () => {
     const cards = [{ id: 1, name: 'Grimoire; "1"', count: 2, frontCardTemplateId: 7, backCardTemplateId: 8,
       cardid: 'LDF001', lore: 'a\nb', classe: 'Mage', niveau: 3 }];
     const text = exportCsv(deckColumns, cards, templates);
-    expect(text.startsWith('﻿Name;Count;Front Template;Back Template;CardID')).toBeTrue();
+    expect(text.startsWith('\uFEFFName;Count;Front Template;Back Template;CardID')).toBeTrue();
     const back = parseCardFile(encode(text), 'x.csv');
     expect(back.rows[0]).toEqual(jasmine.objectContaining({ Name: 'Grimoire; "1"', 'Front Template': 'Test', Lore: 'a\nb' }));
 
