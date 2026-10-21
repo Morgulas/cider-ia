@@ -1,5 +1,5 @@
-import { Component, NgZone, OnInit, DestroyRef, Injector, inject } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { Component, NgZone, OnInit, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmationService, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
 import { NavigationEnd, Router } from '@angular/router';
 import { Observable, combineLatest, filter, lastValueFrom, startWith, timeout } from 'rxjs';
@@ -10,7 +10,7 @@ import { Deck } from '../data-services/types/deck.type';
 import StringUtils from '../shared/utils/string-utils';
 import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import { Bind } from 'primeng/bind';
-import { Menubar } from 'primeng/menubar';
+import { Menu } from 'primeng/menu';
 import { Breadcrumb } from 'primeng/breadcrumb';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { Dialog } from 'primeng/dialog';
@@ -20,7 +20,7 @@ import { ButtonDirective } from 'primeng/button';
 import { Ripple } from 'primeng/ripple';
 import { ProgressBar } from 'primeng/progressbar';
 import FileUtils from '../shared/utils/file-utils';
-import { AuthService } from '../server/auth.service';
+import { TopbarComponent } from '../server/topbar/topbar.component';
 import { CurrentProjectService } from '../server/current-project.service';
 import { SessionActionsService } from '../server/session-actions.service';
 import { DesktopProjectExporter } from '../server/project-import/desktop-project-exporter.service';
@@ -30,13 +30,11 @@ import { DesktopProjectExporter } from '../server/project-import/desktop-project
     templateUrl: './site-menu.component.html',
     styleUrls: ['./site-menu.component.scss'],
     providers: [MessageService, ConfirmationService],
-    imports: [Bind, Menubar, Breadcrumb, ConfirmDialog, Dialog, PrimeTemplate, Message, FileUpload, ButtonDirective, Ripple, ProgressBar, TranslatePipe]
+    imports: [TopbarComponent, Menu, Bind, Breadcrumb, ConfirmDialog, Dialog, PrimeTemplate, Message, FileUpload, ButtonDirective, Ripple, ProgressBar, TranslatePipe]
 })
 export class SiteMenuComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
-  private readonly injector = inject(Injector);
-  private readonly auth = inject(AuthService);
-  private readonly currentProject = inject(CurrentProjectService);
+  protected readonly currentProject = inject(CurrentProjectService);
   private readonly sessionActions = inject(SessionActionsService);
   private readonly desktopExporter = inject(DesktopProjectExporter);
 
@@ -71,69 +69,35 @@ export class SiteMenuComponent implements OnInit {
   ngOnInit(): void {
     // startWith: the shell appears when a project is opened, after the language
     // was set at startup, so onLangChange alone would never fire here
-    combineLatest([this.selectedDeck$, this.translate.onLangChange.pipe(startWith(null)),
-      toObservable(this.auth.user, { injector: this.injector })])
+    combineLatest([this.selectedDeck$, this.translate.onLangChange.pipe(startWith(null))])
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: ([selectedDeck, , user]) => {
+        next: ([selectedDeck]) => {
           this.items = [
             {
-              label: this.translate.instant('menu.file'),
-              icon: 'pi pi-pw pi-file',
-              items: [
-                {
-                  label: this.translate.instant('menu.my-projects'),
-                  icon: 'pi pi-pw pi-folder-open',
-                  command: () => this.router.navigateByUrl('/projects')
-                }, {
-                  separator: true
-                }, {
-                  label: this.translate.instant('menu.export-project'),
-                  icon: 'pi pi-pw pi-download',
-                  command: () => this.downloadProject()
-                }, {
-                  label: this.translate.instant('menu.export-project-folder'),
-                  icon: 'pi pi-pw pi-box',
-                  command: () => this.downloadProjectFolder()
-                }, {
-                  label: this.translate.instant('menu.import-into-project'),
-                  icon: 'pi pi-pw pi-upload',
-                  command: () => this.openImportDialog()
-                }, {
-                  separator: true
-                }, {
-                  label: this.translate.instant("menu.export-cards"),
-                  icon: 'pi pi-pw pi-file-pdf',
-                  disabled: !selectedDeck,
-                  routerLink: [`/decks/${selectedDeck?.id}/export-cards`]
-                }
-              ]
+              label: this.translate.instant('menu.export-project'),
+              icon: 'pi pi-download',
+              command: () => this.downloadProject()
             }, {
-              label: user?.username ?? '',
-              icon: 'pi pi-pw pi-user',
-              styleClass: 'user-menu',
-              items: [
-                {
-                  label: this.translate.instant('server.topbar.account'),
-                  icon: 'pi pi-pw pi-id-card',
-                  command: () => this.router.navigateByUrl('/account')
-                }, {
-                  label: this.translate.instant('server.topbar.admin'),
-                  icon: 'pi pi-pw pi-users',
-                  visible: user?.isAdmin === true,
-                  command: () => this.router.navigateByUrl('/admin/users')
-                }, {
-                  label: this.translate.instant('server.topbar.ai-settings'),
-                  icon: 'pi pi-pw pi-sparkles',
-                  visible: user?.isAdmin === true,
-                  command: () => this.router.navigateByUrl('/admin/ai')
-                }, {
-                  separator: true
-                }, {
-                  label: this.translate.instant('server.topbar.logout'),
-                  icon: 'pi pi-pw pi-sign-out',
-                  command: () => this.sessionActions.logout()
-                }
-              ]
+              label: this.translate.instant('menu.export-project-folder'),
+              icon: 'pi pi-box',
+              command: () => this.downloadProjectFolder()
+            }, {
+              label: this.translate.instant('menu.import-into-project'),
+              icon: 'pi pi-upload',
+              command: () => this.openImportDialog()
+            }, {
+              separator: true
+            }, {
+              label: this.translate.instant('menu.export-cards'),
+              icon: 'pi pi-file-pdf',
+              disabled: !selectedDeck,
+              routerLink: [`/decks/${selectedDeck?.id}/export-cards`]
+            }, {
+              separator: true
+            }, {
+              label: this.translate.instant('menu.close-project'),
+              icon: 'pi pi-times',
+              command: () => void this.closeProject()
             }
           ];
         }
@@ -153,17 +117,42 @@ export class SiteMenuComponent implements OnInit {
 
   }
 
+  /** Closes the project (saving it first) and goes back to the project list */
+  public async closeProject() {
+    if (await this.sessionActions.closeProject()) {
+      await this.router.navigateByUrl('/projects');
+    }
+  }
+
+  /** Name of the deck, template, asset or document whose id is in the address */
+  private async entityName(collection: string, id: string): Promise<string | undefined> {
+    const tables: Record<string, string> = {
+      decks: AppDB.DECKS_TABLE, templates: AppDB.CARD_TEMPLATES_TABLE,
+      assets: AppDB.ASSETS_TABLE, documents: AppDB.DOCUMENTS_TABLE,
+    };
+    const numericId = Number(id);
+    if (!tables[collection] || !Number.isInteger(numericId)) {
+      return undefined;
+    }
+    try {
+      return (await this.db.table(tables[collection]).get(numericId))?.name;
+    } catch {
+      return undefined;
+    }
+  }
+
   private async updateBreadcrumbs(routeUrl: string) {
     this.home = { icon: 'pi pi-home', routerLink: '/project' };
     const breadcrumbs: MenuItem[] = [];
-    const urlSegments = routeUrl.split('/').filter((segment) => segment);
+    const urlSegments = routeUrl.split(/[?#]/)[0].split('/').filter((segment) => segment);
     let currentPath = '';
 
     for (let i = 0; i < urlSegments.length; i++) {
       const segment = urlSegments[i];
       const pathSegment = `/${segment}`;
       currentPath += pathSegment;
-      const label = await lastValueFrom(
+      const name = i > 0 ? await this.entityName(urlSegments[i - 1], segment) : undefined;
+      const label = name ?? await lastValueFrom(
         this.translate.get(`breadcrumbs.${segment}`).pipe(timeout(1000)))
         .then(translation => translation !== `breadcrumbs.${segment}` ? translation
           : StringUtils.kebabToTitleCase(segment));

@@ -1,8 +1,16 @@
-<div class="site-menu">
-    <p-menubar [model]="items">
-    </p-menubar>
-    <p-breadcrumb class="max-w-full" [model]="breadcrumbs" [home]="home" />
-</div>
+<app-topbar [inProject]="true">
+    <div class="project-nav">
+        <span class="separator" aria-hidden="true"></span>
+        <button type="button" class="project-button" aria-haspopup="menu" [title]="'menu.project-menu' | translate"
+            (click)="projectMenu.toggle($event)">
+            <i class="pi pi-folder" aria-hidden="true"></i>
+            <span class="project-name">{{ currentProject.project()?.name }}</span>
+            <i class="pi pi-angle-down" aria-hidden="true"></i>
+        </button>
+        <p-menu #projectMenu [model]="items" [popup]="true" appendTo="body" />
+        <p-breadcrumb class="breadcrumb" [model]="breadcrumbs" [home]="home" />
+    </div>
+</app-topbar>
 <p-confirmDialog [style]="{width: '450px'}"></p-confirmDialog>
 <p-dialog header="Import Database" [(visible)]="importVisible" [style]="{width: '450px'}" [modal]="true">
     <ng-template pTemplate="content">

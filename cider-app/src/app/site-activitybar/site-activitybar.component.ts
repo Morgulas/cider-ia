@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Router } from '@angular/router';
-import { MenuItem, PrimeTemplate } from 'primeng/api';
+import { MenuItem } from 'primeng/api';
 import { Bind } from 'primeng/bind';
 import { Menubar } from 'primeng/menubar';
 import { SettingsDialogComponent } from '../settings-dialog/settings-dialog.component';
@@ -9,7 +9,7 @@ import { SettingsDialogComponent } from '../settings-dialog/settings-dialog.comp
     selector: 'app-site-activitybar',
     templateUrl: './site-activitybar.component.html',
     styleUrl: './site-activitybar.component.scss',
-    imports: [Bind, Menubar, PrimeTemplate, SettingsDialogComponent]
+    imports: [Bind, Menubar, SettingsDialogComponent]
 })
 export class SiteActivitybarComponent {
   @Input() selectedActivity = 'explorer';
@@ -116,17 +116,10 @@ export class SiteActivitybarComponent {
       }
     },
   ];
-  public isSaving = false;
 
   constructor(private router: Router) {
     // Do nothing here
   }
 
 
-  public logoClicked() {
-    this.isSaving = true;
-    setTimeout (() => {
-      this.isSaving = false;
-    }, 1800);
-  }
 }

@@ -1,6 +1,6 @@
 <header class="topbar">
   <a class="brand" routerLink="/projects">
-    <img src="assets/cider-logo-128.png" alt="" width="32" height="32" />
+    <img src="assets/cider-logo-128.png" alt="" width="28" height="28" />
     <span>CIDEr IA</span>
   </a>
   <nav class="links">
@@ -11,12 +11,15 @@
     }
     <a routerLink="/account" routerLinkActive="active">{{ 'server.topbar.account' | translate }}</a>
   </nav>
-  <span class="fill"></span>
-  @if (currentProject.project(); as project) {
+  <!-- inside a project: project menu and breadcrumb -->
+  <div class="project-area">
+    <ng-content />
+  </div>
+  @if (!inProject() && currentProject.project(); as project) {
     <p-button [label]="('server.topbar.back-to-project' | translate) + ' : ' + project.name" icon="pi pi-arrow-left"
-      [text]="true" (onClick)="backToProject()" />
+      [text]="true" styleClass="back-button" (onClick)="backToProject()" />
   }
-  <span class="user"><i class="pi pi-user"></i> {{ auth.user()?.username }}</span>
+  <span class="user" [title]="auth.user()?.username ?? ''"><i class="pi pi-user"></i> {{ auth.user()?.username }}</span>
   <p-button [label]="'server.topbar.logout' | translate" icon="pi pi-sign-out" severity="secondary" [text]="true"
     (onClick)="logout()" />
 </header>

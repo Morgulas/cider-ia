@@ -72,7 +72,9 @@
         "my-projects": "Mes projets",
         "export-project": "Télécharger le projet",
         "import-into-project": "Remplacer par un fichier database.json",
-        "export-project-folder": "Télécharger en dossier (.zip, format desktop)"
+        "export-project-folder": "Télécharger en dossier (.zip, format desktop)",
+        "close-project": "Fermer le projet",
+        "project-menu": "Menu du projet"
     },
     "sidebar": {
         "unknown-project": "Projet",

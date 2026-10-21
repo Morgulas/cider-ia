@@ -1,88 +1,68 @@
-.site-menu {
-    background: none;
+.project-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.separator {
+  width: 1px;
+  height: 1.5rem;
+  margin-right: 0.5rem;
+  background: var(--p-content-border-color);
+  flex-shrink: 0;
+}
+
+.project-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 18rem;
+  flex-shrink: 0;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 8px;
+  background: var(--p-content-background);
+  color: var(--p-text-color);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  .project-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  i {
+    color: var(--p-text-muted-color);
+  }
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--p-primary-color);
+  }
+}
+
+.breadcrumb {
+  min-width: 0;
+  overflow: hidden;
+}
+
+:host ::ng-deep .breadcrumb .p-breadcrumb {
+  background: none;
+  padding: 0 0.5rem;
+
+  .p-breadcrumb-list {
+    flex-wrap: nowrap;
+    white-space: nowrap;
     user-select: none;
-    -webkit-user-select: none;
-    -webkit-app-region: drag;
+  }
 
-    .deck-name {
-        font-weight: 500;
+  .p-breadcrumb-item-link {
+    .p-breadcrumb-item-icon {
+      line-height: 17px;
     }
-
-    p-tag {
-        background: none;
-        color: var(--p-text-muted-color);
-        color: var(--p-menubar-color);
-    }
-
-    display: flex;
-}
-
-.logo-image {
-    margin-right: 15px;
-}
-
-/**
- * Menubar overrides
- */
-:host ::ng-deep .site-menu .p-menubar {
-    height: 45px;
-    border-radius: 0px;
-    border: 0;
-    background: none !important;
-    z-index: 3000;
-
-    .p-menubar-root-list {
-        -webkit-app-region: no-drag;
-    }
-
-    .p-menubar-root-list>.p-menuitem>.p-menuitem-link:focus {
-        box-shadow: none;
-    }
-
-    .p-submenu-list {
-        background: var(--cider-overlay-background, #343e4d);
-        border: none;
-        z-index: 3000;
-    }
-
-    .p-menuitem {
-        user-select: none;
-        -webkit-user-select: none;
-        -webkit-app-region: no-drag;
-        z-index: 3000;
-    }
-
-    .p-menubar-root-list>.p-menuitem>.p-menuitem-link {
-        border-radius: 10px;
-    }
-
-    .p-menuitem.selected-deck {
-        background-color: var(--cider-hover-background, var(--p-surface-100));
-        border-radius: 10px;
-    }
-
-    .p-menuitem.p-menubar-item-active>.p-menubar-item-link,
-    .p-menuitem.p-menuitem-active>.p-menuitem-link {
-        background: var(--p-surface-300);
-    }
-}
-
-:host ::ng-deep p-breadcrumb {
-    -webkit-app-region: no-drag;
-
-    .p-breadcrumb-list {
-        user-select: none;
-        -webkit-user-select: none;
-        -webkit-app-region: no-drag;
-    }
-}
-
-:host ::ng-deep .p-breadcrumb {
-    background: none;
-
-    .p-breadcrumb-item-link {
-        .p-breadcrumb-item-icon {
-            line-height: 17px;
-        }
-    }
+  }
 }
