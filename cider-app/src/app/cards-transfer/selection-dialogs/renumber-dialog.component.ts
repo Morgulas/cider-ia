@@ -2,6 +2,7 @@ import { Component, inject, input, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Button } from 'primeng/button';
+import { Checkbox } from 'primeng/checkbox';
 import { Dialog } from 'primeng/dialog';
 import { InputNumber } from 'primeng/inputnumber';
 import { InputText } from 'primeng/inputtext';
@@ -11,6 +12,7 @@ import { FieldType } from '../../data-services/types/field-type.type';
 import { DeckColumn, headerKey } from '../card-transfer';
 import { CardTransferService, DeckData } from '../card-transfer.service';
 import { numberedIds, suggestNumbering } from '../selection-tools';
+import { TrackedChangeService } from '../../server/tracked-change.service';
 
 /**
  * Gives the selected cards consecutive identifiers (LDF030, LDF031...), in
@@ -20,11 +22,12 @@ import { numberedIds, suggestNumbering } from '../selection-tools';
   selector: 'app-renumber-dialog',
   templateUrl: './renumber-dialog.component.html',
   styleUrl: './selection-dialogs.scss',
-  imports: [FormsModule, Dialog, Button, InputNumber, InputText, Message, Select, TranslatePipe]
+  imports: [FormsModule, Dialog, Button, Checkbox, InputNumber, InputText, Message, Select, TranslatePipe]
 })
 export class RenumberDialogComponent {
   private readonly transfer = inject(CardTransferService);
   private readonly translate = inject(TranslateService);
+  private readonly tracked = inject(TrackedChangeService);
 
   readonly visible = model(false);
   readonly deckId = input.required<number>();
@@ -40,8 +43,12 @@ export class RenumberDialogComponent {
   protected readonly preview = signal<{ name: string; before: string; after: string }[]>([]);
   protected readonly conflicts = signal<string[]>([]);
   protected readonly busy = signal(false);
+  /** selected cards that already have an identifier: changing it needs a confirmation */
+  protected readonly alreadyNumbered = signal(0);
+  protected confirmOverwrite = false;
 
   protected async onShow(): Promise<void> {
+    this.confirmOverwrite = false;
     this.deck = await this.transfer.load(this.deckId());
     this.columns = this.deck.columns.filter(c => c.type === FieldType.text && c.field !== 'name');
     this.column = this.columns.find(c => ['cardid', 'id', 'code', 'ref', 'reference'].includes(headerKey(c.header)))
@@ -82,18 +89,21 @@ export class RenumberDialogComponent {
     const used = new Set(this.deck.cards.filter(c => !this.ids().includes(c.id))
       .map(c => String((c as unknown as Record<string, unknown>)[field] ?? '')));
     this.conflicts.set(values.filter(value => used.has(value)));
+    this.alreadyNumbered.set(this.preview().filter(p => p.before !== '' && p.before !== p.after).length);
   }
 
   protected async apply(): Promise<void> {
-    if (!this.column || this.conflicts().length > 0) {
+    if (!this.column || this.conflicts().length > 0 || (this.alreadyNumbered() > 0 && !this.confirmOverwrite)) {
       return;
     }
     this.busy.set(true);
     try {
-      await this.transfer.renumber(this.ids(), this.column.field, this.preview().map(p => p.after));
+      const column = this.column;
+      const label = this.translate.instant('cards-selection.renumbered', { n: this.ids().length, field: column.header });
+      await this.tracked.run('renumber', label,
+        () => this.transfer.renumber(this.ids(), column.field, this.preview().map(p => p.after)));
       this.visible.set(false);
-      this.done.emit(this.translate.instant('cards-selection.renumbered',
-        { n: this.ids().length, field: this.column.header }));
+      this.done.emit(label);
     } finally {
       this.busy.set(false);
     }

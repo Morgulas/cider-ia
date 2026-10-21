@@ -10,6 +10,7 @@ import { MultiSelect } from 'primeng/multiselect';
 import { FieldType } from '../../data-services/types/field-type.type';
 import { DeckColumn } from '../card-transfer';
 import { CardTransferService } from '../card-transfer.service';
+import { TrackedChangeService } from '../../server/tracked-change.service';
 
 /** Search and replace in the text fields of the selected cards, with a count before applying */
 @Component({
@@ -21,6 +22,7 @@ import { CardTransferService } from '../card-transfer.service';
 export class ReplaceDialogComponent {
   private readonly transfer = inject(CardTransferService);
   private readonly translate = inject(TranslateService);
+  private readonly tracked = inject(TrackedChangeService);
 
   readonly visible = model(false);
   readonly deckId = input.required<number>();
@@ -61,8 +63,9 @@ export class ReplaceDialogComponent {
   protected async apply(): Promise<void> {
     this.busy.set(true);
     try {
-      const result = await this.transfer.replaceInCards(this.ids(), this.fields, this.search, this.replacement,
-        { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord }, true);
+      const label = this.translate.instant('cards-selection.replace-label', { search: this.search, replacement: this.replacement });
+      const result = await this.tracked.run('replace', label, () => this.transfer.replaceInCards(this.ids(), this.fields,
+        this.search, this.replacement, { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord }, true));
       this.visible.set(false);
       this.done.emit(this.translate.instant('cards-selection.replaced', { n: result.replacements, cards: result.cards }));
     } finally {

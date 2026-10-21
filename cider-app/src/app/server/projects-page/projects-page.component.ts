@@ -22,6 +22,7 @@ import { DesktopProjectImporter } from '../project-import/desktop-project-import
 import { isDexieExport, upgradeLegacyExport } from '../project-import/legacy-export';
 import { filesFromFolder, filesFromZip, ProjectFile, projectRoot } from '../project-import/project-files';
 import { TopbarComponent } from '../topbar/topbar.component';
+import { ProjectVersionsDialogComponent } from '../project-versions/project-versions-dialog.component';
 
 const SAMPLE_PROJECT_FILE = 'assets/cosmic-apple.json';
 
@@ -32,7 +33,7 @@ const SAMPLE_PROJECT_FILE = 'assets/cosmic-apple.json';
   styleUrl: './projects-page.component.scss',
   providers: [ConfirmationService],
   imports: [TopbarComponent, FormsModule, TableModule, Button, Dialog, InputText, RadioButton, Message,
-    ConfirmDialog, DatePipe, DecimalPipe, TranslatePipe]
+    ConfirmDialog, DatePipe, DecimalPipe, TranslatePipe, ProjectVersionsDialogComponent]
 })
 export class ProjectsPageComponent implements OnInit {
   private readonly api = inject(ProjectsApiService);
@@ -51,6 +52,17 @@ export class ProjectsPageComponent implements OnInit {
   protected readonly info = signal<string | null>(null);
 
   protected importDialogVisible = false;
+  protected versionsVisible = false;
+  protected versionsProject: ProjectMeta | null = null;
+
+  protected openVersions(project: ProjectMeta): void {
+    this.versionsProject = project;
+    this.versionsVisible = true;
+  }
+
+  protected refreshList(): Promise<void> {
+    return this.refresh();
+  }
 
   protected newDialogVisible = false;
   protected newName = '';

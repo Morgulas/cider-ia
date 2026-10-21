@@ -21,6 +21,7 @@ import { Ripple } from 'primeng/ripple';
 import { ProgressBar } from 'primeng/progressbar';
 import FileUtils from '../shared/utils/file-utils';
 import { TopbarComponent } from '../server/topbar/topbar.component';
+import { ProjectVersionsDialogComponent } from '../server/project-versions/project-versions-dialog.component';
 import { CurrentProjectService } from '../server/current-project.service';
 import { SessionActionsService } from '../server/session-actions.service';
 import { DesktopProjectExporter } from '../server/project-import/desktop-project-exporter.service';
@@ -30,7 +31,7 @@ import { DesktopProjectExporter } from '../server/project-import/desktop-project
     templateUrl: './site-menu.component.html',
     styleUrls: ['./site-menu.component.scss'],
     providers: [MessageService, ConfirmationService],
-    imports: [TopbarComponent, Menu, Bind, Breadcrumb, ConfirmDialog, Dialog, PrimeTemplate, Message, FileUpload, ButtonDirective, Ripple, ProgressBar, TranslatePipe]
+    imports: [TopbarComponent, ProjectVersionsDialogComponent, Menu, Bind, Breadcrumb, ConfirmDialog, Dialog, PrimeTemplate, Message, FileUpload, ButtonDirective, Ripple, ProgressBar, TranslatePipe]
 })
 export class SiteMenuComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
@@ -41,6 +42,7 @@ export class SiteMenuComponent implements OnInit {
   selectedDeck$: Observable<Deck | undefined>;
   items: MenuItem[];
   importVisible = false;
+  versionsVisible = false;
   importFile: File | undefined = undefined;
   public displayLoading = false;
   public loadingIndeterminate = false;
@@ -81,6 +83,10 @@ export class SiteMenuComponent implements OnInit {
               label: this.translate.instant('menu.export-project-folder'),
               icon: 'pi pi-box',
               command: () => this.downloadProjectFolder()
+            }, {
+              label: this.translate.instant('server.versions.title'),
+              icon: 'pi pi-history',
+              command: () => this.versionsVisible = true
             }, {
               label: this.translate.instant('menu.import-into-project'),
               icon: 'pi pi-upload',

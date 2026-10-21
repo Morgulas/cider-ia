@@ -24,6 +24,13 @@
     @if (conflicts().length) {
       <p-message severity="error" [text]="'cards-selection.renumber-conflicts' | translate: { values: conflicts().join(', ') }" />
     }
+    @if (alreadyNumbered()) {
+      <p-message severity="warn" [text]="'cards-selection.renumber-existing' | translate: { n: alreadyNumbered() }" />
+      <div class="check">
+        <p-checkbox inputId="renumber-confirm" [(ngModel)]="confirmOverwrite" [binary]="true" />
+        <label for="renumber-confirm">{{ 'cards-selection.renumber-confirm' | translate }}</label>
+      </div>
+    }
     <div class="preview">
       @for (row of preview(); track $index) {
         <div class="preview-row">
@@ -37,6 +44,7 @@
   </div>
   <ng-template #footer>
     <p-button [label]="'cards-selection.apply' | translate" icon="pi pi-check" (onClick)="apply()"
-      [disabled]="!column || conflicts().length > 0 || busy()" [loading]="busy()" />
+      [disabled]="!column || conflicts().length > 0 || (alreadyNumbered() > 0 && !confirmOverwrite) || busy()"
+      [loading]="busy()" />
   </ng-template>
 </p-dialog>

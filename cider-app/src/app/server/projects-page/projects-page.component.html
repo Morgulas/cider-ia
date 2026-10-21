@@ -47,6 +47,8 @@
             (onClick)="open(project)" />
           <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" [ariaLabel]="'server.projects.rename' | translate"
             (onClick)="openRenameDialog(project)" />
+          <p-button icon="pi pi-history" [rounded]="true" [text]="true" [ariaLabel]="'server.versions.title' | translate"
+            [disabled]="project.revision === 0" (onClick)="openVersions(project)" />
           <p-button icon="pi pi-download" [rounded]="true" [text]="true" [ariaLabel]="'server.projects.export' | translate"
             [disabled]="project.revision === 0" (onClick)="download(project)" />
           <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger"
@@ -119,3 +121,5 @@
 </p-dialog>
 
 <p-confirmDialog [style]="{ width: '450px' }" />
+
+<app-project-versions-dialog [(visible)]="versionsVisible" [project]="versionsProject" (restored)="refreshList()" />

@@ -1,0 +1,56 @@
+<p-dialog [header]="('server.versions.title' | translate) + (project() ? ' : ' + project()!.name : '')" [visible]="visible()"
+  (visibleChange)="visible.set($event)" (onShow)="onShow()" [modal]="true" [style]="{ width: '900px', maxWidth: '96vw' }">
+  <p class="muted intro">{{ 'server.versions.intro' | translate }}</p>
+  @if (error()) {
+    <p-message severity="error" [text]="error()!" styleClass="block" />
+  }
+  @if (info()) {
+    <p-message severity="success" [text]="info()!" styleClass="block" />
+  }
+  <p-table [value]="versions()" [loading]="loading() || busy()" [scrollable]="true" scrollHeight="420px" size="small">
+    <ng-template #header>
+      <tr>
+        <th>#</th>
+        <th>{{ 'server.versions.date' | translate }}</th>
+        <th>{{ 'server.versions.by' | translate }}</th>
+        <th>{{ 'server.versions.change' | translate }}</th>
+        <th>{{ 'server.versions.size' | translate }}</th>
+        <th></th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-version>
+      <tr>
+        <td class="muted">{{ version.revision }}</td>
+        <td class="nowrap">{{ version.savedAt | date: 'short' }}</td>
+        <td>{{ version.by }}</td>
+        <td>
+          {{ label(version) }}
+          @if (version.current) {
+            <p-tag severity="success" [value]="'server.versions.current' | translate" />
+          }
+          @if (version.keep) {
+            <i class="pi pi-bookmark muted" [pTooltip]="'server.versions.kept' | translate"></i>
+          }
+        </td>
+        <td class="nowrap muted">{{ version.size / 1048576 | number: '1.1-1' }} Mo</td>
+        <td class="actions">
+          <p-button icon="pi pi-download" [rounded]="true" [text]="true" size="small"
+            [ariaLabel]="'server.versions.download' | translate" [pTooltip]="'server.versions.download' | translate"
+            (onClick)="download(version)" />
+          @if (!version.current) {
+            <p-button icon="pi pi-history" [rounded]="true" [text]="true" size="small" [disabled]="busy()"
+              [ariaLabel]="'server.versions.restore' | translate" [pTooltip]="'server.versions.restore' | translate"
+              (onClick)="confirmRestore(version)" />
+          }
+          <p-button icon="pi pi-clone" [rounded]="true" [text]="true" size="small" [disabled]="busy()"
+            [ariaLabel]="'server.versions.restore-new' | translate" [pTooltip]="'server.versions.restore-new' | translate"
+            (onClick)="restore(version, true)" />
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="6" class="muted">{{ 'server.versions.empty' | translate }}</td></tr>
+    </ng-template>
+  </p-table>
+</p-dialog>
+<p-confirmDialog [style]="{ width: '450px' }" />

@@ -1,0 +1,25 @@
+.intro {
+  margin: 0 0 0.75rem;
+}
+
+.muted {
+  color: var(--p-text-muted-color);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+td p-tag,
+td .pi-bookmark {
+  margin-left: 0.4rem;
+}
+
+:host ::ng-deep .block {
+  margin-bottom: 0.75rem;
+}

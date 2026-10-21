@@ -5,7 +5,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { ServerConfig } from './config.js';
 import { checkPasswordRules, hashPassword, verifyPassword } from './passwords.js';
-import { ProjectStore, ProjectStoreError } from './store/projects.js';
+import { ProjectStore, ProjectStoreError, SaveInfo, VERSION_LABEL_MAX_LENGTH } from './store/projects.js';
 import { SessionStore } from './store/sessions.js';
 import { toPublicUser, UserChanges, UserRecord, UserStore, UserStoreError } from './store/users.js';
 import { AiUsageStore, QuotaExceededError } from './store/ai-usage.js';
@@ -370,6 +370,20 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
     return { ok: true };
   });
 
+  /** Author and description of a save, sent by the application in headers */
+  const saveInfo = (request: FastifyRequest, user: UserRecord): SaveInfo => {
+    const header = request.headers['x-cider-change'];
+    let label = '';
+    if (typeof header === 'string') {
+      try {
+        label = decodeURIComponent(header).slice(0, VERSION_LABEL_MAX_LENGTH);
+      } catch {
+        label = '';
+      }
+    }
+    return { by: user.username, label, important: request.headers['x-cider-change-important'] === '1' };
+  };
+
   /** Project data (Dexie export); 204 for a project that was never saved */
   app.get<{ Params: { id: string } }>('/api/projects/:id/data', async (request, reply) => {
     const { project, data } = await projects.readData(requireUser(request).id, request.params.id);
@@ -396,7 +410,39 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
     const baseHeader = request.headers['x-base-revision'];
     const baseRevision = typeof baseHeader === 'string' && /^\d+$/.test(baseHeader) ? Number(baseHeader) : undefined;
     const project = await projects.writeData(user.id, request.params.id, request.body,
-      baseRevision, request.query.force === '1');
+      baseRevision, request.query.force === '1', saveInfo(request, user));
+    return { project };
+  });
+
+  /** Kept versions of a project, newest first */
+  app.get<{ Params: { id: string } }>('/api/projects/:id/versions', async (request) => ({
+    versions: await projects.listVersions(requireUser(request).id, request.params.id),
+  }));
+
+  /** Data of a version (download) */
+  app.get<{ Params: { id: string; revision: string } }>('/api/projects/:id/versions/:revision', async (request, reply) => {
+    const data = await projects.readVersion(requireUser(request).id, request.params.id, Number(request.params.revision));
+    reply.header('cache-control', 'no-store');
+    return reply.type('application/json').send(data);
+  });
+
+  /**
+   * Restores a version: as the new current state of the project (the state it
+   * replaces stays in the history), or as a new project.
+   */
+  app.post<{ Params: { id: string; revision: string } }>('/api/projects/:id/versions/:revision/restore', async (request) => {
+    const user = requireUser(request);
+    const revision = Number(request.params.revision);
+    const data = await projects.readVersion(user.id, request.params.id, revision);
+    const { asNew, name } = body(request);
+    const label = `restore:${revision}`;
+    if (asNew === true) {
+      const project = await projects.create(user.id, String(name ?? ''), config.maxProjectsPerUser, data,
+        { by: user.username, label });
+      return { project };
+    }
+    const project = await projects.writeData(user.id, request.params.id, data, undefined, true,
+      { by: user.username, label, important: true });
     return { project };
   });
 

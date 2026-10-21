@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
+import { cardHistory } from '../data-services/indexed-db/card-history';
 import { AppDB } from '../data-services/indexed-db/db';
 import { AuthService } from './auth.service';
 import { ProjectsApiService } from './projects-api.service';
@@ -145,6 +146,7 @@ export class CurrentProjectService {
   }
 
   private setOpened(meta: ProjectMeta, userId: string, revision: number): void {
+    cardHistory.user = this.auth.user()?.username ?? '';
     this.revision = revision;
     this.conflictRevision = undefined;
     this.dirty = false;
@@ -301,9 +303,40 @@ export class CurrentProjectService {
     return this.saving;
   }
 
+  /** Descriptions of the changes not saved yet, sent with the next save (version history) */
+  private changeLabels: string[] = [];
+  private changeImportant = false;
+
+  /**
+   * Describes a change made to the project (import, bulk action...): recorded
+   * with the next save in the version history. Important changes keep the
+   * version before them longer.
+   */
+  describeChange(label: string, important = false): void {
+    if (label && !this.changeLabels.includes(label)) {
+      this.changeLabels.push(label);
+    }
+    this.changeImportant ||= important;
+  }
+
+  /**
+   * Saves the current state before an operation, so it gets its own version
+   * that can be restored; then describes the operation for the next save.
+   */
+  async checkpoint(label: string): Promise<void> {
+    await cardHistory.flush();
+    await this.flush();
+    this.describeChange(label, true);
+  }
+
   private async doSave(project: ProjectMeta): Promise<void> {
+    // journal entries still in memory belong to this save
+    await cardHistory.flush();
     // changes made during the export mark the project dirty again
     this.dirty = false;
+    const change = { label: this.changeLabels.join(' ; '), important: this.changeImportant };
+    this.changeLabels = [];
+    this.changeImportant = false;
     this.saveState.set('saving');
     try {
       const owner = await this.db.getOwner();
@@ -312,7 +345,9 @@ export class CurrentProjectService {
         return;
       }
       const data = await this.db.exportProject();
-      const saved = await this.api.saveData(project.id, data, this.revision);
+      const saved = change.label || change.important
+        ? await this.api.saveData(project.id, data, this.revision, false, change)
+        : await this.api.saveData(project.id, data, this.revision);
       if (this.project()?.id !== project.id) {
         return;
       }
@@ -333,6 +368,11 @@ export class CurrentProjectService {
         return;
       }
       this.dirty = true;
+      // described again with the next attempt
+      if (change.label) {
+        this.changeLabels.unshift(change.label);
+      }
+      this.changeImportant ||= change.important;
       if (error instanceof HttpErrorResponse && error.status === 409) {
         const revision = (error.error as { revision?: unknown } | null)?.revision;
         this.conflictRevision = typeof revision === 'number' ? revision : undefined;

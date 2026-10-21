@@ -6,6 +6,8 @@
             [text]="true" size="small" (onClick)="export('csv')" />
         <p-button [label]="'cards-transfer.export-json' | translate" icon="pi pi-code" severity="secondary"
             [text]="true" size="small" (onClick)="export('json')" />
+        <p-button [label]="'card-history.button' | translate" icon="pi pi-history" severity="secondary"
+            [text]="true" size="small" (onClick)="openHistory()" />
 
         <span class="fill"></span>
 
@@ -76,6 +78,7 @@
     </ng-template>
 </p-dialog>
 
+<app-card-history-dialog [(visible)]="historyVisible" [deckId]="deckId" [cardIds]="actionIds()" (changed)="afterAction($event)" />
 <app-renumber-dialog [(visible)]="renumberVisible" [deckId]="deckId" [ids]="actionIds()" (done)="afterAction($event)" />
 <app-transfer-dialog [(visible)]="transferVisible" [deckId]="deckId" [ids]="actionIds()" (done)="afterAction($event)" />
 <app-replace-dialog [(visible)]="replaceVisible" [deckId]="deckId" [ids]="actionIds()" (done)="afterAction($event)" />

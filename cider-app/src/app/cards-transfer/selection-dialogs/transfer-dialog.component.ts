@@ -10,6 +10,7 @@ import { Select } from 'primeng/select';
 import { DecksService } from '../../data-services/services/decks.service';
 import { Deck } from '../../data-services/types/deck.type';
 import { CardTransferService } from '../card-transfer.service';
+import { TrackedChangeService } from '../../server/tracked-change.service';
 
 /** Copies or moves the selected cards to another deck of the project */
 @Component({
@@ -22,6 +23,7 @@ export class TransferDialogComponent {
   private readonly transfer = inject(CardTransferService);
   private readonly decks = inject(DecksService);
   private readonly translate = inject(TranslateService);
+  private readonly tracked = inject(TrackedChangeService);
 
   readonly visible = model(false);
   readonly deckId = input.required<number>();
@@ -48,8 +50,11 @@ export class TransferDialogComponent {
     this.busy.set(true);
     this.error.set(null);
     try {
-      const result = await this.transfer.transferCards(this.deckId(), this.target.id, this.ids(),
-        this.mode === 'move', this.createAttributes);
+      const target = this.target;
+      const label = this.translate.instant(this.mode === 'move' ? 'cards-selection.move-label' : 'cards-selection.copy-label',
+        { n: this.ids().length, deck: target.name });
+      const result = await this.tracked.run('transfer', label, () => this.transfer.transferCards(this.deckId(), target.id,
+        this.ids(), this.mode === 'move', this.createAttributes));
       let text = this.translate.instant(this.mode === 'move' ? 'cards-selection.moved' : 'cards-selection.copied',
         { n: result.transferred, deck: this.target.name, attributes: result.attributesCreated });
       if (result.missingTemplates.length) {

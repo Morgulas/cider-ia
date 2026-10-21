@@ -9,7 +9,7 @@ Ce document décrit les fichiers que CIDEr IA sait importer dans un deck (page *
 - Une **colonne d'identification** reconnaît les cartes déjà présentes. Par défaut, c'est `CardID` :
   - une carte du deck qui a le même `CardID` est **mise à jour** ;
   - les autres cartes du fichier sont **créées** ;
-  - les cartes du deck absentes du fichier ne sont **pas touchées**.
+  - les cartes du deck absentes du fichier ne sont **pas touchées** (celles venues d'un import précédent sont signalées, voir plus bas).
 - Seules les colonnes présentes dans le fichier sont écrites. Une colonne absente (par exemple `Lore`) garde sa valeur dans le deck.
 - Une colonne inconnue du deck peut devenir un nouvel attribut, avec le type indiqué dans `champs` (JSON) ou deviné à partir des valeurs (CSV).
 - Rien n'est modifié avant validation : l'import affiche d'abord ce qui sera créé, modifié, ainsi que les valeurs hors liste et les modèles introuvables.
@@ -70,6 +70,25 @@ Ce document décrit les fichiers que CIDEr IA sait importer dans un deck (page *
 7. **Noms de colonnes** : identiques aux attributs du deck, avec une seule langue pour tous (éviter `Rarity` au milieu de colonnes en français).
 8. **Ne pas inclure** les colonnes qu'on ne veut pas modifier (`Lore` saisi à la main, par exemple) : elles seraient écrasées.
 9. **Relire les coquilles** de la source : l'import n'en corrige aucune.
+
+## Synchronisation avec la source (réimports)
+
+Chaque import mémorise, carte par carte, les valeurs reçues de la source (le « dernier import »). Au réimport, chaque champ est comparé sur trois états : dernier import, application, nouveau fichier.
+
+| Situation | Résultat |
+| --- | --- |
+| Seule la source a changé | La nouvelle valeur est appliquée. |
+| Seule l'application a changé (retouche à la main) | La retouche est **gardée**, la carte n'est pas marquée modifiée. |
+| Les deux ont changé, différemment | **Conflit** affiché avant validation ; par défaut la valeur de l'application est gardée, au choix champ par champ (« Tout garder » / « Tout prendre »). |
+
+- **Champs gérés dans l'application** : dans l'écran d'import, une colonne peut être cochée « géré dans l'application ». Elle n'est alors plus jamais écrite par l'import, même si le fichier la contient. Ce choix et la colonne d'identification sont mémorisés par deck.
+- **Cartes absentes du fichier** : une carte venue d'un import précédent qui n'est plus dans le fichier est signalée. Par défaut elle est gardée ; on peut choisir de la supprimer.
+- **Identifiant figé** : `CardID` ne devrait jamais changer. Si on le change quand même dans l'application (par exemple avec « Renuméroter »), l'ancien identifiant est conservé dans la carte, et un fichier qui utilise encore l'ancien identifiant met à jour la bonne carte au lieu d'en créer une nouvelle.
+
+## Historique et retour arrière
+
+- **Journal des cartes** (bouton **Historique** de la page Cartes) : chaque création, modification et suppression est notée avec la date, l'auteur et l'opération (import, action groupée, saisie…). Une opération entière peut être annulée ; les champs modifiés depuis ne sont pas touchés.
+- **Versions du projet** (menu du projet > **Historique des versions**, ou page Projets) : le serveur garde les sauvegardes successives du projet : les 20 dernières, la dernière de chaque heure pendant 2 jours, de chaque jour pendant 60 jours, et l'état d'avant chaque import ou action groupée pendant 90 jours. Une version peut être téléchargée, restaurée, ou restaurée comme nouveau projet.
 
 ## Export
 

@@ -7,6 +7,7 @@ import { Deck } from "../types/deck.type";
 import { exportDB, importInto } from "dexie-export-import";
 import { ReplaySubject, Subject } from "rxjs";
 import { Injectable } from "@angular/core";
+import { cardHistory, describeCard, IDENTIFIER_FIELDS, isInternalField } from "./card-history";
 
 /** User and project a local working copy belongs to */
 export interface ProjectOwner {
@@ -29,6 +30,7 @@ export class AppDB extends Dexie {
     public static readonly DOCUMENTS_TABLE: string = 'documents';
     public static readonly ASSET_FOLDERS_TABLE: string = 'assetFolders';
     public static readonly META_TABLE: string = 'meta';
+    public static readonly CARD_HISTORY_TABLE: string = 'cardHistory';
     private static readonly ALL_TABLES = [
         AppDB.GAMES_TABLE, AppDB.DECKS_TABLE, AppDB.CARDS_TABLE, AppDB.ASSETS_TABLE,
         AppDB.CARD_TEMPLATES_TABLE, AppDB.CARD_ATTRIBUTES_TABLE, AppDB.DOCUMENTS_TABLE, AppDB.ASSET_FOLDERS_TABLE];
@@ -148,6 +150,10 @@ export class AppDB extends Dexie {
             // owner of the local working copy (user and project), never exported
             meta: 'key',
         });
+        this.version(12).stores({
+            // journal of the changes made to cards (see card-history.ts)
+            cardHistory: '++id, cardId, deckId, batch, at',
+        });
 
         // The local database is a working copy of the project opened from the server
         // (see CurrentProjectService): it is filled by loadProject(), never with the sample.
@@ -185,7 +191,8 @@ export class AppDB extends Dexie {
             { name: AppDB.CARD_TEMPLATES_TABLE },
             { name: AppDB.CARD_ATTRIBUTES_TABLE },
             { name: AppDB.DOCUMENTS_TABLE },
-            { name: AppDB.ASSET_FOLDERS_TABLE }
+            { name: AppDB.ASSET_FOLDERS_TABLE },
+            { name: AppDB.CARD_HISTORY_TABLE }
         ];
 
         tablesToWatch.forEach(t => {
@@ -204,6 +211,75 @@ export class AppDB extends Dexie {
             });
         });
 
+        this.setupCardHistory();
+    }
+
+    /**
+     * Journal of card changes: hooks on the cards table record each creation,
+     * field change and deletion (not while a project is loaded). Former values
+     * of identifier fields (CardID...) are kept in the card (__previousIds), so
+     * an import from the data source still recognizes a renumbered card.
+     */
+    private setupCardHistory(): void {
+        // hooks are plain functions (Dexie binds their own "this")
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        const db = this;
+        cardHistory.setWriter(async entries => {
+            const table = db.table(AppDB.CARD_HISTORY_TABLE);
+            await table.bulkAdd(entries);
+            const count = await table.count();
+            if (count > cardHistory.maxEntries * 1.1) {
+                const oldest = await table.orderBy('id').limit(count - cardHistory.maxEntries).primaryKeys();
+                await table.bulkDelete(oldest);
+            }
+        });
+        const cards = this.table(AppDB.CARDS_TABLE);
+        cards.hook('creating', function (primKey, obj) {
+            if (db.isPopulating) {
+                return;
+            }
+            this.onsuccess = (id) => cardHistory.record({
+                op: 'create', cardId: id as number, deckId: obj.deckId, ...describeCard(obj),
+                snapshot: { ...obj, id },
+            });
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        cards.hook('updating', function (modifications: any, primKey: any, value: any) {
+            const mods = modifications as Record<string, unknown>;
+            const obj = value as Record<string, unknown>;
+            if (db.isPopulating) {
+                return undefined;
+            }
+            const fields = Object.keys(mods).filter(field => !isInternalField(field) && !field.includes('.'));
+            const changed = fields.filter(field => JSON.stringify(mods[field] ?? '') !== JSON.stringify(obj[field] ?? ''));
+            this.onsuccess = () => {
+                const after = { ...obj, ...mods };
+                for (const field of changed) {
+                    cardHistory.record({
+                        op: 'update', cardId: primKey as number, deckId: obj['deckId'] as number, ...describeCard(after),
+                        field, before: obj[field], after: mods[field],
+                    });
+                }
+            };
+            const renamed = IDENTIFIER_FIELDS.filter(field => field in mods && obj[field] !== undefined
+                && obj[field] !== null && obj[field] !== '' && obj[field] !== mods[field]);
+            if (renamed.length === 0) {
+                return undefined;
+            }
+            const previous = Array.isArray(obj['__previousIds']) ? obj['__previousIds'] as string[] : [];
+            const added = renamed.map(field => String(obj[field])).filter(value => !previous.includes(value));
+            return added.length ? { __previousIds: [...previous, ...added] } : undefined;
+        });
+        cards.hook('deleting', function (primKey, value) {
+            const obj = value as Record<string, unknown>;
+            if (db.isPopulating || !obj) {
+                return;
+            }
+            this.onsuccess = () => cardHistory.record({
+                op: 'delete', cardId: primKey as number, deckId: obj['deckId'] as number, ...describeCard(obj),
+                snapshot: { ...obj },
+            });
+        });
     }
 
     public onChange() {
@@ -231,6 +307,7 @@ export class AppDB extends Dexie {
             await this.open();
         }
         this.isPopulating = true;
+        cardHistory.discard();
         try {
             await this.transaction('rw', this.tables, async () => {
                 await Promise.all(this.tables.map(table => table.clear()));

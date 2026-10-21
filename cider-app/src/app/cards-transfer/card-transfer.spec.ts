@@ -56,7 +56,7 @@ describe('card transfer', () => {
       cardid: 'LDF001', lore: 'Ta magie !', classe: 'Mage', niveau: 1 }];
     const plan = planImport(file, deckColumns, templates, cards, { keyColumn: 'CardID', lineBreaksAsHtml: false });
 
-    expect(plan.counts).toEqual({ create: 1, update: 1, unchanged: 0, error: 1 });
+    expect(plan.counts).toEqual({ create: 1, update: 1, unchanged: 0, error: 1, conflicts: 0, kept: 0 });
     const update = plan.rows[0];
     expect(update.action).toBe('update');
     expect(update.cardId).toBe(1);
@@ -102,5 +102,65 @@ describe('card transfer', () => {
     expect(json.champs[2]).toEqual({ nom: 'Classe', type: 'dropdown', options: ['Mage', 'Prêtre'] });
     expect(json.cartes[0]).toEqual({ Name: 'Grimoire; "1"', Count: 2, 'Front Template': 'Test',
       'Back Template': 'Modèle Verso', CardID: 'LDF001', Lore: 'a\nb', Classe: 'Mage', Niveau: 3 });
+  });
+
+  describe('synchronization with the source', () => {
+    const file = (rows: Record<string, unknown>[]): CardFile =>
+      ({ format: 'json', columns: ['CardID', 'Name', 'Lore', 'Classe'], definitions: [], rows });
+    const source = (values: Record<string, unknown>) => ({ file: 'a.json', at: '', values });
+    const options = { keyColumn: 'CardID', lineBreaksAsHtml: false };
+
+    it('applies source changes, keeps local edits, reports conflicts', () => {
+      const cards = [{ id: 1, cardid: 'A', name: 'Local name', lore: 'Lore v1', classe: 'Mage',
+        __source: source({ cardid: 'A', name: 'Base name', lore: 'Lore v1', classe: 'Mage' }) }];
+      const plan = planImport(file([{ CardID: 'A', Name: 'Base name', Lore: 'Lore v2', Classe: 'Prêtre' }]),
+        deckColumns, templates, cards, options);
+      const row = plan.rows[0];
+      // name: changed only in the application -> kept; lore and classe: changed only in the source -> applied
+      expect(row.kept).toEqual(['Name']);
+      expect(row.values).toEqual({ lore: 'Lore v2', classe: 'Prêtre' });
+      expect(row.conflicts).toEqual([]);
+
+      const conflicting = planImport(file([{ CardID: 'A', Name: 'Source name', Lore: 'Lore v1', Classe: 'Mage' }]),
+        deckColumns, templates, cards, options);
+      expect(conflicting.counts.conflicts).toBe(1);
+      expect(conflicting.rows[0].conflicts[0]).toEqual(
+        { field: 'name', header: 'Name', base: 'Base name', app: 'Local name', file: 'Source name' });
+      expect(conflicting.rows[0].values['name']).toBeUndefined();
+      const resolved = planImport(file([{ CardID: 'A', Name: 'Source name', Lore: 'Lore v1', Classe: 'Mage' }]),
+        deckColumns, templates, cards, { ...options, resolutions: { '1:name': 'source' } });
+      expect(resolved.rows[0].values['name']).toBe('Source name');
+    });
+
+    it('never overwrites fields managed in the application, but fills them on creation', () => {
+      const cards = [{ id: 1, cardid: 'A', name: 'A', lore: 'Mine' }];
+      const plan = planImport(file([{ CardID: 'A', Name: 'A', Lore: 'Theirs' }, { CardID: 'B', Name: 'B', Lore: 'New' }]),
+        deckColumns, templates, cards, { ...options, appFields: ['lore'] });
+      expect(plan.rows[0].action).toBe('unchanged');
+      expect(plan.rows[1].values['lore']).toBe('New');
+    });
+
+    it('recognizes a card renumbered in the application by its former identifier', () => {
+      const cards = [{ id: 1, cardid: 'LDF030', name: 'X', __previousIds: ['LDF101'] }];
+      const plan = planImport(file([{ CardID: 'LDF101', Name: 'Y' }]), deckColumns, templates, cards, options);
+      expect(plan.rows[0].cardId).toBe(1);
+      expect(plan.rows[0].previousKey).toBe('LDF101');
+      expect(plan.rows[0].values).toEqual({ name: 'Y' });
+    });
+
+    it('lists the cards imported before that the source no longer has', () => {
+      const cards = [{ id: 1, cardid: 'A', name: 'A', __source: source({}) }, { id: 2, cardid: 'B', name: 'B', __source: source({}) },
+        { id: 3, cardid: 'C', name: 'Made here' }];
+      const plan = planImport(file([{ CardID: 'A', Name: 'A' }]), deckColumns, templates, cards, options);
+      expect(plan.missing).toEqual([{ cardId: 2, key: 'B', name: 'B' }]);
+    });
+
+    it('records the first import of existing cards as their reference', () => {
+      const cards = [{ id: 1, cardid: 'A', name: 'A' }];
+      const plan = planImport(file([{ CardID: 'A', Name: 'A' }]), deckColumns, templates, cards, options);
+      expect(plan.rows[0].action).toBe('unchanged');
+      expect(plan.rows[0].baselineChanged).toBeTrue();
+      expect(plan.rows[0].baseline).toEqual({ cardid: 'A', name: 'A' });
+    });
   });
 });

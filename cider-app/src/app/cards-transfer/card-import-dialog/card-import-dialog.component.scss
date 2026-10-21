@@ -109,3 +109,68 @@
 :host ::ng-deep .block {
   margin-bottom: 0.75rem;
 }
+
+.app-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--p-text-muted-color);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+
+  .fill {
+    flex: 1;
+  }
+}
+
+.small {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.conflict {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 8px;
+}
+
+.conflict-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+
+  .choice {
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+    padding: 0.15rem 0.35rem;
+    border-radius: 6px;
+    cursor: pointer;
+
+    &.chosen {
+      background: var(--p-content-hover-background);
+    }
+  }
+}
+
+.row {
+  flex-direction: row;
+  gap: 1.5rem;
+  padding-top: 0;
+}

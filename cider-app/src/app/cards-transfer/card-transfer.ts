@@ -169,6 +169,42 @@ export interface RowPlan {
   values: Record<string, unknown>;
   changes: FieldChange[];
   error?: string;
+  /** field values of the file: the new reference for the next import (__source) */
+  baseline: Record<string, unknown>;
+  /** the reference differs from the stored one: written even if nothing else changes */
+  baselineChanged: boolean;
+  /** fields changed in the application while the file still has the previous value: kept */
+  kept: string[];
+  /** fields changed both in the application and in the file */
+  conflicts: Conflict[];
+  /** the card was recognized by a former identifier (renumbered in the application) */
+  previousKey?: string;
+}
+
+/** A field changed both in the application and in the source since the last import */
+export interface Conflict {
+  field: string;
+  header: string;
+  /** value of the last import */
+  base: unknown;
+  /** value in the application */
+  app: unknown;
+  /** value in the file */
+  file: unknown;
+}
+
+/** Reference values of the last import, stored in the card */
+export interface SourceBaseline {
+  file: string;
+  at: string;
+  values: Record<string, unknown>;
+}
+
+/** A card of the deck imported earlier from a source that no longer has it */
+export interface MissingCard {
+  cardId: number;
+  key: string;
+  name: string;
 }
 
 export interface ImportPlan {
@@ -178,14 +214,20 @@ export interface ImportPlan {
   missingOptions: { header: string; field: string; values: string[] }[];
   /** template names of the file that the deck does not have */
   unknownTemplates: string[];
+  /** cards imported earlier whose identifier is no longer in the file */
+  missing: MissingCard[];
   rows: RowPlan[];
-  counts: { create: number; update: number; unchanged: number; error: number };
+  counts: { create: number; update: number; unchanged: number; error: number; conflicts: number; kept: number };
 }
 
 export interface PlanOptions {
   keyColumn: string;
   /** line breaks of text cells written as <br> (card templates are HTML) */
   lineBreaksAsHtml: boolean;
+  /** fields managed in the application: filled on creation, never overwritten */
+  appFields?: string[];
+  /** choice for each conflict, by "<line>:<field>"; the application value by default */
+  resolutions?: Record<string, 'app' | 'source'>;
 }
 
 interface ExistingCard {
@@ -283,23 +325,31 @@ export function planImport(file: CardFile, deckColumns: DeckColumn[], templates:
   const keyTarget = columns.find(c => c.column === options.keyColumn)?.target;
 
   const existing = new Map<string, ExistingCard>();
+  const previous = new Map<string, ExistingCard>();
   if (keyTarget) {
     for (const card of cards) {
       const key = cellText(card[keyTarget.field]);
       if (key && !existing.has(key)) {
         existing.set(key, card);
       }
+      const former = card['__previousIds'];
+      if (Array.isArray(former)) {
+        former.forEach(id => previous.has(String(id)) || previous.set(String(id), card));
+      }
     }
   }
+  const appFields = new Set(options.appFields ?? []);
 
-  const missing = new Map<string, Set<string>>();
+  const missingOptions = new Map<string, Set<string>>();
   const unknownTemplates = new Set<string>();
   const seenKeys = new Set<string>();
+  const matched = new Set<number>();
   const rows: RowPlan[] = file.rows.map((row, index) => {
     const key = cellText(row[options.keyColumn]);
     const nameColumn = columns.find(c => c.target?.field === 'name')?.column;
     const label = nameColumn ? cellText(row[nameColumn]) : key;
-    const plan: RowPlan = { line: index + 1, key, label: label || key, action: 'create', values: {}, changes: [] };
+    const plan: RowPlan = { line: index + 1, key, label: label || key, action: 'create', values: {}, changes: [],
+      baseline: {}, baselineChanged: true, kept: [], conflicts: [] };
     if (!key) {
       return { ...plan, action: 'error', error: 'missing-key' };
     }
@@ -323,15 +373,22 @@ export function planImport(file: CardFile, deckColumns: DeckColumn[], templates:
       const target = column.target;
       if (target.type === FieldType.dropdown && !target.template && target.options
         && converted.value !== '' && !target.options.includes(String(converted.value))) {
-        const values = missing.get(target.field) ?? new Set<string>();
+        const values = missingOptions.get(target.field) ?? new Set<string>();
         values.add(String(converted.value));
-        missing.set(target.field, values);
+        missingOptions.set(target.field, values);
       }
       plan.values[target.field] = converted.value;
     }
+    plan.baseline = { ...plan.values };
 
-    const card = keyTarget ? existing.get(key) : undefined;
-    if (!card) {
+    let card = keyTarget ? existing.get(key) : undefined;
+    if (!card && keyTarget) {
+      card = previous.get(key);
+      if (card) {
+        plan.previousKey = key;
+      }
+    }
+    if (!card || matched.has(card.id)) {
       if (plan.values['name'] === undefined || plan.values['name'] === '') {
         plan.values['name'] = key;
       }
@@ -340,28 +397,70 @@ export function planImport(file: CardFile, deckColumns: DeckColumn[], templates:
       }
       return plan;
     }
+    matched.add(card.id);
     plan.cardId = card.id;
+    if (plan.previousKey && keyTarget) {
+      // the application renumbered the card: its identifier is the application's
+      delete plan.values[keyTarget.field];
+    }
+    const stored = (card['__source'] as SourceBaseline | undefined)?.values;
+    plan.baselineChanged = !stored || Object.entries(plan.baseline).some(([field, value]) => !sameValue(stored[field], value));
+    const header = (field: string) => deckColumns.find(c => c.field === field)?.header ?? field;
+    const write: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(plan.values)) {
-      if (!sameValue(card[field], value)) {
-        const header = deckColumns.find(c => c.field === field)?.header ?? field;
-        plan.changes.push({ header, before: card[field], after: value });
+      const app = card[field];
+      if (sameValue(app, value)) {
+        continue;
       }
+      if (appFields.has(field)) {
+        continue;
+      }
+      const base = stored && field in stored ? stored[field] : undefined;
+      const hasBase = !!stored && field in stored;
+      if (!hasBase || sameValue(app, base)) {
+        // first import of this field, or changed only in the source
+        write[field] = value;
+      } else if (sameValue(value, base)) {
+        // changed only in the application: kept
+        plan.kept.push(header(field));
+      } else {
+        plan.conflicts.push({ field, header: header(field), base, app, file: value });
+        if (options.resolutions?.[`${plan.line}:${field}`] === 'source') {
+          write[field] = value;
+        }
+      }
+    }
+    plan.values = write;
+    for (const [field, value] of Object.entries(write)) {
+      plan.changes.push({ header: header(field), before: card[field], after: value });
     }
     plan.action = plan.changes.length > 0 ? 'update' : 'unchanged';
     return plan;
   });
 
-  const counts = { create: 0, update: 0, unchanged: 0, error: 0 };
-  rows.forEach(row => counts[row.action]++);
+  // cards imported earlier (they have a reference) that the file no longer lists
+  const missing: MissingCard[] = keyTarget
+    ? cards
+      .filter(card => card['__source'] && !matched.has(card.id) && cellText(card[keyTarget.field]) !== '')
+      .map(card => ({ cardId: card.id, key: cellText(card[keyTarget.field]), name: cellText(card['name']) }))
+    : [];
+
+  const counts = { create: 0, update: 0, unchanged: 0, error: 0, conflicts: 0, kept: 0 };
+  rows.forEach(row => {
+    counts[row.action]++;
+    counts.conflicts += row.conflicts.length;
+    counts.kept += row.kept.length;
+  });
   return {
     columns,
     keyColumn: options.keyColumn,
-    missingOptions: [...missing.entries()].map(([field, values]) => ({
+    missingOptions: [...missingOptions.entries()].map(([field, values]) => ({
       field,
       header: deckColumns.find(c => c.field === field)?.header ?? field,
       values: [...values],
     })),
     unknownTemplates: [...unknownTemplates],
+    missing,
     rows,
     counts,
   };

@@ -18,12 +18,14 @@ import { DeckColumn } from '../cards-transfer/card-transfer';
 import { CardImportDialogComponent } from '../cards-transfer/card-import-dialog/card-import-dialog.component';
 import { CardTransferService } from '../cards-transfer/card-transfer.service';
 import { RenumberDialogComponent } from '../cards-transfer/selection-dialogs/renumber-dialog.component';
+import { CardHistoryDialogComponent } from '../cards-transfer/history-dialog/card-history-dialog.component';
 import { ReplaceDialogComponent } from '../cards-transfer/selection-dialogs/replace-dialog.component';
 import { TransferDialogComponent } from '../cards-transfer/selection-dialogs/transfer-dialog.component';
 import { DecksService } from '../data-services/services/decks.service';
 import { EntitySpreadsheetComponent } from '../entity-spreadsheet/entity-spreadsheet.component';
 import { copyText } from '../shared/utils/clipboard';
 import FileUtils from '../shared/utils/file-utils';
+import { TrackedChangeService } from '../server/tracked-change.service';
 
 /**
  * Card list of a deck: the spreadsheet, plus import/export of card rows and
@@ -37,7 +39,7 @@ import FileUtils from '../shared/utils/file-utils';
     providers: [ConfirmationService],
     imports: [Card_1, Button, Menu, Message, Dialog, Select, Checkbox, InputNumber, Textarea, ConfirmDialog, FormsModule,
         TranslatePipe, EntitySpreadsheetComponent, CardImportDialogComponent, RenumberDialogComponent,
-        TransferDialogComponent, ReplaceDialogComponent]
+        TransferDialogComponent, ReplaceDialogComponent, CardHistoryDialogComponent]
 })
 export class CardsComponent {
   private readonly route = inject(ActivatedRoute);
@@ -46,6 +48,7 @@ export class CardsComponent {
   private readonly decks = inject(DecksService);
   private readonly translate = inject(TranslateService);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly tracked = inject(TrackedChangeService);
 
   private readonly sheet = viewChild(EntitySpreadsheetComponent);
 
@@ -115,6 +118,12 @@ export class CardsComponent {
   protected renumberVisible = false;
   protected transferVisible = false;
   protected replaceVisible = false;
+  protected historyVisible = false;
+
+  /** Journal of the deck, or of the selected cards */
+  protected openHistory(): Promise<void> {
+    return this.openDialog(() => this.historyVisible = true);
+  }
   protected moreItems: MenuItem[] = [];
 
   // bulk edit
@@ -174,8 +183,9 @@ export class CardsComponent {
       rejectLabel: this.translate.instant('controls.cancel'),
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => void this.run(async () => {
-        await this.transfer.deleteCards(ids);
-        return this.translate.instant('cards-selection.deleted', { n: ids.length });
+        const label = this.translate.instant('cards-selection.deleted', { n: ids.length });
+        await this.tracked.run('delete', label, () => this.transfer.deleteCards(ids));
+        return label;
       }),
     });
   }
@@ -183,8 +193,9 @@ export class CardsComponent {
   protected duplicate(): Promise<void> {
     const ids = [...this.selection()];
     return this.run(async () => {
-      const created = await this.transfer.duplicateCards(this.deckId, ids,
-        this.translate.instant('cards-selection.copy-suffix'));
+      const created = await this.tracked.run('duplicate',
+        this.translate.instant('cards-selection.duplicate-label', { n: ids.length }),
+        () => this.transfer.duplicateCards(this.deckId, ids, this.translate.instant('cards-selection.copy-suffix')));
       return this.translate.instant('cards-selection.duplicated', { n: created });
     });
   }
@@ -212,9 +223,10 @@ export class CardsComponent {
       value = column.type === 'numeric' || column.template ? null : '';
     }
     return this.run(async () => {
-      await this.transfer.setField(ids, column.field, value);
+      const label = this.translate.instant('cards-selection.edited', { n: ids.length, field: column.header });
+      await this.tracked.run('bulk', label, () => this.transfer.setField(ids, column.field, value));
       this.bulkVisible = false;
-      return this.translate.instant('cards-selection.edited', { n: ids.length, field: column.header });
+      return label;
     });
   }
 

@@ -1,0 +1,57 @@
+<p-dialog [header]="'card-history.title' | translate" [visible]="visible()" (visibleChange)="visible.set($event)"
+  (onShow)="onShow()" [modal]="true" [style]="{ width: '960px', maxWidth: '96vw' }" [maximizable]="true">
+  <div class="toolbar">
+    <p class="muted intro">{{ 'card-history.intro' | translate }}</p>
+    @if (cardIds().length) {
+      <div class="check">
+        <p-checkbox inputId="history-selection" [(ngModel)]="onlySelection" [binary]="true" (ngModelChange)="load()" />
+        <label for="history-selection">{{ 'card-history.only-selection' | translate: { n: cardIds().length } }}</label>
+      </div>
+    }
+  </div>
+  @if (info()) {
+    <p-message severity="success" [text]="info()!" styleClass="block" />
+  }
+  @if (groups().length === 0) {
+    <p class="muted">{{ 'card-history.empty' | translate }}</p>
+  }
+  <div class="groups">
+    @for (group of groups(); track group.key) {
+      <div class="group">
+        <div class="group-header">
+          <button type="button" class="expand" (click)="toggle(group)" [attr.aria-expanded]="expanded().has(group.key)">
+            <i class="pi" [class.pi-chevron-down]="expanded().has(group.key)" [class.pi-chevron-right]="!expanded().has(group.key)"></i>
+            <span class="date">{{ group.at | date: 'short' }}</span>
+            <span class="user muted">{{ group.user }}</span>
+            <strong class="label">{{ title(group) }}</strong>
+            <p-tag severity="secondary" [value]="'card-history.changes' | translate: { n: group.entries.length }" />
+          </button>
+          @if (group.batch && group.origin !== 'undo') {
+            <p-button [label]="'card-history.undo' | translate" icon="pi pi-undo" size="small" [text]="true"
+              [disabled]="busy()" (onClick)="confirmUndo(group)" />
+          }
+        </div>
+        @if (expanded().has(group.key)) {
+          <table class="entries">
+            @for (entry of group.entries; track entry.id) {
+              <tr>
+                <td class="key">{{ entry.cardKey }}</td>
+                <td class="name">{{ entry.cardName }}</td>
+                <td class="op"><span [class]="'op-' + entry.op">{{ opLabel(entry) }}</span></td>
+                <td class="field">{{ entry.field ?? '' }}</td>
+                <td class="change">
+                  @if (entry.op === 'update') {
+                    <span class="before">{{ display(entry.before) }}</span>
+                    <i class="pi pi-arrow-right muted"></i>
+                    <span class="after">{{ display(entry.after) }}</span>
+                  }
+                </td>
+              </tr>
+            }
+          </table>
+        }
+      </div>
+    }
+  </div>
+</p-dialog>
+<p-confirmDialog [style]="{ width: '450px' }" />

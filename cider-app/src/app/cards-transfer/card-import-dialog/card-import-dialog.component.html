@@ -29,6 +29,9 @@
             @if (p.counts.error) {
               <p-tag severity="danger" [value]="('cards-transfer.count-error' | translate: { n: p.counts.error })" />
             }
+            @if (p.counts.conflicts) {
+              <p-tag severity="warn" [value]="('cards-transfer.count-conflicts' | translate: { n: p.counts.conflicts })" />
+            }
           </div>
 
           <div class="settings">
@@ -88,10 +91,67 @@
                   </span>
                 } @else if (targetOf(column.column); as target) {
                   <span>{{ target }}</span>
+                  @if (fieldOf(column.column) !== 'name' && column.column !== keyColumn) {
+                    <span class="app-field">
+                      <p-checkbox [inputId]="'app-' + column.column" [binary]="true" [ngModel]="isAppField(column.column)"
+                        (ngModelChange)="toggleAppField(column.column, $event)" />
+                      <label [for]="'app-' + column.column">{{ 'cards-transfer.app-field' | translate }}</label>
+                    </span>
+                  }
                 }
               </div>
             }
           </div>
+
+          @if (p.counts.kept) {
+            <p-message severity="info" [text]="'cards-transfer.kept' | translate: { n: p.counts.kept }" />
+          }
+
+          @if (conflicts().length) {
+            <div class="section-title">
+              <h4>{{ 'cards-transfer.conflicts' | translate }}</h4>
+              <span class="fill"></span>
+              <p-button [label]="'cards-transfer.keep-all-app' | translate" size="small" [text]="true" (onClick)="resolveAll('app')" />
+              <p-button [label]="'cards-transfer.take-all-source' | translate" size="small" [text]="true" (onClick)="resolveAll('source')" />
+            </div>
+            <p class="muted small">{{ 'cards-transfer.conflicts-help' | translate }}</p>
+            <div class="conflicts">
+              @for (c of conflicts(); track c.line + ':' + c.conflict.field) {
+                <div class="conflict">
+                  <div class="conflict-title"><strong>{{ c.key }}</strong> {{ c.label }} — {{ c.conflict.header }}</div>
+                  <div class="conflict-choice">
+                    <span class="muted base">{{ 'cards-transfer.base' | translate }} : {{ display(c.conflict.base) }}</span>
+                    <label class="choice" [class.chosen]="resolution(c.line, c.conflict.field) === 'app'">
+                      <input type="radio" [name]="'conflict-' + c.line + '-' + c.conflict.field"
+                        [checked]="resolution(c.line, c.conflict.field) === 'app'" (change)="resolve(c.line, c.conflict.field, 'app')" />
+                      {{ 'cards-transfer.app-value' | translate }} : {{ display(c.conflict.app) }}
+                    </label>
+                    <label class="choice" [class.chosen]="resolution(c.line, c.conflict.field) === 'source'">
+                      <input type="radio" [name]="'conflict-' + c.line + '-' + c.conflict.field"
+                        [checked]="resolution(c.line, c.conflict.field) === 'source'" (change)="resolve(c.line, c.conflict.field, 'source')" />
+                      {{ 'cards-transfer.source-value' | translate }} : {{ display(c.conflict.file) }}
+                    </label>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          @if (p.missing.length) {
+            <h4>{{ 'cards-transfer.missing-title' | translate: { n: p.missing.length } }}</h4>
+            <p class="muted small">{{ 'cards-transfer.missing-help' | translate }}
+              {{ missingText() }}</p>
+            <div class="checks row">
+              <div class="check">
+                <input type="radio" id="missing-ignore" name="missing" [checked]="missingAction === 'ignore'" (change)="missingAction = 'ignore'" />
+                <label for="missing-ignore">{{ 'cards-transfer.missing-ignore' | translate }}</label>
+              </div>
+              <div class="check">
+                <input type="radio" id="missing-delete" name="missing" [checked]="missingAction === 'delete'" (change)="missingAction = 'delete'" />
+                <label for="missing-delete">{{ 'cards-transfer.missing-delete' | translate: { n: p.missing.length } }}</label>
+              </div>
+            </div>
+          }
 
           <h4>{{ 'cards-transfer.cards' | translate }}</h4>
           <p-table [value]="reviewRows()" [scrollable]="true" scrollHeight="320px" size="small" [rowTrackBy]="trackRow">
@@ -131,7 +191,8 @@
     @case ('done') {
       @if (result(); as r) {
         <p-message severity="success"
-          [text]="'cards-transfer.done' | translate: { created: r.created, updated: r.updated, attributes: r.attributesCreated, options: r.optionsAdded }" />
+          [text]="'cards-transfer.done' | translate: { created: r.created, updated: r.updated, deleted: r.deleted, attributes: r.attributesCreated, options: r.optionsAdded }" />
+        <p class="muted small">{{ 'cards-transfer.done-history' | translate }}</p>
       }
     }
   }

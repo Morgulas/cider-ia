@@ -47,6 +47,17 @@ export interface AiSettingsResponse {
   placeholders: string[];
 }
 
+/** A kept version of a project */
+export interface ProjectVersion {
+  revision: number;
+  savedAt: string;
+  by: string;
+  label: string;
+  size: number;
+  keep?: boolean;
+  current: boolean;
+}
+
 /** A project saved on the server */
 export interface ProjectMeta {
   id: string;

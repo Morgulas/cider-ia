@@ -6,8 +6,10 @@ import { CardAttribute } from '../data-services/types/card-attribute.type';
 import { Card } from '../data-services/types/card.type';
 import { DropdownOption } from '../data-services/types/dropdown-option.type';
 import { FieldType } from '../data-services/types/field-type.type';
+import { DecksService } from '../data-services/services/decks.service';
+import { DeckImportSettings } from '../data-services/types/deck.type';
 import {
-  CardFile, DeckColumn, DefinitionType, exportCsv, exportJson, FieldDefinition, ImportPlan, planImport, PlanOptions
+  CardFile, DeckColumn, DefinitionType, SourceBaseline, exportCsv, exportJson, FieldDefinition, ImportPlan, planImport, PlanOptions
 } from './card-transfer';
 import { replaceInText, ReplaceOptions } from './selection-tools';
 
@@ -21,6 +23,7 @@ export interface DeckData {
 export interface ImportResult {
   created: number;
   updated: number;
+  deleted: number;
   attributesCreated: number;
   optionsAdded: number;
 }
@@ -31,6 +34,7 @@ export class CardTransferService {
   private readonly cards = inject(CardsService);
   private readonly attributes = inject(CardAttributesService);
   private readonly templates = inject(CardTemplatesService);
+  private readonly decks = inject(DecksService);
 
   /** Columns of the deck in the order of its attributes, its templates and its cards */
   async load(deckId: number): Promise<DeckData> {
@@ -104,24 +108,53 @@ export class CardTransferService {
     return added;
   }
 
-  /** Creates and updates the cards; only the fields of the file are written */
-  async applyRows(deckId: number, plan: ImportPlan): Promise<{ created: number; updated: number }> {
+  /**
+   * Creates and updates the cards; only the fields of the file are written
+   * (minus kept local edits, application-managed fields and conflicts resolved
+   * for the application). The file values become each card's reference for
+   * the next import (__source). Cards no longer in the source can be deleted.
+   */
+  async applyRows(deckId: number, plan: ImportPlan, fileName: string, deleteMissing = false)
+    : Promise<{ created: number; updated: number; deleted: number }> {
     let created = 0;
     let updated = 0;
+    let deleted = 0;
+    const at = new Date().toISOString();
     for (const row of plan.rows) {
+      const source: SourceBaseline = { file: fileName, at, values: row.baseline };
       if (row.action === 'create') {
-        await this.cards.create({ ...row.values, deckId } as unknown as Card, true);
+        await this.cards.create({ ...row.values, deckId, __source: source } as unknown as Card, true);
         created++;
-      } else if (row.action === 'update' && row.cardId !== undefined) {
-        const current = await this.cards.getAllUnfiltered({ id: row.cardId });
-        const card = current[0];
+      } else if ((row.action === 'update' || row.action === 'unchanged' && row.baselineChanged)
+        && row.cardId !== undefined) {
+        const card = (await this.cards.getAllUnfiltered({ id: row.cardId }))[0];
         if (card) {
-          await this.cards.update(card.id, { ...card, ...row.values } as Card, true);
-          updated++;
+          await this.cards.update(card.id, { ...card, ...row.values, __source: source } as unknown as Card, true);
+          if (row.action === 'update') {
+            updated++;
+          }
         }
       }
     }
-    return { created, updated };
+    if (deleteMissing) {
+      for (const card of plan.missing) {
+        await this.cards.delete(card.cardId);
+        deleted++;
+      }
+    }
+    return { created, updated, deleted };
+  }
+
+  /** Import settings remembered per deck (identifier column, application-managed fields) */
+  async saveImportSettings(deckId: number, settings: DeckImportSettings): Promise<void> {
+    const deck = await this.decks.get(deckId);
+    if (deck) {
+      await this.decks.update(deckId, { ...deck, importSettings: settings });
+    }
+  }
+
+  async importSettings(deckId: number): Promise<DeckImportSettings> {
+    return (await this.decks.get(deckId))?.importSettings ?? {};
   }
 
   /** The cards of the deck, or only those whose id is given, in the order of the ids */
@@ -162,6 +195,8 @@ export class CardTransferService {
       }
       const copy = { ...card } as unknown as Record<string, unknown>;
       delete copy['id'];
+      delete copy['__source'];
+      delete copy['__previousIds'];
       copy['name'] = `${card.name ?? ''} ${suffix}`.trim();
       identifiers.forEach(column => copy[column.field] = '');
       await this.cards.create(copy as unknown as Card, true);
