@@ -18,7 +18,18 @@ Concevez de belles cartes de jeu avec la puissance et la simplicité de `HTML`, 
 
 </div>
 
-> **Fork `cider-ia`** — fork de [Oatear Cider](https://github.com/oatear/cider) en version web uniquement (la version desktop/Electron a été retirée), auquel on ajoute des fonctionnalités d'IA. Première fonctionnalité : **génération d'illustrations de cartes** (OpenAI, Gemini ou ComfyUI local), activée par compte avec quota mensuel — voir [docker/README.md](docker/README.md#ia--illustrations-de-cartes). Les cartes d'un deck s'importent et s'exportent en CSV ou en JSON : voir [docs/format-cartes-fangh.md](docs/format-cartes-fangh.md).
+> **Fork `cider-ia`** — fork de [Oatear Cider](https://github.com/oatear/cider) en version web uniquement (la version desktop/Electron a été retirée), en français et en anglais, auquel on ajoute des fonctionnalités d'IA.
+
+### Ce que le fork ajoute
+
+| Ajout | Résumé | Documentation |
+| :--- | :--- | :--- |
+| **Serveur et comptes** | Comptes créés par un administrateur, projets enregistrés sur le serveur avec enregistrement automatique, versions conservées, détection des modifications depuis deux appareils. | [docker/README.md](docker/README.md) |
+| **Illustrations de cartes** | Prompt d'illustration par deck à copier dans un chatbot (sans clé d'API), ou génération directe avec OpenAI, Gemini ou ComfyUI local, activée par compte avec quota mensuel. | [docker/README.md](docker/README.md#ia--illustrations-de-cartes) |
+| **Éditeur de modèles** | HTML/CSS en onglets, panneau Insérer, erreurs Handlebars signalées à la ligne, vues recto/verso et débordements, inspecteur HTML et CSS, réglages des variables CSS, aperçu dans une fenêtre séparée, modification avec un chatbot. | [docs/editeur-de-modeles.md](docs/editeur-de-modeles.md) |
+| **Projets légers** | Les images sont stockées une seule fois à part du projet : ouverture et enregistrement ne transfèrent que ce qui a changé. Le détail du dernier enregistrement s'affiche au survol de l'état, en bas de l'écran. | [docker/README.md](docker/README.md#dossier-de-données) |
+| **Import / export CSV et JSON** | Les cartes d'un deck s'importent et s'exportent en CSV ou en JSON. | [docs/format-cartes-fangh.md](docs/format-cartes-fangh.md) |
+| **Sauvegarde** | Procédure, script `backup.sh` et restauration du dossier de données ; outil `check-data` pour vérifier les données avant une mise à jour ou après une restauration. | [docs/sauvegarde.md](docs/sauvegarde.md) |
 
 ---
 
