@@ -1,10 +1,10 @@
-import { Component, HostListener, ElementRef, NgZone, ViewChild, OnDestroy, OnInit, AfterViewInit } from '@angular/core';
+import { Component, HostListener, ElementRef, NgZone, ViewChild, OnDestroy, OnInit, AfterViewInit, inject } from '@angular/core';
 import { DecksService } from '../data-services/services/decks.service';
 import { CardsService } from '../data-services/services/cards.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { Card } from '../data-services/types/card.type';
 import { FieldType } from '../data-services/types/field-type.type';
-import { MenuItem } from 'primeng/api';
+import { ConfirmationService, MenuItem, MessageService } from 'primeng/api';
 import { ContextMenu } from 'primeng/contextmenu';
 import { CdkDragEnd, CdkDragStart, DragRef, Point, CdkDropListGroup, CdkDrag } from '@angular/cdk/drag-drop';
 import MathUtils from '../shared/utils/math-utils';
@@ -13,7 +13,20 @@ import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import { GameSimulatorStateService } from './game-simulator-state.service';
 import { GameSimulatorMenus } from './game-simulator-menus';
 import GameSimulatorActions from './game-simulator-actions';
-import { CardStack, GameCard, GameComponent, Position, Positionable } from './game-simulator.types';
+import { CardStack, GameCard, GameComponent, Player, PlayerCounter, Position, Positionable, SimulatorSave, TableZone } from './game-simulator.types';
+import { BoostersService } from '../data-services/services/boosters.service';
+import { SimulatorSavesService } from '../data-services/services/simulator-saves.service';
+import { Booster } from '../data-services/types/booster.type';
+import { openBooster, poolOf } from '../boosters/booster-logic';
+import { findFoilField } from '../card-binder/foil';
+import StringUtils from '../shared/utils/string-utils';
+import { CardFitComponent } from '../card-binder/card-fit.component';
+import { TieredMenu } from 'primeng/tieredmenu';
+import { Tooltip } from 'primeng/tooltip';
+import { Checkbox } from 'primeng/checkbox';
+import { ConfirmDialog } from 'primeng/confirmdialog';
+import { Toast } from 'primeng/toast';
+import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { NgStyle, AsyncPipe } from '@angular/common';
 import { CardPreviewComponent } from '../card-preview/card-preview.component';
 import { Bind } from 'primeng/bind';
@@ -34,8 +47,9 @@ interface ScaledPos extends Point {
 @Component({
     selector: 'app-game-simulator',
     templateUrl: './game-simulator.component.html',
-    styleUrl: './game-simulator.component.scss',
-    imports: [CdkDropListGroup, NgStyle, CdkDrag, CardPreviewComponent, Bind, Dialog, FormsModule, InputText, Button, ContextMenu, AsyncPipe, EntityPipe, TranslatePipe]
+    styleUrls: ['./game-simulator.component.scss', './game-simulator-table.component.scss'],
+    imports: [CdkDropListGroup, NgStyle, CdkDrag, CdkDragHandle, CardPreviewComponent, CardFitComponent, Bind, Dialog, FormsModule, InputText, Button, ContextMenu, TieredMenu, Tooltip, Checkbox, ConfirmDialog, Toast, AsyncPipe, EntityPipe, TranslatePipe],
+    providers: [ConfirmationService, MessageService]
 })
 export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit {
   public static readonly BASE_CARD_WIDTH = 825; // Approximated from visual reference or default - Fallback only
@@ -108,7 +122,8 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
   renameDialogVisible = false;
   renameStackName = '';
   shortcutsVisible = false;
-  stackToRename: CardStack | undefined;
+  stackToRename: { name: string } | undefined;
+  renameTitleKey = 'simulator.rename-stack';
   isZooming = false;
   private zoomTimeout?: ReturnType<typeof setTimeout>;
 
@@ -116,6 +131,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     if (this.stackToRename && this.renameStackName.trim().length > 0) {
       this.stackToRename.name = this.renameStackName;
       this.renameDialogVisible = false;
+      this.renameTitleKey = 'simulator.rename-stack';
     }
   }
 
@@ -172,6 +188,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     public gameStateService: GameSimulatorStateService,
     private ngZone: NgZone
   ) {
+    void this.loadBoosters();
     this.menus = new GameSimulatorMenus(this, translate);
     if (!this.gameStateService.initialized) {
       this.gameStateService.resetGame();
@@ -344,6 +361,8 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
 
         this.gameStateService.bringToFront(drawnCard);
         this.field.cards.push(drawnCard);
+        this.say(faceUp ? 'simulator.log.draw' : 'simulator.log.draw-hidden',
+          { player: this.gameStateService.activePlayer?.name ?? '', stack: stack.name, card: drawnCard.card.name });
 
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -474,6 +493,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
           cards.splice(idx, 1);
           card.discarding = false; // Reset state so it's interactable if drawn again
           this.discard.cards.push(card);
+          this.say('simulator.log.discard', { player: this.gameStateService.activePlayer?.name ?? '', card: card.card.name });
         }
       }, 500);
     }
@@ -526,7 +546,641 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     this.contextMenuItems = this.menus.stack(stack, optionAttributes);
     const x = event.pageX;
     const y = event.pageY;
-    setTimeout(() => cm.show({ pageX: x, pageY: y } as MouseEvent));
+    setTimeout(() => cm.show(menuEvent(x, y)));
+  }
+
+  /*********************************************************************
+   * Joueurs, mains, zones, boosters, journal et parties enregistrées
+   *********************************************************************/
+
+  private readonly boostersService = inject(BoostersService);
+  private readonly savesService = inject(SimulatorSavesService);
+  private readonly confirmation = inject(ConfirmationService);
+  private readonly messages = inject(MessageService);
+
+  get players() { return this.gameStateService.players; }
+  get zones() { return this.gameStateService.zones; }
+  get log() { return this.gameStateService.log; }
+
+  boosters: Booster[] = [];
+  private foilField: string | undefined;
+  playersPanelOpen = true;
+  logPanelOpen = false;
+  savesDialogVisible = false;
+  saves: SimulatorSave[] = [];
+  saveName = '';
+  shuffleOnLoad = true;
+  /** Joueur dont la main est affichée en bas (par défaut : le joueur actif). */
+  handPlayerId: string | undefined;
+  handHidden = false;
+  /** Carte de la main en cours de glissé vers la table. */
+  handDrag: { player: Player; card: GameCard; startX: number; startY: number; x: number; y: number; moved: boolean } | null = null;
+  handMenuItems: MenuItem[] = [];
+  /** Zone déplacée : position de départ et cartes qui la suivent. */
+  private zoneDrag: { zone: TableZone; start: Position; cards: GameCard[] } | null = null;
+  private zoneResize: { zone: TableZone; startX: number; startY: number; width: number; height: number } | null = null;
+
+  static readonly ZONE_HEADER = 120;
+  readonly zoneHeader = GameSimulatorComponent.ZONE_HEADER;
+  static readonly ZONE_PAD = 50;
+
+  private async loadBoosters() {
+    const [boosters, fields] = await Promise.all([this.boostersService.getAll(), this.cardsService.getFieldsUnfiltered()]);
+    this.boosters = boosters;
+    this.foilField = findFoilField(fields);
+  }
+
+  private say(key: string, params: Record<string, unknown> = {}, player = this.gameStateService.activePlayer, logKey?: string) {
+    this.gameStateService.addLog(this.translate.instant(key, params), player, logKey);
+  }
+
+  get handPlayer(): Player | undefined {
+    return this.gameStateService.playerById(this.handPlayerId) ?? this.gameStateService.activePlayer;
+  }
+
+  /** Point de la table (coordonnées logiques) sous un point de l'écran. */
+  public screenToLogical(clientX: number, clientY: number): Position {
+    const rect = this.gameBoundary?.nativeElement.getBoundingClientRect() ?? { left: 0, top: 0 };
+    return {
+      x: (clientX - rect.left - this.simulatorPan.x) / this.simulatorZoom,
+      y: (clientY - rect.top - this.simulatorPan.y) / this.simulatorZoom,
+    };
+  }
+
+  /** Centre de la vue, en coordonnées de la table. */
+  private viewCenter(): Position {
+    const rect = this.gameBoundary?.nativeElement.getBoundingClientRect();
+    return rect ? this.screenToLogical(rect.left + rect.width / 2, rect.top + rect.height / 2) : { x: 0, y: 0 };
+  }
+
+  /** Taille d'une carte sur la table (mesurée sur une carte posée, sinon taille par défaut). */
+  public cardSize(): { w: number; h: number } {
+    // mesure coûteuse (mise en page) : gardée deux secondes
+    const now = Date.now();
+    if (this.cardSizeCache && now - this.cardSizeCache.at < 2000) {
+      return this.cardSizeCache.size;
+    }
+    const size = this.measureCardSize();
+    this.cardSizeCache = { at: now, size };
+    return size;
+  }
+
+  private cardSizeCache: { at: number; size: { w: number; h: number } } | null = null;
+
+  private measureCardSize(): { w: number; h: number } {
+    // une carte posée, sinon le dessus d'une pile
+    const el = document.querySelector<HTMLElement>('.simulator-content .field-card')
+      ?? document.querySelector<HTMLElement>('.simulator-content .card-stack');
+    if (el && this.simulatorZoom) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        return { w: rect.width / this.simulatorZoom, h: rect.height / this.simulatorZoom };
+      }
+    }
+    return { w: GameSimulatorComponent.BASE_CARD_WIDTH, h: GameSimulatorComponent.BASE_CARD_HEIGHT };
+  }
+
+  // ----- Journal et dés -----
+
+  public rollDie(component: GameComponent) {
+    component.rolling = true;
+    setTimeout(() => {
+      component.face = MathUtils.randomInt(1, 6);
+      component.rolling = false;
+      this.say('simulator.log.die', { value: component.face });
+    }, 600);
+  }
+
+  public tossCoin(component: GameComponent) {
+    component.rolling = true;
+    setTimeout(() => {
+      component.faceUp = Math.random() < 0.5;
+      component.rolling = false;
+      this.say(component.faceUp ? 'simulator.log.coin-heads' : 'simulator.log.coin-tails');
+    }, 600);
+  }
+
+  public clearLog() {
+    this.gameStateService.log = [];
+  }
+
+  public logTime(at: number): string {
+    return new Date(at).toLocaleTimeString(this.translate.currentLang || 'fr', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  // ----- Joueurs et compteurs -----
+
+  public addPlayer() {
+    const player = GameSimulatorStateService.newPlayer(this.players.length + 1);
+    // mêmes compteurs que le premier joueur
+    if (this.players[0]) {
+      player.counters = this.players[0].counters.map(counter => ({
+        id: StringUtils.generateRandomString(), name: counter.name, value: counter.start, start: counter.start,
+      }));
+    }
+    this.players.push(player);
+  }
+
+  public removePlayer(player: Player) {
+    const index = this.players.indexOf(player);
+    if (index < 0) {
+      return;
+    }
+    // ses cartes en main retournent sur la table, près du centre de la vue
+    player.hand.slice().forEach(card => this.playFromHand(player, card));
+    this.players.splice(index, 1);
+    if (this.gameStateService.currentPlayer >= this.players.length) {
+      this.gameStateService.currentPlayer = 0;
+    }
+    this.zones.filter(zone => zone.ownerId === player.id).forEach(zone => zone.ownerId = undefined);
+  }
+
+  public setActivePlayer(index: number) {
+    this.gameStateService.currentPlayer = index;
+    this.handPlayerId = undefined;
+  }
+
+  public changeCounter(player: Player, counter: PlayerCounter, delta: number) {
+    const before = counter.value;
+    counter.value += delta;
+    this.say('simulator.log.counter', { player: player.name, counter: counter.name, value: counter.value, before: this.counterStart(player, counter, before) },
+      player, `counter-${counter.id}`);
+  }
+
+  /** Valeur avant la série de clics en cours (la ligne du journal est mise à jour, pas répétée). */
+  private counterStarts = new Map<string, { value: number; at: number }>();
+  private counterStart(player: Player, counter: PlayerCounter, before: number): number {
+    const known = this.counterStarts.get(counter.id);
+    const now = Date.now();
+    if (!known || now - known.at > 4000) {
+      this.counterStarts.set(counter.id, { value: before, at: now });
+      return before;
+    }
+    known.at = now;
+    return known.value;
+  }
+
+  public addCounter(player: Player) {
+    player.counters.push({ id: StringUtils.generateRandomString(), name: this.translate.instant('simulator.players.counter'), value: 0, start: 0 });
+  }
+
+  public removeCounter(player: Player, counter: PlayerCounter) {
+    player.counters = player.counters.filter(c => c !== counter);
+  }
+
+  public endTurn() {
+    this.gameStateService.endTurn();
+    this.handPlayerId = undefined;
+  }
+
+  // ----- Main des joueurs -----
+
+  private removeFromField(card: GameCard) {
+    const index = this.field.cards.indexOf(card);
+    if (index > -1) {
+      this.field.cards.splice(index, 1);
+    }
+  }
+
+  public takeToHand(card: GameCard, player = this.gameStateService.activePlayer) {
+    if (!player) {
+      return;
+    }
+    const zone = this.zoneAt(card);
+    this.removeFromField(card);
+    card.faceUp = true;
+    card.rotation = 0;
+    player.hand.push(card);
+    this.handPlayerId = player.id;
+    this.say('simulator.log.take', { player: player.name, card: card.card.name }, player);
+    if (zone) {
+      this.arrangeZone(zone);
+    }
+  }
+
+  public drawToHand(stack: CardStack, count: number, player = this.gameStateService.activePlayer) {
+    if (!player) {
+      return;
+    }
+    let drawn = 0;
+    for (let i = 0; i < count && stack.cards.length; i++) {
+      const card = stack.cards.pop()!;
+      card.faceUp = true;
+      card.rotation = 0;
+      player.hand.push(card);
+      drawn++;
+    }
+    if (drawn) {
+      this.handPlayerId = player.id;
+      this.say('simulator.log.draw-hand', { player: player.name, n: drawn, stack: stack.name }, player);
+    }
+  }
+
+  public deal(stack: CardStack, count: number) {
+    for (let round = 0; round < count; round++) {
+      for (const player of this.players) {
+        const card = stack.cards.pop();
+        if (!card) {
+          break;
+        }
+        card.faceUp = true;
+        card.rotation = 0;
+        player.hand.push(card);
+      }
+    }
+    this.say('simulator.log.deal', { n: count, stack: stack.name, players: this.players.length }, undefined);
+  }
+
+  /** Pose une carte de la main sur la table : au point donné, sinon au centre de la vue. */
+  public playFromHand(player: Player, card: GameCard, at?: Position, faceUp = true) {
+    const index = player.hand.indexOf(card);
+    if (index < 0) {
+      return;
+    }
+    player.hand.splice(index, 1);
+    const size = this.cardSize();
+    const target = at ?? this.viewCenter();
+    card.faceUp = faceUp;
+    card.pos = this.clampPosition({ x: target.x - size.w / 2, y: target.y - size.h / 2 }, size.w, size.h);
+    this.gameStateService.bringToFront(card);
+    this.field.cards.push(card);
+    this.say(faceUp ? 'simulator.log.play' : 'simulator.log.play-hidden', { player: player.name, card: card.card.name }, player);
+    const zone = this.zoneAt(card);
+    if (zone) {
+      setTimeout(() => this.arrangeZone(zone));
+    }
+  }
+
+  public discardFromHand(player: Player, card: GameCard) {
+    const index = player.hand.indexOf(card);
+    if (index < 0) {
+      return;
+    }
+    player.hand.splice(index, 1);
+    card.faceUp = true;
+    this.discard.cards.push(card);
+    this.say('simulator.log.discard-hand', { player: player.name, card: card.card.name }, player);
+  }
+
+  public handCardMenu(event: MouseEvent, menu: { toggle: (e: Event) => void }, player: Player, card: GameCard) {
+    this.handMenuItems = [
+      { label: this.translate.instant('simulator.hand.play'), icon: 'pi pi-arrow-up', command: () => this.playFromHand(player, card) },
+      { label: this.translate.instant('simulator.hand.play-hidden'), icon: 'pi pi-eye-slash', command: () => this.playFromHand(player, card, undefined, false) },
+      { label: this.translate.instant('simulator.discard-card'), icon: 'pi pi-trash', command: () => this.discardFromHand(player, card) },
+      {
+        label: this.translate.instant('simulator.hand.give'), icon: 'pi pi-send',
+        disabled: this.players.length < 2,
+        items: this.players.filter(p => p !== player).map(other => ({
+          label: other.name,
+          command: () => {
+            player.hand.splice(player.hand.indexOf(card), 1);
+            other.hand.push(card);
+            this.say('simulator.log.give', { player: player.name, other: other.name }, player);
+          }
+        }))
+      },
+    ];
+    menu.toggle(event);
+  }
+
+  /** Glisser une carte de la main vers la table (pointeur : souris ou doigt). */
+  public onHandPointerDown(event: PointerEvent, player: Player, card: GameCard) {
+    if (event.button !== 0) {
+      return;
+    }
+    // pas de sélection de texte pendant le glissé
+    event.preventDefault();
+    this.handDrag = { player, card, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, moved: false };
+    const move = (e: PointerEvent) => {
+      if (!this.handDrag) {
+        return;
+      }
+      this.handDrag.x = e.clientX;
+      this.handDrag.y = e.clientY;
+      if (Math.hypot(e.clientX - this.handDrag.startX, e.clientY - this.handDrag.startY) > 8) {
+        this.handDrag.moved = true;
+      }
+    };
+    const up = (e: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      const drag = this.handDrag;
+      this.handDrag = null;
+      if (!drag?.moved) {
+        return;
+      }
+      this.suppressHandClick = true;
+      setTimeout(() => this.suppressHandClick = false);
+      if (!this.overHandBar(e.clientX, e.clientY)) {
+        this.playFromHand(drag.player, drag.card, this.screenToLogical(e.clientX, e.clientY), !e.shiftKey);
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  suppressHandClick = false;
+
+  private overHandBar(clientX: number, clientY: number): boolean {
+    const bar = document.getElementById('simulator-hand-bar');
+    if (!bar) {
+      return false;
+    }
+    const rect = bar.getBoundingClientRect();
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+  }
+
+  // ----- Zones -----
+
+  public addZone(x: number, y: number) {
+    const size = this.cardSize();
+    const zone: TableZone = {
+      uniqueId: StringUtils.generateRandomString(),
+      name: this.translate.instant('simulator.zones.default-name', { n: this.zones.length + 1 }),
+      pos: { x, y },
+      width: Math.round(size.w * 4 + GameSimulatorComponent.ZONE_PAD * 5),
+      height: Math.round(size.h + GameSimulatorComponent.ZONE_HEADER + GameSimulatorComponent.ZONE_PAD * 2),
+      layout: 'ligne',
+      face: 'garder',
+      color: GameSimulatorMenus.ZONE_COLORS[0].value,
+    };
+    this.zones.push(zone);
+  }
+
+  public renameZone(zone: TableZone) {
+    this.stackToRename = zone;
+    this.renameStackName = zone.name;
+    this.renameTitleKey = 'simulator.zones.rename';
+    this.renameDialogVisible = true;
+  }
+
+  public deleteZone(zone: TableZone) {
+    const index = this.zones.indexOf(zone);
+    if (index > -1) {
+      this.zones.splice(index, 1);
+    }
+  }
+
+  public zoneOwner(zone: TableZone): Player | undefined {
+    return this.gameStateService.playerById(zone.ownerId);
+  }
+
+  private cardCenter(card: GameCard, size = this.cardSize()): Position {
+    return { x: card.pos.x + size.w / 2, y: card.pos.y + size.h / 2 };
+  }
+
+  private inZone(zone: TableZone, point: Position): boolean {
+    return point.x >= zone.pos.x && point.x <= zone.pos.x + zone.width
+      && point.y >= zone.pos.y && point.y <= zone.pos.y + zone.height;
+  }
+
+  /** La zone (la plus haute) qui contient le centre de la carte. */
+  public zoneAt(card: GameCard): TableZone | undefined {
+    const center = this.cardCenter(card);
+    for (let i = this.zones.length - 1; i >= 0; i--) {
+      if (this.inZone(this.zones[i], center)) {
+        return this.zones[i];
+      }
+    }
+    return undefined;
+  }
+
+  public cardsInZone(zone: TableZone): GameCard[] {
+    const size = this.cardSize();
+    return this.field.cards.filter(card => this.inZone(zone, this.cardCenter(card, size)) && this.zoneAt(card) === zone);
+  }
+
+  /** Nombre de cartes de chaque zone, pour l'étiquette (calculé une fois par affichage). */
+  zoneCount(zone: TableZone): number {
+    return this.cardsInZone(zone).length;
+  }
+
+  /**
+   * Range les cartes d'une zone selon sa disposition et applique sa règle de face.
+   * En disposition libre, seule la face change, sauf si on demande de ranger (en grille).
+   */
+  public arrangeZone(zone: TableZone, force = false) {
+    const cards = this.cardsInZone(zone);
+    for (const card of cards) {
+      if (zone.face === 'visible') {
+        card.faceUp = true;
+      } else if (zone.face === 'cachee') {
+        card.faceUp = false;
+      }
+    }
+    const layout = zone.layout === 'libre' ? (force ? 'grille' : null) : zone.layout;
+    if (!layout || !cards.length) {
+      return;
+    }
+    const { w, h } = this.cardSize();
+    const pad = GameSimulatorComponent.ZONE_PAD;
+    const top = zone.pos.y + GameSimulatorComponent.ZONE_HEADER;
+    const innerW = Math.max(w, zone.width - pad * 2);
+    const gap = pad / 2;
+    const sorted = layout === 'cascade'
+      ? cards.slice().sort((a, b) => a.pos.y - b.pos.y || a.pos.x - b.pos.x)
+      : cards.slice().sort((a, b) => (layout === 'grille' ? Math.round((a.pos.y - b.pos.y) / h) * 10000 : 0) + a.pos.x - b.pos.x);
+    sorted.forEach((card, i) => {
+      let x = zone.pos.x + pad;
+      let y = top;
+      if (layout === 'ligne') {
+        const step = sorted.length > 1 ? Math.min(w + gap, (innerW - w) / (sorted.length - 1)) : 0;
+        x += i * step;
+      } else if (layout === 'grille') {
+        const cols = Math.max(1, Math.floor((innerW + gap) / (w + gap)));
+        x += (i % cols) * (w + gap);
+        y += Math.floor(i / cols) * (h + gap);
+      } else {
+        const innerH = Math.max(h, zone.height - GameSimulatorComponent.ZONE_HEADER - pad);
+        const step = sorted.length > 1 ? Math.min(h * 0.22, (innerH - h) / (sorted.length - 1)) : 0;
+        y += i * step;
+      }
+      card.pos = { x, y };
+      card.rotation = 0;
+      this.gameStateService.bringToFront(card);
+    });
+  }
+
+  /** Réunit les cartes d'une zone en une pile, posée dans la zone. */
+  public gatherZone(zone: TableZone) {
+    const cards = this.cardsInZone(zone);
+    if (!cards.length) {
+      return;
+    }
+    cards.forEach(card => this.removeFromField(card));
+    const stack: CardStack = {
+      uniqueId: StringUtils.generateRandomString(),
+      name: zone.name,
+      cards: cards.map(card => ({ ...card, faceUp: true })),
+      faceUp: zone.face !== 'cachee',
+      pos: { x: zone.pos.x + GameSimulatorComponent.ZONE_PAD, y: zone.pos.y + GameSimulatorComponent.ZONE_HEADER },
+      deletable: true,
+      rotation: 0,
+    };
+    this.addStack(stack);
+  }
+
+  public onZoneContextMenu(event: MouseEvent, cm: ContextMenu, zone: TableZone) {
+    cm.hide();
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuItems = this.menus.zone(zone);
+    const x = event.pageX;
+    const y = event.pageY;
+    setTimeout(() => cm.show(menuEvent(x, y)));
+  }
+
+  public onZoneDragStarted(zone: TableZone) {
+    this.zoneDrag = { zone, start: { ...zone.pos }, cards: this.cardsInZone(zone) };
+  }
+
+  public onZoneDragEnded(event: CdkDragEnd<unknown>, zone: TableZone) {
+    const raw = event.source.getFreeDragPosition();
+    zone.pos = { x: raw.x / this.simulatorZoom, y: raw.y / this.simulatorZoom };
+    const drag = this.zoneDrag;
+    this.zoneDrag = null;
+    if (drag?.zone === zone) {
+      const dx = zone.pos.x - drag.start.x;
+      const dy = zone.pos.y - drag.start.y;
+      drag.cards.forEach(card => card.pos = { x: card.pos.x + dx, y: card.pos.y + dy });
+    }
+  }
+
+  public onZoneResizeStart(event: PointerEvent, zone: TableZone) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.zoneResize = { zone, startX: event.clientX, startY: event.clientY, width: zone.width, height: zone.height };
+    const { w, h } = this.cardSize();
+    const move = (e: PointerEvent) => {
+      const resize = this.zoneResize;
+      if (!resize) {
+        return;
+      }
+      this.ngZone.run(() => {
+        resize.zone.width = Math.max(w + GameSimulatorComponent.ZONE_PAD * 2, resize.width + (e.clientX - resize.startX) / this.simulatorZoom);
+        resize.zone.height = Math.max(h * 0.4 + GameSimulatorComponent.ZONE_HEADER, resize.height + (e.clientY - resize.startY) / this.simulatorZoom);
+      });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      const resized = this.zoneResize?.zone;
+      this.zoneResize = null;
+      if (resized) {
+        this.ngZone.run(() => this.arrangeZone(resized));
+      }
+    };
+    this.ngZone.runOutsideAngular(() => {
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    });
+  }
+
+  // ----- Boosters -----
+
+  private async boosterPulls(booster: Booster): Promise<GameCard[]> {
+    const cards = await this.cardsService.getAllUnfiltered();
+    const pulls = openBooster(booster, poolOf(booster, cards), this.foilField);
+    return pulls.map(pull => ({ ...this.gameStateService.newGameCard(pull.card, true), holographic: !!pull.foil }));
+  }
+
+  public async openBoosterOnTable(booster: Booster, x?: number, y?: number) {
+    const cards = await this.boosterPulls(booster);
+    if (!cards.length) {
+      this.messages.add({ severity: 'warn', summary: booster.name, detail: this.translate.instant('boosters.empty-pool') });
+      return;
+    }
+    const at = x === undefined || y === undefined ? this.viewCenter() : { x, y };
+    // la première carte tirée sur le dessus : on pioche dans l'ordre d'ouverture
+    const stack: CardStack = {
+      uniqueId: StringUtils.generateRandomString(),
+      name: booster.name,
+      cards: cards.reverse(),
+      faceUp: false,
+      pos: at,
+      deletable: true,
+      rotation: 0,
+    };
+    this.addStack(stack);
+    this.say('simulator.log.booster-table', { player: this.gameStateService.activePlayer?.name ?? '', booster: booster.name, n: cards.length });
+  }
+
+  public async openBoosterToHand(booster: Booster, player = this.gameStateService.activePlayer) {
+    if (!player) {
+      return;
+    }
+    const cards = await this.boosterPulls(booster);
+    player.hand.push(...cards);
+    this.handPlayerId = player.id;
+    this.say('simulator.log.booster-hand', { player: player.name, booster: booster.name, n: cards.length }, player);
+  }
+
+  boosterMenuItems: MenuItem[] = [];
+
+  public toggleBoosterMenu(event: Event, menu: { toggle: (e: Event) => void }) {
+    this.boosterMenuItems = this.boosters.map(booster => ({
+      label: booster.name,
+      items: [
+        { label: this.translate.instant('simulator.boosters.to-table'), icon: 'pi pi-table', command: () => void this.openBoosterOnTable(booster) },
+        ...this.players.map(player => ({
+          label: this.translate.instant('simulator.boosters.to-hand', { player: player.name }), icon: 'pi pi-inbox',
+          command: () => void this.openBoosterToHand(booster, player)
+        })),
+      ]
+    }));
+    menu.toggle(event);
+  }
+
+  // ----- Parties enregistrées -----
+
+  public async openSaves() {
+    this.saves = (await this.savesService.getAll()).sort((a, b) => b.savedAt - a.savedAt);
+    this.saveName = this.translate.instant('simulator.saves.default-name', {
+      date: new Date().toLocaleString(this.translate.currentLang || 'fr', { dateStyle: 'short', timeStyle: 'short' })
+    });
+    this.savesDialogVisible = true;
+  }
+
+  public async saveGame(existing?: SimulatorSave) {
+    const name = (existing?.name ?? this.saveName).trim();
+    if (!name) {
+      return;
+    }
+    const save = { name, savedAt: Date.now(), state: this.gameStateService.toSave() } as SimulatorSave;
+    if (existing) {
+      await this.savesService.update(existing.id, { ...save, id: existing.id });
+    } else {
+      await this.savesService.create(save);
+    }
+    this.messages.add({ severity: 'success', summary: this.translate.instant('simulator.saves.saved', { name }) });
+    await this.openSaves();
+  }
+
+  public async loadGame(save: SimulatorSave) {
+    const missing = await this.gameStateService.fromSave(save.state, component => this.menus.componentActions(component), this.shuffleOnLoad);
+    this._scaledPosMap.clear();
+    this.handPlayerId = undefined;
+    this.savesDialogVisible = false;
+    this.say('simulator.log.loaded', { name: save.name }, undefined);
+    if (missing) {
+      this.messages.add({ severity: 'warn', summary: save.name, detail: this.translate.instant('simulator.saves.missing', { n: missing }) });
+    }
+    this.calculateOffScreenIndicators();
+  }
+
+  public deleteSave(save: SimulatorSave) {
+    this.confirmation.confirm({
+      header: this.translate.instant('simulator.saves.delete'),
+      message: this.translate.instant('simulator.saves.delete-confirm', { name: save.name }),
+      accept: async () => {
+        await this.savesService.delete(save.id);
+        this.saves = this.saves.filter(s => s.id !== save.id);
+      }
+    });
+  }
+
+  public saveDate(save: SimulatorSave): string {
+    return new Date(save.savedAt).toLocaleString(this.translate.currentLang || 'fr', { dateStyle: 'short', timeStyle: 'short' });
   }
 
   public flipComponent(component: GameComponent) {
@@ -549,7 +1203,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     this.contextMenuItems = this.menus.card(card);
     const x = event.pageX;
     const y = event.pageY;
-    setTimeout(() => cm.show({ pageX: x, pageY: y } as MouseEvent));
+    setTimeout(() => cm.show(menuEvent(x, y)));
   }
 
   public onComponentContextMenu(event: MouseEvent, cm: ContextMenu,
@@ -563,7 +1217,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     })
     const x = event.pageX;
     const y = event.pageY;
-    setTimeout(() => cm.show({ pageX: x, pageY: y } as MouseEvent));
+    setTimeout(() => cm.show(menuEvent(x, y)));
   }
 
   public onFieldContextMenu(event: MouseEvent, cm: ContextMenu) {
@@ -582,10 +1236,10 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     const logicalX = (event.clientX - boundaryLeft - this.simulatorPan.x) / this.simulatorZoom;
     const logicalY = (event.clientY - boundaryTop - this.simulatorPan.y) / this.simulatorZoom;
 
-    this.contextMenuItems = this.menus.field(logicalX, logicalY);
+    this.contextMenuItems = this.menus.field(logicalX, logicalY, this.boosters);
     const x = event.pageX;
     const y = event.pageY;
-    setTimeout(() => cm.show({ pageX: x, pageY: y } as MouseEvent));
+    setTimeout(() => cm.show(menuEvent(x, y)));
   }
 
   public createStack(cards: GameCard[], card: GameCard) {
@@ -639,7 +1293,11 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
   public onCardDragStarted(event: CdkDragStart, cards: GameCard[], card: GameCard) {
     this.gameStateService.bringToFront(card);
     this.draggingCard = true;
+    this.dragFromZone = this.zoneAt(card);
   }
+
+  /** Zone d'où part la carte glissée : rangée à nouveau quand la carte en sort. */
+  private dragFromZone: TableZone | undefined;
 
   onDragEnded(event: CdkDragEnd<unknown>, items: Positionable[], item: Positionable) {
     const rawPos = event.source.getFreeDragPosition();
@@ -715,7 +1373,8 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
 
     // Use consistent world-space clamping (no manual normalization needed with cdkDragScale)
     card.pos = this.clampPosition({ x: pos.x, y: pos.y }, width, height, 0);
-    console.log(`Drag Ended [Card]: ${card.uniqueId} | Pos:`, card.pos, `| Zoom: ${this.simulatorZoom}`);
+    const fromZone = this.dragFromZone;
+    this.dragFromZone = undefined;
     if (this.hoveredItem) {
       const index = cards.indexOf(card);
       cards.splice(index, 1);
@@ -723,6 +1382,17 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
 
       // Crucial: Clear hoveredItem to prevent ghost merging on future drops!
       this.hoveredItem = undefined;
+    } else if (this.players.length && this.overHandBar(event.dropPoint.x, event.dropPoint.y)) {
+      // lâchée sur la main en bas de l'écran
+      this.takeToHand(card, this.handPlayer);
+    } else {
+      const zone = this.zoneAt(card);
+      if (zone) {
+        this.arrangeZone(zone);
+      }
+    }
+    if (fromZone && fromZone !== this.zoneAt(card)) {
+      this.arrangeZone(fromZone);
     }
     this.draggingCard = false;
   }
@@ -774,17 +1444,9 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
       this.gameStateService.bringToFront(component);
 
       if (component.type === 'd6') {
-        component.rolling = true;
-        setTimeout(() => {
-          component.face = MathUtils.randomInt(1, 6);
-          component.rolling = false;
-        }, 600);
+        this.rollDie(component);
       } else if (component.type === 'coin') {
-        component.rolling = true;
-        setTimeout(() => {
-          component.faceUp = Math.random() < 0.5;
-          component.rolling = false;
-        }, 600);
+        this.tossCoin(component);
       } else if (component.type === 'cube' || component.type === 'pawn') {
         this.flipComponent(component);
       }
@@ -1232,4 +1894,9 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     this.simulatorPan = { x: 0, y: 0 };
     this.calculateOffScreenIndicators();
   }
+}
+
+/** Événement minimal pour ouvrir un menu contextuel à un point de la page, après coup. */
+function menuEvent(pageX: number, pageY: number): MouseEvent {
+  return { pageX, pageY, preventDefault: () => undefined, stopPropagation: () => undefined } as unknown as MouseEvent;
 }

@@ -1,3 +1,7 @@
+import { TestBed } from '@angular/core/testing';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { BoostersService } from '../data-services/services/boosters.service';
+import { SimulatorSavesService } from '../data-services/services/simulator-saves.service';
 import { GameSimulatorComponent } from './game-simulator.component';
 import { DecksService } from '../data-services/services/decks.service';
 import { CardsService } from '../data-services/services/cards.service';
@@ -33,14 +37,23 @@ describe('GameSimulatorComponent', () => {
     };
     const ngZone = { run: (fn: () => any) => fn() } as unknown as NgZone;
 
-    component = new GameSimulatorComponent(
+    cardsServiceSpy.getFieldsUnfiltered.and.returnValue(Promise.resolve([]));
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: BoostersService, useValue: { getAll: () => Promise.resolve([]) } },
+        { provide: SimulatorSavesService, useValue: {} },
+        ConfirmationService,
+        MessageService,
+      ]
+    });
+    component = TestBed.runInInjectionContext(() => new GameSimulatorComponent(
       decksServiceSpy,
       cardsServiceSpy,
       translateServiceSpy,
       cardTemplatesServiceSpy,
       gameState as GameSimulatorStateService,
       ngZone
-    );
+    ));
 
     // Manually trigger initialization if needed, but constructor called resetGame which calls services
     // Since we are unit testing logic, we can manually setup state

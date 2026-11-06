@@ -49,3 +49,78 @@ export interface Position {
     x: number;
     y: number;
 }
+
+/** Rangement des cartes posées dans une zone. */
+export type ZoneLayout = 'libre' | 'ligne' | 'grille' | 'cascade';
+
+/** Face des cartes posées dans une zone : inchangée, visible ou cachée. */
+export type ZoneFace = 'garder' | 'visible' | 'cachee';
+
+/** Une zone de dépôt dessinée sur la table (main posée, terrain, cimetière…). */
+export interface TableZone extends Positionable {
+    uniqueId: string;
+    name: string;
+    width: number;
+    height: number;
+    layout: ZoneLayout;
+    face: ZoneFace;
+    color: string;
+    /** Joueur propriétaire (couleur et nom affichés), facultatif. */
+    ownerId?: string;
+}
+
+export interface PlayerCounter {
+    id: string;
+    name: string;
+    value: number;
+    /** Valeur de départ, rétablie par « Nouvelle partie ». */
+    start: number;
+}
+
+export interface Player {
+    id: string;
+    name: string;
+    color: string;
+    counters: PlayerCounter[];
+    /** Cartes en main, hors de la table. */
+    hand: GameCard[];
+}
+
+export interface LogEntry {
+    at: number;
+    text: string;
+    /** Couleur du joueur à l'origine de l'action. */
+    color?: string;
+    /** Regroupe les changements successifs d'un même compteur sur une seule ligne. */
+    key?: string;
+}
+
+/** Une carte de partie enregistrée : la carte du projet est retrouvée par son id. */
+export interface SavedGameCard extends Omit<GameCard, 'card' | 'discarding' | 'drawing' | 'flipping'> {
+    cardId: number;
+}
+
+export interface SavedStack extends Omit<CardStack, 'cards' | 'shuffling' | 'flipping'> {
+    cards: SavedGameCard[];
+}
+
+/** Partie enregistrée dans le projet (table simulatorSaves). */
+export interface SimulatorSave {
+    id: number;
+    name: string;
+    savedAt: number;
+    state: {
+        version: 1;
+        stacks: SavedStack[];
+        discardId: string;
+        field: SavedGameCard[];
+        components: Omit<GameComponent, 'contextMenu' | 'rolling' | 'flipping'>[];
+        zones: TableZone[];
+        players: (Omit<Player, 'hand'> & { hand: SavedGameCard[] })[];
+        currentPlayer: number;
+        turn: number;
+        log: LogEntry[];
+        pan: Position;
+        zoom: number;
+    };
+}

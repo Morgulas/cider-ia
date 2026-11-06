@@ -3,9 +3,9 @@ import { MenuItem, MenuItemCommandEvent } from 'primeng/api';
 import { Card } from '../data-services/types/card.type';
 import { EntityField } from '../data-services/types/entity-field.type';
 import StringUtils from '../shared/utils/string-utils';
-import MathUtils from '../shared/utils/math-utils';
 import type { GameSimulatorComponent } from './game-simulator.component';
-import { CardStack, GameCard, GameComponent } from './game-simulator.types';
+import { CardStack, GameCard, GameComponent, TableZone, ZoneFace, ZoneLayout } from './game-simulator.types';
+import { Booster } from '../data-services/types/booster.type';
 
 /**
  * Builds the context menus of the game simulator. The simulator component
@@ -26,6 +26,21 @@ export class GameSimulatorMenus {
         icon: 'pi pi-plus',
         command: () => this.sim.drawCard(stack),
         "disabled": stack.cards.length === 0
+      },
+      {
+        label: this.translate.instant('simulator.hand.draw-to-hand', { player: this.sim.gameStateService.activePlayer?.name ?? '' }),
+        icon: 'pi pi-inbox',
+        command: () => this.sim.drawToHand(stack, 1),
+        disabled: stack.cards.length === 0 || !this.sim.players.length
+      },
+      {
+        label: this.translate.instant('simulator.hand.deal'),
+        icon: 'pi pi-users',
+        disabled: stack.cards.length === 0 || !this.sim.players.length,
+        items: [1, 2, 3, 4, 5, 6, 7, 8, 10].map(n => ({
+          label: this.translate.instant('simulator.hand.deal-n', { n }),
+          command: () => this.sim.deal(stack, n)
+        }))
       },
       {
         label: this.translate.instant('simulator.rename-stack'),
@@ -57,6 +72,7 @@ export class GameSimulatorMenus {
           setTimeout(() => {
             this.sim.shuffleCards(stack.cards);
             stack.shuffling = false;
+            this.sim.gameStateService.addLog(this.translate.instant('simulator.log.shuffle', { stack: stack.name }));
           }, 600);
         },
         disabled: stack.cards.length < 2
@@ -138,6 +154,12 @@ export class GameSimulatorMenus {
         label: this.translate.instant('simulator.discard-card'),
         icon: 'pi pi-trash',
         command: () => this.sim.discardCard(this.sim.field.cards, card)
+      },
+      {
+        label: this.translate.instant('simulator.hand.take', { player: this.sim.gameStateService.activePlayer?.name ?? '' }),
+        icon: 'pi pi-inbox',
+        disabled: !this.sim.players.length,
+        command: () => this.sim.takeToHand(card)
       }
     ];
   }
@@ -170,169 +192,38 @@ export class GameSimulatorMenus {
     ];
   }
 
-  /** Menu of the empty field: add components, reset, shortcuts */
-  field(logicalX: number, logicalY: number): MenuItem[] {
+  /** Menu of the empty field: zones, boosters, components, reset, shortcuts */
+  field(logicalX: number, logicalY: number, boosters: Booster[] = []): MenuItem[] {
+    const add = (type: GameComponent['type'], labelKey: string, suffix = '') => ({
+      label: this.translate.instant(labelKey) + suffix,
+      icon: 'pi pi-plus',
+      items: GameSimulatorMenus.COLORS.map(color => ({
+        label: StringUtils.kebabToTitleCase(color),
+        command: () => this.addComponent(type, color, logicalX, logicalY),
+      })),
+    });
     return [
       {
-        label: this.translate.instant('simulator.add-coin'),
-        icon: 'pi pi-plus',
-        items: GameSimulatorMenus.COLORS.map(color => ({
-          label: StringUtils.kebabToTitleCase(color),
-          command: () => {
-            const component: GameComponent = {
-              uniqueId: 'coin-' + StringUtils.generateRandomString(),
-              type: 'coin',
-              className: 'game-coin color-' + color,
-              faceUp: true,
-              pos: {
-                x: logicalX,
-                y: logicalY
-              },
-              contextMenu: [],
-            };
-            component.contextMenu = [
-              {
-                label: this.translate.instant('simulator.flip-randomly'),
-                icon: 'pi pi-percentage',
-                command: (event: MenuItemCommandEvent) => {
-                  const componentState: GameComponent | undefined =
-                    event.item?.state as GameComponent;
-                  if (componentState) {
-                    componentState.rolling = true;
-                    setTimeout(() => {
-                      // Also use flipComponent if desired, but rolling is distinct.
-                      // Let's keep rolling as is for random, but if we want 3D flip for strict flip:
-                      // Random flip implies "tossing". 
-                      componentState.faceUp = Math.random() < 0.5;
-                      componentState.rolling = false;
-                    }, 600);
-                  }
-                }
-              },
-              {
-                label: this.translate.instant('simulator.flip-over'),
-                icon: 'pi pi-refresh',
-                command: (event: MenuItemCommandEvent) => {
-                  const componentState: GameComponent | undefined =
-                    event.item?.state as GameComponent;
-                  if (componentState) {
-                    this.sim.flipComponent(componentState);
-                  }
-                }
-              },
-            ];
-            this.sim.gameStateService.bringToFront(component);
-            this.sim.components.push(component);
-          }
-        }))
+        label: this.translate.instant('simulator.zones.add'),
+        icon: 'pi pi-stop',
+        command: () => this.sim.addZone(logicalX, logicalY),
       },
       {
-        label: this.translate.instant('simulator.add-cube'),
-        icon: 'pi pi-plus',
-        items: GameSimulatorMenus.COLORS.map(color => ({
-          label: StringUtils.kebabToTitleCase(color),
-          command: () => {
-            const component: GameComponent = {
-              uniqueId: 'cube-' + StringUtils.generateRandomString(),
-              type: 'cube',
-              className: `game-cube color-${color}`,
-              faceUp: true,
-              pos: {
-                x: logicalX,
-                y: logicalY
-              },
-              contextMenu: [
-                {
-                  label: this.translate.instant('simulator.flip-over'),
-                  icon: 'pi pi-refresh',
-                  command: (event: MenuItemCommandEvent) => {
-                    const componentState: GameComponent | undefined =
-                      event.item?.state as GameComponent;
-                    if (componentState) {
-                      this.sim.flipComponent(componentState);
-                    }
-                  }
-                },
-              ],
-            };
-            this.sim.gameStateService.bringToFront(component);
-            this.sim.components.push(component);
-          }
-        }))
+        label: this.translate.instant('simulator.boosters.open-here'),
+        icon: 'pi pi-gift',
+        disabled: !boosters.length,
+        items: boosters.map(booster => ({
+          label: booster.name,
+          command: () => void this.sim.openBoosterOnTable(booster, logicalX, logicalY),
+        })),
       },
       {
-        label: this.translate.instant('simulator.add-die') + ' (D6)',
-        icon: 'pi pi-plus',
-        items: GameSimulatorMenus.COLORS.map(color => ({
-          label: StringUtils.kebabToTitleCase(color),
-          command: () => {
-            const component: GameComponent = {
-              uniqueId: 'd6-' + StringUtils.generateRandomString(),
-              type: 'd6',
-              className: `game-d6 color-${color}`,
-              faceUp: true,
-              face: 6,
-              pos: {
-                x: logicalX,
-                y: logicalY
-              },
-              contextMenu: [
-                {
-                  label: this.translate.instant('simulator.roll-die'),
-                  icon: 'pi pi-percentage',
-                  command: (event: MenuItemCommandEvent) => {
-                    const componentState: GameComponent | undefined =
-                      event.item?.state as GameComponent;
-                    if (componentState) {
-                      componentState.rolling = true;
-                      setTimeout(() => {
-                        componentState.face = MathUtils.randomInt(1, 6);
-                        componentState.rolling = false;
-                      }, 600);
-                    }
-                  }
-                },
-              ],
-            };
-            this.sim.gameStateService.bringToFront(component);
-            this.sim.components.push(component);
-          }
-        }))
+        separator: true
       },
-      {
-        label: this.translate.instant('simulator.add-pawn'),
-        icon: 'pi pi-plus',
-        items: GameSimulatorMenus.COLORS.map(color => ({
-          label: StringUtils.kebabToTitleCase(color),
-          command: () => {
-            const component: GameComponent = {
-              uniqueId: 'pawn-' + StringUtils.generateRandomString(),
-              type: 'pawn',
-              className: `game-pawn color-${color}`,
-              faceUp: true,
-              pos: {
-                x: logicalX,
-                y: logicalY
-              },
-              contextMenu: [
-                {
-                  label: this.translate.instant('simulator.flip-over'),
-                  icon: 'pi pi-refresh',
-                  command: (event: MenuItemCommandEvent) => {
-                    const componentState: GameComponent | undefined =
-                      event.item?.state as GameComponent;
-                    if (componentState) {
-                      this.sim.flipComponent(componentState);
-                    }
-                  }
-                },
-              ],
-            };
-            this.sim.gameStateService.bringToFront(component);
-            this.sim.components.push(component);
-          }
-        }))
-      },
+      add('coin', 'simulator.add-coin'),
+      add('cube', 'simulator.add-cube'),
+      add('d6', 'simulator.add-die', ' (D6)'),
+      add('pawn', 'simulator.add-pawn'),
       {
         separator: true
       },
@@ -385,4 +276,113 @@ export class GameSimulatorMenus {
       },
     ];
   }
+  /** Puts a new coin, cube, die or pawn on the table */
+  addComponent(type: GameComponent['type'], color: string, x: number, y: number): GameComponent {
+    const component: GameComponent = {
+      uniqueId: type + '-' + StringUtils.generateRandomString(),
+      type,
+      className: `game-${type} color-${color}`,
+      faceUp: true,
+      face: type === 'd6' ? 6 : undefined,
+      pos: { x, y },
+      contextMenu: [],
+    };
+    this.componentActions(component);
+    this.sim.gameStateService.bringToFront(component);
+    this.sim.components.push(component);
+    return component;
+  }
+
+  /** The actions of a component, by type (also rebuilt for a loaded game) */
+  componentActions(component: GameComponent): void {
+    const flip: MenuItem = {
+      label: this.translate.instant('simulator.flip-over'),
+      icon: 'pi pi-refresh',
+      command: (event: MenuItemCommandEvent) => {
+        const state = event.item?.state as GameComponent | undefined;
+        if (state) {
+          this.sim.flipComponent(state);
+        }
+      }
+    };
+    switch (component.type) {
+      case 'coin':
+        component.contextMenu = [{
+          label: this.translate.instant('simulator.flip-randomly'),
+          icon: 'pi pi-percentage',
+          command: (event: MenuItemCommandEvent) => {
+            const state = event.item?.state as GameComponent | undefined;
+            if (state) {
+              this.sim.tossCoin(state);
+            }
+          }
+        }, flip];
+        break;
+      case 'd6':
+        component.contextMenu = [{
+          label: this.translate.instant('simulator.roll-die'),
+          icon: 'pi pi-percentage',
+          command: (event: MenuItemCommandEvent) => {
+            const state = event.item?.state as GameComponent | undefined;
+            if (state) {
+              this.sim.rollDie(state);
+            }
+          }
+        }];
+        break;
+      default:
+        component.contextMenu = [flip];
+    }
+  }
+
+  /** Menu of a zone drawn on the table */
+  zone(zone: TableZone): MenuItem[] {
+    const t = (key: string) => this.translate.instant(key);
+    const layouts: ZoneLayout[] = ['libre', 'ligne', 'grille', 'cascade'];
+    const faces: ZoneFace[] = ['garder', 'visible', 'cachee'];
+    return [
+      { label: t('simulator.zones.rename'), icon: 'pi pi-pencil', command: () => this.sim.renameZone(zone) },
+      {
+        label: t('simulator.zones.layout'), icon: 'pi pi-th-large',
+        items: layouts.map(layout => ({
+          label: t('simulator.zones.layouts.' + layout), icon: zone.layout === layout ? 'pi pi-check' : undefined,
+          command: () => { zone.layout = layout; this.sim.arrangeZone(zone); }
+        }))
+      },
+      {
+        label: t('simulator.zones.face'), icon: 'pi pi-clone',
+        items: faces.map(face => ({
+          label: t('simulator.zones.faces.' + face), icon: zone.face === face ? 'pi pi-check' : undefined,
+          command: () => { zone.face = face; this.sim.arrangeZone(zone); }
+        }))
+      },
+      {
+        label: t('simulator.zones.owner'), icon: 'pi pi-user',
+        items: [
+          { label: t('simulator.zones.nobody'), icon: !zone.ownerId ? 'pi pi-check' : undefined, command: () => zone.ownerId = undefined },
+          ...this.sim.players.map(player => ({
+            label: player.name, icon: zone.ownerId === player.id ? 'pi pi-check' : undefined,
+            command: () => { zone.ownerId = player.id; zone.color = player.color; }
+          }))
+        ]
+      },
+      {
+        label: t('simulator.zones.color'), icon: 'pi pi-palette',
+        items: GameSimulatorMenus.ZONE_COLORS.map(color => ({
+          label: t('simulator.zones.colors.' + color.key),
+          icon: zone.color === color.value ? 'pi pi-check' : undefined,
+          command: () => zone.color = color.value
+        }))
+      },
+      { label: t('simulator.zones.arrange'), icon: 'pi pi-align-left', command: () => this.sim.arrangeZone(zone, true) },
+      { label: t('simulator.zones.gather'), icon: 'pi pi-book', command: () => this.sim.gatherZone(zone) },
+      { separator: true },
+      { label: t('simulator.zones.delete'), icon: 'pi pi-trash', command: () => this.sim.deleteZone(zone) },
+    ];
+  }
+
+  static readonly ZONE_COLORS = [
+    { key: 'neutral', value: '#9aa4b2' }, { key: 'gold', value: '#e0a33a' }, { key: 'blue', value: '#4f9be8' },
+    { key: 'red', value: '#d9534f' }, { key: 'green', value: '#4caf7d' }, { key: 'purple', value: '#a77be0' },
+  ];
 }

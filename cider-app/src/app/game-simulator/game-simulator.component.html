@@ -11,6 +11,28 @@
     <div class="simulator-content" [class.smooth-transform]="isZooming"
       [style.transform]="'translate(' + simulatorPan.x + 'px, ' + simulatorPan.y + 'px) scale(' + simulatorZoom + ')'">
       <div class="virtual-table" [ngStyle]="tableStyle"></div>
+      <!-- Zones de dépôt -->
+      @for (zone of zones; track zone.uniqueId) {
+      <div class="table-zone" [id]="zone.uniqueId" [style.width.px]="zone.width" [style.height.px]="zone.height"
+        [style.--zone-color]="zone.color" [cdkDragFreeDragPosition]="getScaledPos(zone)" [cdkDragScale]="dragScale"
+        [cdkDragConstrainPosition]="handleDragPosition" [cdkDragDisabled]="isShiftPressed"
+        (cdkDragStarted)="onZoneDragStarted(zone)" (cdkDragEnded)="onZoneDragEnded($event, zone)" cdkDrag>
+        <div class="zone-header" cdkDragHandle (contextmenu)="onZoneContextMenu($event, cm, zone)"
+          [style.height.px]="zoneHeader">
+          <span class="zone-name">{{ zone.name }}</span>
+          @if (zoneOwner(zone); as owner) {
+          <span class="zone-owner">· {{ owner.name }}</span>
+          }
+          <span class="zone-count">{{ zoneCount(zone) }}</span>
+          <button type="button" class="zone-menu" (click)="onZoneContextMenu($event, cm, zone)"
+            (mousedown)="$event.stopPropagation()" [attr.aria-label]="'simulator.zones.menu' | translate">
+            <i class="pi pi-ellipsis-h"></i>
+          </button>
+        </div>
+        <div class="zone-resize" role="presentation" (pointerdown)="onZoneResizeStart($event, zone)"
+          (mousedown)="$event.stopPropagation()"></div>
+      </div>
+      }
       <!-- Stacks -->
       @for (stack of stacks; track stack.uniqueId) {
       @if (stack.cards) {
@@ -185,7 +207,171 @@
     </div>
     }
   </div>
+
+  <!-- Barre d'outils -->
+  <div class="sim-toolbar" (mousedown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()">
+    <p-button icon="pi pi-users" [text]="!playersPanelOpen" [rounded]="true" size="small"
+      (onClick)="playersPanelOpen = !playersPanelOpen" [pTooltip]="'simulator.players.title' | translate"
+      [ariaLabel]="'simulator.players.title' | translate" />
+    <p-button icon="pi pi-list" [text]="!logPanelOpen" [rounded]="true" size="small"
+      (onClick)="logPanelOpen = !logPanelOpen" [pTooltip]="'simulator.log.title' | translate"
+      [ariaLabel]="'simulator.log.title' | translate" />
+    <p-button icon="pi pi-stop" [text]="true" [rounded]="true" size="small"
+      (onClick)="addZone(screenToLogical(120, 160).x, screenToLogical(120, 160).y)"
+      [pTooltip]="'simulator.zones.add' | translate" [ariaLabel]="'simulator.zones.add' | translate" />
+    <p-button icon="pi pi-gift" [text]="true" [rounded]="true" size="small" [disabled]="!boosters.length"
+      (onClick)="toggleBoosterMenu($event, boosterMenu)" [pTooltip]="'simulator.boosters.open' | translate"
+      [ariaLabel]="'simulator.boosters.open' | translate" />
+    <p-button icon="pi pi-save" [text]="true" [rounded]="true" size="small" (onClick)="openSaves()"
+      [pTooltip]="'simulator.saves.title' | translate" [ariaLabel]="'simulator.saves.title' | translate" />
+    @if (players.length) {
+    <span class="toolbar-sep"></span>
+    <span class="turn-label">{{ 'simulator.players.turn' | translate: { n: gameStateService.turn } }}</span>
+    <span class="active-player" [style.--player-color]="gameStateService.activePlayer?.color">
+      {{ gameStateService.activePlayer?.name }}</span>
+    <p-button [label]="'simulator.players.end-turn' | translate" icon="pi pi-step-forward" size="small"
+      severity="secondary" (onClick)="endTurn()" />
+    }
+  </div>
+
+  <!-- Panneaux : joueurs, journal -->
+  <div class="sim-panels" (mousedown)="$event.stopPropagation()" (wheel)="$event.stopPropagation()"
+    (contextmenu)="$event.stopPropagation()">
+    @if (playersPanelOpen) {
+    <section class="sim-panel players-panel">
+      <header>
+        <h4>{{ 'simulator.players.title' | translate }}</h4>
+        <p-button icon="pi pi-user-plus" [text]="true" [rounded]="true" size="small" (onClick)="addPlayer()"
+          [pTooltip]="'simulator.players.add' | translate" [ariaLabel]="'simulator.players.add' | translate" />
+      </header>
+      @for (player of players; track player.id; let i = $index) {
+      <div class="player" [class.active]="i === gameStateService.currentPlayer" [style.--player-color]="player.color">
+        <div class="player-head">
+          <button type="button" class="player-dot" (click)="setActivePlayer(i)"
+            [pTooltip]="'simulator.players.make-active' | translate" [attr.aria-label]="'simulator.players.make-active' | translate"></button>
+          <input class="player-name" [(ngModel)]="player.name" [attr.aria-label]="'fields.name' | translate" />
+          <span class="hand-count" [pTooltip]="'simulator.hand.count' | translate: { n: player.hand.length }">
+            <i class="pi pi-inbox"></i> {{ player.hand.length }}</span>
+          <p-button icon="pi pi-times" [text]="true" [rounded]="true" size="small" severity="secondary"
+            (onClick)="removePlayer(player)" [ariaLabel]="'simulator.players.remove' | translate" />
+        </div>
+        @for (counter of player.counters; track counter.id) {
+        <div class="counter">
+          <input class="counter-name" [(ngModel)]="counter.name" [attr.aria-label]="'simulator.players.counter' | translate" />
+          <button type="button" class="counter-btn" (click)="changeCounter(player, counter, -1)" aria-label="-1">−</button>
+          <input class="counter-value" type="number" [(ngModel)]="counter.value"
+            [attr.aria-label]="counter.name" />
+          <button type="button" class="counter-btn" (click)="changeCounter(player, counter, 1)" aria-label="+1">+</button>
+          <button type="button" class="counter-remove" (click)="removeCounter(player, counter)"
+            [attr.aria-label]="'simulator.players.remove-counter' | translate"><i class="pi pi-trash"></i></button>
+        </div>
+        }
+        <button type="button" class="add-counter" (click)="addCounter(player)">
+          <i class="pi pi-plus"></i> {{ 'simulator.players.add-counter' | translate }}</button>
+      </div>
+      } @empty {
+      <p class="muted">{{ 'simulator.players.none' | translate }}</p>
+      }
+    </section>
+    }
+    @if (logPanelOpen) {
+    <section class="sim-panel log-panel">
+      <header>
+        <h4>{{ 'simulator.log.title' | translate }}</h4>
+        <p-button icon="pi pi-trash" [text]="true" [rounded]="true" size="small" (onClick)="clearLog()"
+          [disabled]="!log.length" [ariaLabel]="'simulator.log.clear' | translate" [pTooltip]="'simulator.log.clear' | translate" />
+      </header>
+      <ol class="log-list">
+        @for (entry of log.slice().reverse(); track $index) {
+        <li [style.--player-color]="entry.color || 'transparent'">
+          <span class="log-time">{{ logTime(entry.at) }}</span> {{ entry.text }}
+        </li>
+        } @empty {
+        <li class="muted">{{ 'simulator.log.empty' | translate }}</li>
+        }
+      </ol>
+    </section>
+    }
+  </div>
+
+  <!-- Main du joueur -->
+  @if (players.length) {
+  <div id="simulator-hand-bar" class="hand-bar" [class.collapsed]="handHidden" (mousedown)="$event.stopPropagation()"
+    (wheel)="$event.stopPropagation()" (contextmenu)="$event.stopPropagation()">
+    <div class="hand-tabs">
+      @for (player of players; track player.id) {
+      <button type="button" class="hand-tab" [class.selected]="player === handPlayer" [style.--player-color]="player.color"
+        (click)="handPlayerId = player.id; handHidden = false">
+        {{ player.name }} <span class="tab-count">{{ player.hand.length }}</span>
+      </button>
+      }
+      <button type="button" class="hand-toggle" (click)="handHidden = !handHidden"
+        [attr.aria-label]="(handHidden ? 'simulator.hand.show' : 'simulator.hand.hide') | translate">
+        <i [class]="handHidden ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
+      </button>
+    </div>
+    @if (!handHidden && handPlayer; as player) {
+    <div class="hand-cards">
+      @for (card of player.hand; track card.uniqueId) {
+      <div class="hand-card" [class.dragging]="handDrag?.card === card" [class.holo]="card.holographic"
+        role="button" tabindex="0" [title]="card.card.name"
+        (pointerdown)="onHandPointerDown($event, player, card)"
+        (click)="!suppressHandClick && handCardMenu($event, handMenu, player, card)"
+        (keydown.enter)="handCardMenu($any($event), handMenu, player, card)">
+        <app-card-fit [card]="card.card" [maxScale]="2"
+          [template]="card.card.frontCardTemplateId | entity: cardTemplatesService | async" />
+      </div>
+      } @empty {
+      <span class="hand-empty">{{ 'simulator.hand.empty' | translate }}</span>
+      }
+    </div>
+    }
+  </div>
+  }
+
+  @if (handDrag?.moved) {
+  <div class="hand-ghost" [style.left.px]="handDrag!.x" [style.top.px]="handDrag!.y">
+    <app-card-fit [card]="handDrag!.card.card" [template]="handDrag!.card.card.frontCardTemplateId | entity: cardTemplatesService | async" />
+  </div>
+  }
 </div>
+
+<p-tieredMenu #handMenu [model]="handMenuItems" [popup]="true" appendTo="body" />
+<p-tieredMenu #boosterMenu [model]="boosterMenuItems" [popup]="true" appendTo="body" />
+<p-confirmDialog />
+<p-toast />
+
+<p-dialog [header]="'simulator.saves.title' | translate" [(visible)]="savesDialogVisible" [modal]="true"
+  [draggable]="false" [resizable]="false" [style]="{ width: '34rem' }">
+  <div class="dialog-content saves">
+    <div class="save-new">
+      <input pInputText [(ngModel)]="saveName" [attr.aria-label]="'fields.name' | translate" (keyup.enter)="saveGame()" />
+      <p-button [label]="'simulator.saves.save' | translate" icon="pi pi-save" (onClick)="saveGame()" />
+    </div>
+    <div class="save-option">
+      <p-checkbox inputId="shuffle-load" [(ngModel)]="shuffleOnLoad" [binary]="true" />
+      <label for="shuffle-load">{{ 'simulator.saves.shuffle' | translate }}</label>
+    </div>
+    <ul class="save-list">
+      @for (save of saves; track save.id) {
+      <li>
+        <div class="save-text">
+          <span class="save-name">{{ save.name }}</span>
+          <span class="save-date">{{ saveDate(save) }}</span>
+        </div>
+        <p-button icon="pi pi-folder-open" [label]="'simulator.saves.load' | translate" size="small" (onClick)="loadGame(save)" />
+        <p-button icon="pi pi-replay" [text]="true" size="small" (onClick)="saveGame(save)"
+          [pTooltip]="'simulator.saves.overwrite' | translate" [ariaLabel]="'simulator.saves.overwrite' | translate" />
+        <p-button icon="pi pi-trash" [text]="true" size="small" severity="danger" (onClick)="deleteSave(save)"
+          [ariaLabel]="'simulator.saves.delete' | translate" />
+      </li>
+      } @empty {
+      <li class="muted">{{ 'simulator.saves.none' | translate }}</li>
+      }
+    </ul>
+    <small class="muted">{{ 'simulator.saves.help' | translate }}</small>
+  </div>
+</p-dialog>
 
 @if (magnifiedCard) {
 <div class="magnified-overlay" [style.left.px]="magnifiedPos.x" [style.top.px]="magnifiedPos.y">
@@ -224,7 +410,7 @@
   </div>
 </p-dialog>
 
-<p-dialog [header]="'simulator.rename-stack' | translate" [(visible)]="renameDialogVisible" [modal]="true"
+<p-dialog [header]="renameTitleKey | translate" [(visible)]="renameDialogVisible" [modal]="true"
   [draggable]="false" [resizable]="false" [style]="{ width: '25rem' }">
   <div class="dialog-content">
     <label for="stackName" class="font-semibold">{{ 'fields.name' | translate }}</label>

@@ -1,0 +1,494 @@
+// Zones, joueurs, main, journal et parties enregistrées du simulateur
+
+:host ::ng-deep .game-simulator {
+    position: relative;
+
+    // Zones de dépôt (coordonnées de la table : tailles en unités logiques)
+    .table-zone {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        box-sizing: border-box;
+        border: 8px dashed color-mix(in srgb, var(--zone-color) 70%, transparent);
+        border-radius: 40px;
+        background: color-mix(in srgb, var(--zone-color) 10%, transparent);
+        // le corps de la zone laisse passer la souris : cartes, panoramique et menu de la table
+        pointer-events: none;
+
+        .zone-header {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            padding: 0 50px;
+            box-sizing: border-box;
+            border-radius: 32px 32px 0 0;
+            background: color-mix(in srgb, var(--zone-color) 25%, transparent);
+            color: #fff;
+            font-size: 64px;
+            font-weight: 600;
+            cursor: grab;
+            white-space: nowrap;
+            overflow: hidden;
+
+            &:active {
+                cursor: grabbing;
+            }
+        }
+
+        .zone-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .zone-owner {
+            opacity: 0.75;
+            font-weight: 400;
+        }
+
+        .zone-count {
+            margin-left: auto;
+            min-width: 90px;
+            padding: 4px 26px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.35);
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .zone-menu {
+            border: none;
+            background: none;
+            color: inherit;
+            font-size: 56px;
+            cursor: pointer;
+            padding: 0 10px;
+
+            i {
+                font-size: inherit;
+            }
+        }
+
+        .zone-resize {
+            pointer-events: auto;
+            position: absolute;
+            right: -8px;
+            bottom: -8px;
+            width: 90px;
+            height: 90px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 50%, color-mix(in srgb, var(--zone-color) 80%, transparent) 50%);
+            border-bottom-right-radius: 40px;
+        }
+    }
+
+    .sim-toolbar,
+    .sim-panels,
+    .hand-bar {
+        user-select: none;
+
+        input {
+            user-select: text;
+        }
+    }
+
+    // Barre d'outils (écran)
+    .sim-toolbar {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--p-content-background) 92%, transparent);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(4px);
+
+        .toolbar-sep {
+            width: 1px;
+            height: 22px;
+            margin: 0 4px;
+            background: var(--p-content-border-color);
+        }
+
+        .turn-label {
+            font-size: 0.9em;
+            opacity: 0.75;
+        }
+
+        .active-player {
+            font-weight: 700;
+            color: var(--player-color);
+            margin-right: 4px;
+        }
+    }
+
+    // Panneaux latéraux (écran)
+    .sim-panels {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 270px;
+        max-height: calc(100% - 190px);
+        pointer-events: none;
+    }
+
+    .sim-panel {
+        pointer-events: auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--p-content-background) 94%, transparent);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(4px);
+        overflow: auto;
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            h4 {
+                margin: 0;
+            }
+        }
+
+        .muted {
+            opacity: 0.6;
+        }
+    }
+
+    .players-panel {
+        flex: 0 1 auto;
+    }
+
+    .player {
+        padding: 6px 6px 6px 8px;
+        margin-top: 6px;
+        border-left: 4px solid var(--player-color);
+        border-radius: 6px;
+        background: var(--p-content-hover-background);
+
+        &.active {
+            box-shadow: inset 0 0 0 1px var(--player-color);
+        }
+
+        input {
+            min-width: 0;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            padding: 1px 4px;
+
+            &:hover,
+            &:focus {
+                border-color: var(--p-content-border-color);
+                background: var(--p-content-background);
+            }
+        }
+    }
+
+    .player-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .player-dot {
+            flex: 0 0 auto;
+            width: 14px;
+            height: 14px;
+            padding: 0;
+            border: 2px solid var(--player-color);
+            border-radius: 50%;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .player-name {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .hand-count {
+            font-size: 0.85em;
+            opacity: 0.75;
+            white-space: nowrap;
+        }
+    }
+
+    .player.active .player-dot {
+        background: var(--player-color);
+    }
+
+    .counter {
+        display: grid;
+        grid-template-columns: 1fr 26px 52px 26px 22px;
+        gap: 4px;
+        align-items: center;
+        margin-top: 4px;
+
+        .counter-value {
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.1em;
+            -moz-appearance: textfield;
+
+            &::-webkit-inner-spin-button,
+            &::-webkit-outer-spin-button {
+                -webkit-appearance: none;
+            }
+        }
+
+        .counter-btn {
+            height: 26px;
+            border: 1px solid var(--p-content-border-color);
+            border-radius: 6px;
+            background: var(--p-content-background);
+            color: inherit;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+
+            &:hover {
+                border-color: var(--player-color);
+            }
+        }
+
+        .counter-remove {
+            border: none;
+            background: none;
+            color: inherit;
+            opacity: 0.4;
+            cursor: pointer;
+
+            &:hover {
+                opacity: 1;
+            }
+        }
+    }
+
+    .add-counter {
+        margin-top: 4px;
+        border: none;
+        background: none;
+        color: inherit;
+        opacity: 0.6;
+        font-size: 0.85em;
+        cursor: pointer;
+
+        &:hover {
+            opacity: 1;
+        }
+    }
+
+    .log-panel {
+        flex: 1 1 auto;
+        max-height: 320px;
+    }
+
+    .log-list {
+        list-style: none;
+        margin: 6px 0 0;
+        padding: 0;
+        font-size: 0.85em;
+
+        li {
+            padding: 3px 0 3px 7px;
+            border-left: 3px solid var(--player-color);
+            border-bottom: 1px solid var(--p-content-border-color);
+        }
+
+        .log-time {
+            opacity: 0.55;
+            font-variant-numeric: tabular-nums;
+        }
+    }
+
+    // Main du joueur (écran, en bas)
+    .hand-bar {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+        z-index: 2000;
+        max-width: calc(100% - 40px);
+        padding: 0 10px 8px;
+        border-radius: 12px 12px 0 0;
+        background: color-mix(in srgb, var(--p-content-background) 92%, transparent);
+        box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(4px);
+
+        &.collapsed {
+            padding-bottom: 0;
+        }
+    }
+
+    .hand-tabs {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding-top: 6px;
+    }
+
+    .hand-tab {
+        padding: 3px 10px;
+        border: none;
+        border-bottom: 3px solid transparent;
+        background: none;
+        color: inherit;
+        font: inherit;
+        font-size: 0.9em;
+        opacity: 0.7;
+        cursor: pointer;
+
+        &.selected {
+            opacity: 1;
+            font-weight: 600;
+            border-bottom-color: var(--player-color);
+        }
+
+        .tab-count {
+            margin-left: 2px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: var(--p-content-hover-background);
+            font-size: 0.85em;
+        }
+    }
+
+    .hand-toggle {
+        margin-left: auto;
+        border: none;
+        background: none;
+        color: inherit;
+        cursor: pointer;
+    }
+
+    .hand-cards {
+        display: flex;
+        gap: 6px;
+        padding-top: 8px;
+        min-height: 126px;
+        align-items: flex-end;
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+
+    .hand-empty {
+        align-self: center;
+        padding: 0 20px;
+        opacity: 0.55;
+        font-size: 0.9em;
+    }
+
+    .hand-card {
+        flex: 0 0 auto;
+        position: relative;
+        width: 90px;
+        height: 126px;
+        cursor: grab;
+        touch-action: none;
+        transition: transform 0.15s ease;
+        transform-origin: bottom center;
+
+        &:hover,
+        &:focus-visible {
+            transform: translateY(-6px) scale(1.06);
+            z-index: 1;
+            outline: none;
+        }
+
+        &.dragging {
+            opacity: 0.35;
+        }
+
+        &.holo::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 4px;
+            pointer-events: none;
+            background: linear-gradient(115deg, transparent 25%, rgba(255, 0, 140, 0.35), rgba(0, 220, 255, 0.35), transparent 75%);
+            mix-blend-mode: color-dodge;
+        }
+    }
+
+    .hand-ghost {
+        position: fixed;
+        z-index: 3000;
+        width: 120px;
+        height: 168px;
+        transform: translate(-50%, -50%) rotate(-4deg);
+        pointer-events: none;
+        filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.45));
+    }
+}
+
+.saves {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .save-new {
+        display: flex;
+        gap: 8px;
+
+        input {
+            flex: 1;
+        }
+    }
+
+    .save-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .save-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 320px;
+        overflow: auto;
+
+        li {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--p-content-border-color);
+        }
+    }
+
+    .save-text {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .save-name {
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .save-date,
+    .muted {
+        font-size: 0.85em;
+        opacity: 0.6;
+    }
+}

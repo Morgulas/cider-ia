@@ -207,7 +207,108 @@
         "shortcuts-flip-coin": "Middle Click (Coin)",
         "shortcuts-flip-coin-label": "Flip Randomly",
         "shortcuts-flip-pawn": "Middle Click (Pawn / Cube)",
-        "shortcuts-flip-pawn-label": "Flip Over"
+        "shortcuts-flip-pawn-label": "Flip Over",
+        "zones": {
+            "add": "Add a zone",
+            "default-name": "Zone {{n}}",
+            "rename": "Rename the zone",
+            "menu": "Zone menu",
+            "layout": "Layout",
+            "layouts": {
+                "libre": "Free",
+                "ligne": "In a row",
+                "grille": "In a grid",
+                "cascade": "Cascade"
+            },
+            "face": "Face of cards put here",
+            "faces": {
+                "garder": "Unchanged",
+                "visible": "Always face up",
+                "cachee": "Always face down"
+            },
+            "owner": "Player",
+            "nobody": "Nobody",
+            "color": "Color",
+            "colors": {
+                "neutral": "Grey",
+                "gold": "Gold",
+                "blue": "Blue",
+                "red": "Red",
+                "green": "Green",
+                "purple": "Purple"
+            },
+            "arrange": "Arrange the cards",
+            "gather": "Gather into a stack",
+            "delete": "Delete the zone (cards stay)"
+        },
+        "players": {
+            "title": "Players",
+            "add": "Add a player",
+            "remove": "Remove the player",
+            "make-active": "Their turn",
+            "counter": "Counter",
+            "add-counter": "Counter",
+            "remove-counter": "Remove the counter",
+            "none": "No player.",
+            "turn": "Turn {{n}}",
+            "end-turn": "End turn"
+        },
+        "hand": {
+            "draw-to-hand": "Draw into {{player}}'s hand",
+            "deal": "Deal to each player",
+            "deal-n": "{{n}} card(s)",
+            "take": "Take into hand ({{player}})",
+            "play": "Play (face up)",
+            "play-hidden": "Play face down",
+            "give": "Give to",
+            "count": "{{n}} card(s) in hand",
+            "empty": "Empty hand: drop a card here, or draw from a stack (right click).",
+            "show": "Show the hand",
+            "hide": "Hide the hand"
+        },
+        "boosters": {
+            "open": "Open a booster",
+            "open-here": "Open a booster here",
+            "to-table": "On the table (face-down stack)",
+            "to-hand": "Into {{player}}'s hand"
+        },
+        "log": {
+            "title": "Log",
+            "clear": "Clear the log",
+            "empty": "Nothing yet.",
+            "draw": "{{player}} draws {{card}} ({{stack}})",
+            "draw-hidden": "{{player}} draws a card face down ({{stack}})",
+            "draw-hand": "{{player}} draws {{n}} card(s) into hand ({{stack}})",
+            "deal": "{{n}} card(s) dealt to each of the {{players}} players ({{stack}})",
+            "take": "{{player}} takes {{card}} into hand",
+            "play": "{{player}} plays {{card}}",
+            "play-hidden": "{{player}} plays a card face down",
+            "discard": "{{player}} discards {{card}}",
+            "discard-hand": "{{player}} discards {{card}} from hand",
+            "give": "{{player}} gives a card to {{other}}",
+            "shuffle": "{{stack}} is shuffled",
+            "die": "Die: {{value}}",
+            "coin-heads": "Coin: heads",
+            "coin-tails": "Coin: tails",
+            "counter": "{{player}}'s {{counter}}: {{before}} → {{value}}",
+            "booster-table": "{{player}} opens a {{booster}} booster on the table ({{n}} cards)",
+            "booster-hand": "{{player}} opens a {{booster}} booster ({{n}} cards in hand)",
+            "loaded": "Game “{{name}}” loaded"
+        },
+        "saves": {
+            "title": "Saved games",
+            "default-name": "Game of {{date}}",
+            "save": "Save",
+            "load": "Load",
+            "overwrite": "Replace with the current game",
+            "delete": "Delete the game",
+            "delete-confirm": "Delete the game “{{name}}”?",
+            "none": "No saved game.",
+            "shuffle": "Shuffle face-down stacks when loading",
+            "saved": "Game “{{name}}” saved",
+            "missing": "{{n}} card(s) no longer exist in the project and were skipped.",
+            "help": "Games are saved in the project: table, zones, players, hands, counters and log. A game saved at the start works as a setup."
+        }
     },
     "template-editor": {
         "preview-settings-title": "Preview Settings",

@@ -210,7 +210,108 @@
         "shortcuts-flip-coin": "Clic milieu (pièce)",
         "shortcuts-flip-coin-label": "Tirer à pile ou face",
         "shortcuts-flip-pawn": "Clic milieu (pion / cube)",
-        "shortcuts-flip-pawn-label": "Retourner"
+        "shortcuts-flip-pawn-label": "Retourner",
+        "zones": {
+            "add": "Ajouter une zone",
+            "default-name": "Zone {{n}}",
+            "rename": "Renommer la zone",
+            "menu": "Menu de la zone",
+            "layout": "Disposition",
+            "layouts": {
+                "libre": "Libre",
+                "ligne": "En ligne",
+                "grille": "En grille",
+                "cascade": "En cascade"
+            },
+            "face": "Face des cartes posées",
+            "faces": {
+                "garder": "Inchangée",
+                "visible": "Toujours visible",
+                "cachee": "Toujours cachée"
+            },
+            "owner": "Joueur",
+            "nobody": "Aucun",
+            "color": "Couleur",
+            "colors": {
+                "neutral": "Gris",
+                "gold": "Or",
+                "blue": "Bleu",
+                "red": "Rouge",
+                "green": "Vert",
+                "purple": "Violet"
+            },
+            "arrange": "Ranger les cartes",
+            "gather": "Réunir en une pile",
+            "delete": "Supprimer la zone (les cartes restent)"
+        },
+        "players": {
+            "title": "Joueurs",
+            "add": "Ajouter un joueur",
+            "remove": "Retirer le joueur",
+            "make-active": "C'est son tour",
+            "counter": "Compteur",
+            "add-counter": "Compteur",
+            "remove-counter": "Retirer le compteur",
+            "none": "Aucun joueur.",
+            "turn": "Tour {{n}}",
+            "end-turn": "Fin du tour"
+        },
+        "hand": {
+            "draw-to-hand": "Piocher dans la main de {{player}}",
+            "deal": "Distribuer à chaque joueur",
+            "deal-n": "{{n}} carte(s)",
+            "take": "Prendre en main ({{player}})",
+            "play": "Jouer (face visible)",
+            "play-hidden": "Jouer face cachée",
+            "give": "Donner à",
+            "count": "{{n}} carte(s) en main",
+            "empty": "Main vide : glisse une carte ici, ou pioche dans une pile (clic droit).",
+            "show": "Afficher la main",
+            "hide": "Masquer la main"
+        },
+        "boosters": {
+            "open": "Ouvrir un booster",
+            "open-here": "Ouvrir un booster ici",
+            "to-table": "Sur la table (pile face cachée)",
+            "to-hand": "Dans la main de {{player}}"
+        },
+        "log": {
+            "title": "Journal",
+            "clear": "Vider le journal",
+            "empty": "Rien pour l'instant.",
+            "draw": "{{player}} pioche {{card}} ({{stack}})",
+            "draw-hidden": "{{player}} pioche une carte face cachée ({{stack}})",
+            "draw-hand": "{{player}} pioche {{n}} carte(s) dans sa main ({{stack}})",
+            "deal": "{{n}} carte(s) distribuée(s) à chacun des {{players}} joueurs ({{stack}})",
+            "take": "{{player}} prend {{card}} en main",
+            "play": "{{player}} joue {{card}}",
+            "play-hidden": "{{player}} pose une carte face cachée",
+            "discard": "{{player}} défausse {{card}}",
+            "discard-hand": "{{player}} défausse {{card}} de sa main",
+            "give": "{{player}} donne une carte à {{other}}",
+            "shuffle": "{{stack}} est mélangée",
+            "die": "Dé : {{value}}",
+            "coin-heads": "Pièce : face",
+            "coin-tails": "Pièce : pile",
+            "counter": "{{counter}} de {{player}} : {{before}} → {{value}}",
+            "booster-table": "{{player}} ouvre un booster {{booster}} sur la table ({{n}} cartes)",
+            "booster-hand": "{{player}} ouvre un booster {{booster}} ({{n}} cartes en main)",
+            "loaded": "Partie « {{name}} » chargée"
+        },
+        "saves": {
+            "title": "Parties enregistrées",
+            "default-name": "Partie du {{date}}",
+            "save": "Enregistrer",
+            "load": "Charger",
+            "overwrite": "Remplacer par la partie en cours",
+            "delete": "Supprimer la partie",
+            "delete-confirm": "Supprimer la partie « {{name}} » ?",
+            "none": "Aucune partie enregistrée.",
+            "shuffle": "Mélanger les piles face cachée au chargement",
+            "saved": "Partie « {{name}} » enregistrée",
+            "missing": "{{n}} carte(s) n'existent plus dans le projet et ont été ignorées.",
+            "help": "Les parties sont enregistrées dans le projet : table, zones, joueurs, mains, compteurs et journal. Une partie enregistrée au début sert de mise en place."
+        }
     },
     "template-editor": {
         "preview-settings-title": "Réglages de l'aperçu",
