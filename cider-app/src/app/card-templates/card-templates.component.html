@@ -23,13 +23,14 @@
           <div class="preview-controls">
             <p-buttongroup class="view-modes">
               <button pButton type="button" icon="pi pi-id-card" [class.p-button-outlined]="viewMode !== 'card'"
-                [label]="'template-editor.view-card' | translate" (click)="setViewMode('card')"></button>
+                [label]="popoutOpen ? '' : ('template-editor.view-card' | translate)"
+                [pTooltip]="popoutOpen ? ('template-editor.view-card' | translate) : ''" (click)="setViewMode('card')"></button>
               <button pButton type="button" icon="pi pi-clone" [class.p-button-outlined]="viewMode !== 'pair'"
-                [label]="'template-editor.view-pair' | translate" [disabled]="!pair"
+                [label]="popoutOpen ? '' : ('template-editor.view-pair' | translate)" [disabled]="!pair"
                 [pTooltip]="(pair ? 'template-editor.view-pair-help' : 'template-editor.view-pair-none') | translate"
                 (click)="setViewMode('pair')"></button>
               <button pButton type="button" icon="pi pi-exclamation-circle" [class.p-button-outlined]="viewMode !== 'overflow'"
-                [label]="('template-editor.view-overflow' | translate) + (overflowCount() ? ' (' + overflowCount() + ')' : '')"
+                [label]="(popoutOpen ? '' : ('template-editor.view-overflow' | translate)) + (overflowCount() ? (popoutOpen ? '' : ' (') + overflowCount() + (popoutOpen ? '' : ')') : '')"
                 [class.p-button-danger]="overflowCount() > 0" [pTooltip]="'template-editor.view-overflow-help' | translate"
                 (click)="setViewMode('overflow')"></button>
             </p-buttongroup>
@@ -37,6 +38,7 @@
               [label]="'template-editor.inspect' | translate" [pTooltip]="'template-editor.inspect-help' | translate"
               (click)="toggleInspector()"></button>
             <span class="spacer"></span>
+            @if (!popoutOpen) {
             <p-buttongroup>
               <button pButton type="button" icon="pi pi-search-minus" (click)="changeZoom(ZOOM_DOWN)"
                 [pTooltip]="'controls.zoom-out' | translate"></button>
@@ -45,6 +47,7 @@
               <button pButton type="button" icon="pi pi-search-plus" (click)="changeZoom(ZOOM_UP)"
                 [pTooltip]="'controls.zoom-in' | translate"></button>
             </p-buttongroup>
+            }
           </div>
           }
           @if (hasIssue()) {
