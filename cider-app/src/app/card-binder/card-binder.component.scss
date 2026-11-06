@@ -394,6 +394,46 @@ $folio: 26px;
   filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
 }
 
+// Inclinaison de la carte agrandie (directive appCardTilt)
+.zoom-tilt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  // suivi du pointeur : juste assez de lissage pour ne pas trembler
+  transition: transform 0.12s ease-out;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+
+  &.tilt-dragging {
+    transition: transform 0.05s linear;
+    cursor: grabbing;
+  }
+
+  // retour à plat avec un léger rebond
+  &.tilt-settling {
+    transition: transform 0.7s cubic-bezier(.34, 1.56, .64, 1);
+
+    .zoom-glare {
+      transition: opacity 0.5s ease;
+    }
+  }
+}
+
+.zoom-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 3%;
+  background:
+    radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%),
+      rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.18) 28%, rgba(255, 255, 255, 0) 60%);
+  mix-blend-mode: soft-light;
+  opacity: var(--glare-o, 0);
+}
+
 .zoom-flipper {
   position: relative;
   width: 100%;
@@ -442,6 +482,7 @@ $folio: 26px;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .zoom-tilt,
   .zoom-flipper,
   .pocket.filled,
   .corner {

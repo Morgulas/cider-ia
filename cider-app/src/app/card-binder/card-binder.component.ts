@@ -10,6 +10,7 @@ import { Card } from '../data-services/types/card.type';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { EntityPipe } from '../data-services/pipes/entity.pipe';
 import { CardFitComponent } from './card-fit.component';
+import { CardTiltDirective } from './card-tilt.directive';
 
 /** Une carte rangée dans le classeur, vue de face ou de dos. */
 export interface BinderItem {
@@ -44,7 +45,7 @@ const DEFAULT_RATIO = 63 / 88;
   selector: 'app-card-binder',
   templateUrl: './card-binder.component.html',
   styleUrls: ['./card-binder.component.scss'],
-  imports: [NgTemplateOutlet, AsyncPipe, TranslatePipe, Button, Tooltip, EntityPipe, CardFitComponent]
+  imports: [NgTemplateOutlet, AsyncPipe, TranslatePipe, Button, Tooltip, EntityPipe, CardFitComponent, CardTiltDirective]
 })
 export class CardBinderComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() items: BinderItem[] = [];
@@ -304,7 +305,7 @@ export class CardBinderComponent implements OnChanges, AfterViewInit, OnDestroy 
     }
   }
 
-  private reducedMotion(): boolean {
+  reducedMotion(): boolean {
     try {
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     } catch {
