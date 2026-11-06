@@ -1,0 +1,100 @@
+<div class="opening" #scroller [class]="'state-' + state">
+  @if (!pool.length) {
+  <p class="empty-pool"><i class="pi pi-info-circle"></i> {{ 'boosters.empty-pool' | translate }}</p>
+  } @else {
+  @switch (state) {
+  @case ('reveal') {
+  <div class="reveal">
+    <div class="reveal-main">
+      @if (current; as pulled) {
+      <div class="big-card" [class.flipped]="flipped" [class.is-foil]="pulled.foil && flipped" appCardTilt
+        role="button" tabindex="0" (click)="advance()" (keydown.enter)="advance()"
+        [attr.aria-label]="(flipped ? 'boosters.next-card' : 'boosters.turn-card') | translate">
+        <div class="flipper">
+          <div class="face face-back">
+            <app-card-fit [card]="pulled.card" [maxScale]="3"
+              [template]="pulled.card.backCardTemplateId | entity: templatesService | async" />
+          </div>
+          <div class="face face-front">
+            <app-card-fit [card]="pulled.card" [maxScale]="3"
+              [template]="pulled.card.frontCardTemplateId | entity: templatesService | async" />
+            @if (pulled.foil) {
+            <span class="foil foil-{{ pulled.foil }}" aria-hidden="true"></span>
+            }
+            <span class="glare" aria-hidden="true"></span>
+          </div>
+        </div>
+        @if (flipped && isNew(index)) {
+        <span class="badge-new">{{ 'boosters.new' | translate }}</span>
+        }
+      </div>
+      }
+      <div class="reveal-info">
+        <span>{{ 'boosters.card-of' | translate: { n: index + 1, total: pulls.length } }}</span>
+        <p-button [label]="'boosters.reveal-all' | translate" icon="pi pi-forward" [text]="true" size="small"
+          (onClick)="revealAll()" />
+      </div>
+      <div class="hint">{{ (flipped ? 'boosters.hint-next' : 'boosters.hint-turn') | translate }}</div>
+    </div>
+    <div class="revealed-row">
+      @for (pull of revealed; track $index) {
+      <div class="mini-card" [class.is-foil]="pull.foil" [title]="pull.card.name">
+        <app-card-fit [card]="pull.card" [template]="pull.card.frontCardTemplateId | entity: templatesService | async" />
+        @if (pull.foil) {
+        <span class="foil foil-{{ pull.foil }}" aria-hidden="true"></span>
+        }
+      </div>
+      }
+      @for (slot of slots; track $index) {
+      <div class="mini-card slot" aria-hidden="true"></div>
+      }
+    </div>
+  </div>
+  }
+  @case ('done') {
+  <div class="done">
+    <h3>{{ batch > 1 ? ('boosters.batch-result' | translate: { n: batch, cards: pulls.length }) : ('boosters.pack-result' | translate) }}</h3>
+    <div class="result-grid" [class.dense]="pulls.length > 20">
+      @for (pull of pulls; track $index; let i = $index) {
+      <div class="result-card" [class.is-foil]="pull.foil" appCardTilt [title]="pull.card.name">
+        <app-card-fit [card]="pull.card" [maxScale]="2" [template]="pull.card.frontCardTemplateId | entity: templatesService | async" />
+        @if (pull.foil) {
+        <span class="foil foil-{{ pull.foil }}" aria-hidden="true"></span>
+        }
+        <span class="glare" aria-hidden="true"></span>
+        @if (isNew(i)) {
+        <span class="badge-new">{{ 'boosters.new' | translate }}</span>
+        }
+      </div>
+      }
+    </div>
+    <div class="actions">
+      <p-button [label]="'boosters.open-another' | translate" icon="pi pi-gift" (onClick)="reset()" />
+      <p-button [label]="'boosters.open-many' | translate: { n: 10 }" icon="pi pi-clone" severity="secondary"
+        (onClick)="openMany(10)" />
+    </div>
+  </div>
+  }
+  @default {
+  <div class="sealed">
+    <div class="pack-tilt" appCardTilt role="button" tabindex="0" (click)="tear()" (keydown.enter)="tear()"
+      [attr.aria-label]="'boosters.open' | translate" [class.tearing]="state === 'tearing'">
+      <div class="pack-part pack-top">
+        <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls" />
+      </div>
+      <div class="pack-part pack-body">
+        <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls" />
+      </div>
+      <span class="tear-line" aria-hidden="true"></span>
+    </div>
+    <div class="hint">{{ 'boosters.hint-open' | translate }}</div>
+    <div class="actions">
+      <p-button [label]="'boosters.open' | translate" icon="pi pi-gift" (onClick)="tear()" [disabled]="state !== 'sealed'" />
+      <p-button [label]="'boosters.open-many' | translate: { n: 10 }" icon="pi pi-clone" severity="secondary"
+        (onClick)="openMany(10)" [disabled]="state !== 'sealed'" />
+    </div>
+  </div>
+  }
+  }
+  }
+</div>

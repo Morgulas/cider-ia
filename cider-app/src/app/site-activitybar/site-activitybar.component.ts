@@ -87,6 +87,21 @@ export class SiteActivitybarComponent {
     //   }
     // },
     {
+      label: 'Boosters',
+      icon: 'pi pi-fw pi-gift',
+      tooltipOptions: {
+        tooltipLabel: 'Boosters',
+        tooltipPosition: 'right',
+        showDelay: 500,
+        hideDelay: 500
+      },
+      command: () => {
+        this.selectedActivity = '';
+        this.selectedActivityChange.emit(this.selectedActivity);
+        this.router.navigate(['/boosters']);
+      }
+    },
+    {
       label: 'Game Simulator',
       icon: 'pi pi-fw pi-crown',
       tooltipOptions: {

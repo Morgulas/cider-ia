@@ -1,0 +1,305 @@
+@use '../card-binder/foil';
+
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+  --card-w: min(300px, 34vh);
+  --card-h: calc(var(--card-w) * 1.4);
+}
+
+.opening {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+  padding: 16px;
+  box-sizing: border-box;
+
+  // centré quand il y a la place, sans couper le haut quand le contenu déborde
+  > * {
+    margin-block: auto;
+  }
+}
+
+.empty-pool {
+  opacity: 0.75;
+}
+
+.hint {
+  font-size: 0.9em;
+  opacity: 0.65;
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+// ----- Booster scellé -----
+
+.sealed {
+  perspective: 1400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.pack-tilt {
+  position: relative;
+  width: calc(var(--card-w) * 1.05);
+  height: calc(var(--card-w) * 1.68);
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 0.12s ease-out;
+  touch-action: none;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.45));
+
+  &.tilt-settling {
+    transition: transform 0.7s cubic-bezier(.34, 1.56, .64, 1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: 6px;
+  }
+}
+
+// le sachet en deux morceaux superposés : la bande du haut part à la déchirure
+.pack-part {
+  position: absolute;
+  inset: 0;
+}
+
+.pack-top {
+  clip-path: inset(0 0 87% 0);
+}
+
+.pack-body {
+  clip-path: inset(13% 0 0 0);
+}
+
+.tear-line {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 13%;
+  border-top: 1px dashed rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.pack-tilt.tearing {
+  pointer-events: none;
+
+  .pack-top {
+    animation: tear-off 0.6s cubic-bezier(.3, .1, .3, 1) forwards;
+  }
+
+  .pack-body {
+    animation: drop-away 0.5s 0.4s ease-in forwards;
+  }
+
+  .tear-line {
+    display: none;
+  }
+}
+
+@keyframes tear-off {
+  0% { transform: none; }
+  30% { transform: translate(4%, -2%) rotate(-2deg); }
+  100% { transform: translate(70%, -60%) rotate(-28deg); opacity: 0; }
+}
+
+@keyframes drop-away {
+  to { transform: translateY(40%) scale(0.92); opacity: 0; }
+}
+
+// ----- Révélation carte par carte -----
+
+.reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.reveal-main {
+  perspective: 1400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.big-card {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  perspective: 1600px;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 0.12s ease-out;
+  touch-action: none;
+  animation: deal-in 0.35s ease-out;
+
+  &.tilt-settling {
+    transition: transform 0.7s cubic-bezier(.34, 1.56, .64, 1);
+  }
+
+  &.is-foil {
+    filter: drop-shadow(0 0 18px rgba(255, 215, 120, 0.55));
+  }
+}
+
+@keyframes deal-in {
+  from { transform: translateY(-30px) scale(0.92); opacity: 0; }
+}
+
+.flipper {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(.45, .05, .35, 1);
+
+  .flipped & {
+    transform: rotateY(180deg);
+  }
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: rotateY(0deg);
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
+}
+
+.face-front {
+  transform: rotateY(180deg);
+}
+
+.glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%),
+      rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.15) 28%, rgba(255, 255, 255, 0) 60%);
+  mix-blend-mode: soft-light;
+  opacity: var(--glare-o, 0);
+}
+
+.badge-new {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #e8b03a;
+  color: #2a1a00;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.reveal-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.revealed-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.mini-card {
+  position: relative;
+  width: 56px;
+  height: 78px;
+  border-radius: 4px;
+  overflow: hidden;
+  animation: deal-in 0.25s ease-out;
+
+  &.slot {
+    border: 1px dashed var(--p-content-border-color, rgba(128, 128, 128, 0.4));
+    animation: none;
+  }
+}
+
+// ----- Récapitulatif -----
+
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+
+  h3 {
+    margin: 0;
+  }
+}
+
+.result-grid {
+  perspective: 1200px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  width: 100%;
+  max-width: 1100px;
+
+  &.dense {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  }
+}
+
+.result-card {
+  position: relative;
+  aspect-ratio: 5 / 7;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 0.12s ease-out;
+  animation: deal-in 0.3s ease-out backwards;
+
+  &.tilt-settling {
+    transition: transform 0.7s cubic-bezier(.34, 1.56, .64, 1);
+  }
+
+  &.is-foil {
+    filter: drop-shadow(0 0 10px rgba(255, 215, 120, 0.5));
+  }
+
+  @for $i from 1 through 15 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{$i * 0.04}s;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .big-card,
+  .mini-card,
+  .result-card {
+    animation: none;
+  }
+
+  .flipper {
+    transition: none;
+  }
+}

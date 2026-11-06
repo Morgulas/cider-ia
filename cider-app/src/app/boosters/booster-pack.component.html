@@ -1,0 +1,29 @@
+<div class="pack" [class]="uid" [class.crimped]="design.crimped" [class.glossy]="design.finish !== 'mat'">
+  @if (design.mode === 'template') {
+  <div class="pack-template" [innerHTML]="templateHtml"></div>
+  } @else {
+  <div class="pack-form" [style.background]="backgroundStyle" [style.color]="design.textColor">
+    @if (artUrl) {
+    <img class="pack-art" [src]="artUrl" alt="" draggable="false">
+    }
+    <div class="pack-band">
+      @if (logoUrl) {
+      <img class="pack-logo" [src]="logoUrl" alt="" draggable="false">
+      }
+      <div class="pack-title">{{ design.title || name }}</div>
+      @if (design.subtitle) {
+      <div class="pack-subtitle">{{ design.subtitle }}</div>
+      }
+    </div>
+    @if (cardsPerPack) {
+    <div class="pack-count">{{ 'boosters.pack-count' | translate: { n: cardsPerPack } }}</div>
+    }
+  </div>
+  }
+  @if (foilClass) {
+  <span [class]="foilClass" aria-hidden="true"></span>
+  }
+  <span class="pack-gloss" aria-hidden="true"></span>
+  <span class="pack-seal top" aria-hidden="true"></span>
+  <span class="pack-seal bottom" aria-hidden="true"></span>
+</div>

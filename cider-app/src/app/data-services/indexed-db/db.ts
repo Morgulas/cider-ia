@@ -45,6 +45,8 @@ export class AppDB extends Dexie {
     public static readonly ASSET_FOLDERS_TABLE: string = 'assetFolders';
     public static readonly META_TABLE: string = 'meta';
     public static readonly CARD_HISTORY_TABLE: string = 'cardHistory';
+    public static readonly BOOSTERS_TABLE: string = 'boosters';
+    public static readonly SIMULATOR_SAVES_TABLE: string = 'simulatorSaves';
     private static readonly ALL_TABLES = [
         AppDB.GAMES_TABLE, AppDB.DECKS_TABLE, AppDB.CARDS_TABLE, AppDB.ASSETS_TABLE,
         AppDB.CARD_TEMPLATES_TABLE, AppDB.CARD_ATTRIBUTES_TABLE, AppDB.DOCUMENTS_TABLE, AppDB.ASSET_FOLDERS_TABLE];
@@ -175,6 +177,11 @@ export class AppDB extends Dexie {
             // journal of the changes made to cards (see card-history.ts)
             cardHistory: '++id, cardId, deckId, batch, at',
         });
+        this.version(13).stores({
+            // boosters (pool et poids, design) et parties enregistrées du simulateur
+            boosters: '++id, name',
+            simulatorSaves: '++id, name, savedAt',
+        });
 
         // The local database is a working copy of the project opened from the server
         // (see CurrentProjectService): it is filled by loadProject(), never with the sample.
@@ -217,7 +224,9 @@ export class AppDB extends Dexie {
             { name: AppDB.CARD_ATTRIBUTES_TABLE },
             { name: AppDB.DOCUMENTS_TABLE },
             { name: AppDB.ASSET_FOLDERS_TABLE },
-            { name: AppDB.CARD_HISTORY_TABLE }
+            { name: AppDB.CARD_HISTORY_TABLE },
+            { name: AppDB.BOOSTERS_TABLE },
+            { name: AppDB.SIMULATOR_SAVES_TABLE }
         ];
 
         tablesToWatch.forEach(t => {

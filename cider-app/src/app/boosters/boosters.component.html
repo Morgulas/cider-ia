@@ -1,0 +1,330 @@
+<p-confirmDialog />
+<div class="boosters-page">
+  <aside class="booster-list">
+    <div class="list-header">
+      <h3>{{ 'boosters.title' | translate }}</h3>
+      <p-button icon="pi pi-plus" [rounded]="true" [text]="true" (onClick)="create()"
+        [pTooltip]="'boosters.create' | translate" [ariaLabel]="'boosters.create' | translate" />
+    </div>
+    @for (b of boosters; track b.id) {
+    <button type="button" class="booster-item" [class.selected]="b.id === booster?.id" (click)="select(b)">
+      <span class="thumb">
+        <app-booster-pack [design]="b.design" [name]="b.name" [assetUrls]="assetUrls" />
+      </span>
+      <span class="item-text">
+        <span class="item-name">{{ b.name }}</span>
+        <span class="item-sub">{{ 'boosters.cards-per-pack' | translate: { n: b.cardsPerPack } }}</span>
+      </span>
+    </button>
+    } @empty {
+    <p class="list-empty">{{ 'boosters.none' | translate }}</p>
+    <p-button [label]="'boosters.create' | translate" icon="pi pi-plus" (onClick)="create()" />
+    }
+  </aside>
+
+  @if (booster) {
+  <section class="booster-main">
+    <div class="toolbar">
+      <input pInputText class="name-input" [(ngModel)]="booster.name" (ngModelChange)="changed()"
+        [attr.aria-label]="'boosters.name' | translate" />
+      <p-selectButton [options]="sectionOptions" [(ngModel)]="section" optionValue="value" [allowEmpty]="false"
+        [ariaLabel]="'boosters.title' | translate">
+        <ng-template #item let-option>
+          <i [class]="option.icon"></i><span class="section-label">{{ option.key | translate }}</span>
+        </ng-template>
+      </p-selectButton>
+      <div class="filler"></div>
+      <p-button icon="pi pi-copy" [text]="true" [rounded]="true" (onClick)="duplicate()"
+        [pTooltip]="'boosters.duplicate' | translate" [ariaLabel]="'boosters.duplicate' | translate" />
+      <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" (onClick)="remove()"
+        [pTooltip]="'boosters.delete' | translate" [ariaLabel]="'boosters.delete' | translate" />
+    </div>
+
+    @switch (section) {
+    @case ('open') {
+    <div class="open-layout">
+      <app-booster-opening class="opening" [booster]="booster" [pool]="pool" [foilField]="foilField"
+        [assetUrls]="assetUrls" [collectedIds]="collectedIds" (opened)="onPackOpened($event)" />
+      <aside class="session">
+        <div class="session-header">
+          <h4>{{ 'boosters.session' | translate }}</h4>
+          <p-button icon="pi pi-refresh" [text]="true" [rounded]="true" size="small" (onClick)="resetSession()"
+            [disabled]="!openedPacks" [pTooltip]="'boosters.session-reset' | translate"
+            [ariaLabel]="'boosters.session-reset' | translate" />
+        </div>
+        <div class="session-figures">
+          <div><strong>{{ openedPacks }}</strong> {{ 'boosters.packs-opened' | translate }}</div>
+          <div><strong>{{ collected.length }}</strong> / {{ pool.length }} {{ 'boosters.distinct-cards' | translate }}</div>
+        </div>
+        <div class="progress"><span [style.width.%]="collectedProgress() * 100"></span></div>
+        <ul class="collected">
+          @for (entry of collected; track entry.card.id) {
+          <li>
+            <span class="c-name">{{ entry.card.name }}</span>
+            @if (entry.foils) {
+            <i class="pi pi-sparkles" [pTooltip]="'boosters.foils' | translate: { n: entry.foils }"></i>
+            }
+            <span class="c-count">×{{ entry.copies }}</span>
+          </li>
+          }
+        </ul>
+      </aside>
+    </div>
+    }
+
+    @case ('pool') {
+    <div class="pool-layout">
+      <div class="settings-grid">
+        <label for="decks">{{ 'boosters.decks' | translate }}</label>
+        <p-multiSelect inputId="decks" [options]="decks" optionLabel="name" optionValue="id" [(ngModel)]="booster.deckIds"
+          (ngModelChange)="changed(true)" display="chip" [placeholder]="'boosters.decks-placeholder' | translate" />
+
+        <label for="per-pack">{{ 'boosters.per-pack' | translate }}</label>
+        <p-inputNumber inputId="per-pack" [(ngModel)]="booster.cardsPerPack" (ngModelChange)="changed(true)"
+          [min]="1" [max]="60" [showButtons]="true" />
+
+        <label for="dups">{{ 'boosters.duplicates' | translate }}</label>
+        <p-toggleswitch inputId="dups" [(ngModel)]="booster.allowDuplicates" (ngModelChange)="changed(true)" />
+
+        <label for="default-weight">{{ 'boosters.default-weight' | translate }}</label>
+        <p-inputNumber inputId="default-weight" [(ngModel)]="booster.defaultWeight" (ngModelChange)="changed(true)"
+          [min]="0" [maxFractionDigits]="2" [showButtons]="true"
+          [pTooltip]="'boosters.default-weight-help' | translate" />
+
+        <label for="foil-chance">{{ 'boosters.foil-chance' | translate }}</label>
+        <div class="inline">
+          <p-inputNumber inputId="foil-chance" [(ngModel)]="booster.foilChance" (ngModelChange)="changed(true)"
+            [min]="0" [max]="100" [maxFractionDigits]="1" suffix=" %" />
+          <p-select [options]="foilEffects" [(ngModel)]="booster.foilEffect" (ngModelChange)="changed()"
+            [ariaLabel]="'boosters.foil-effect' | translate">
+            <ng-template #selectedItem let-effect>{{ 'binder.foil-effects.' + effect | translate }}</ng-template>
+            <ng-template #item let-effect>{{ 'binder.foil-effects.' + effect | translate }}</ng-template>
+          </p-select>
+        </div>
+        <span></span>
+        <small class="help">{{ (foilField ? 'boosters.foil-help-attr' : 'boosters.foil-help') | translate }}</small>
+      </div>
+
+      <div class="group-tools">
+        <label for="group-field">{{ 'boosters.group-by' | translate }}</label>
+        <p-select inputId="group-field" [options]="fields" optionLabel="header" optionValue="field" [(ngModel)]="groupField"
+          (ngModelChange)="onGroupFieldChange()" [showClear]="true" [placeholder]="'boosters.group-none' | translate" />
+        @if (groupWeights.length) {
+        <div class="group-weights">
+          @for (group of groupWeights; track group.value) {
+          <div class="group-weight">
+            <span class="g-name">{{ group.value }}</span>
+            <span class="g-count">{{ 'boosters.n-cards' | translate: { n: group.count } }}</span>
+            <p-inputNumber [(ngModel)]="group.weight" [min]="0" [maxFractionDigits]="2" size="small"
+              [placeholder]="'boosters.mixed' | translate" [inputStyle]="{ width: '5rem' }"
+              (keydown.enter)="applyGroupWeight(group)" [ariaLabel]="('boosters.weight' | translate) + ' ' + group.value" />
+            <p-button icon="pi pi-check" [text]="true" size="small" (onClick)="applyGroupWeight(group)"
+              [pTooltip]="'boosters.apply-group' | translate: { value: group.value }"
+              [ariaLabel]="'boosters.apply-group' | translate: { value: group.value }" />
+            <span class="g-share">{{ percent(groupShare(group.value)) }}</span>
+          </div>
+          }
+        </div>
+        }
+      </div>
+
+      <div class="table-tools">
+        <input pInputText type="search" [(ngModel)]="poolFilter" [placeholder]="'controls.search' | translate"
+          [attr.aria-label]="'controls.search' | translate" />
+        <span class="pool-summary">{{ 'boosters.pool-summary' | translate: { n: pool.length, total: rows.length } }}</span>
+        <div class="filler"></div>
+        <p-button [label]="'boosters.reset-weights' | translate" icon="pi pi-undo" [text]="true" size="small"
+          (onClick)="resetWeights()" />
+      </div>
+      <div class="table-wrap">
+        <table class="pool-table">
+          <thead>
+            <tr>
+              <th>{{ 'boosters.card' | translate }}</th>
+              <th>{{ 'boosters.deck' | translate }}</th>
+              @if (groupField) { <th>{{ groupLabel() }}</th> }
+              <th class="num">{{ 'boosters.weight' | translate }}</th>
+              <th class="num" [pTooltip]="'boosters.chance-help' | translate">{{ 'boosters.chance' | translate }}</th>
+              <th class="num" [pTooltip]="(booster.allowDuplicates ? 'boosters.per-pack-help-dups' : 'boosters.per-pack-help') | translate">
+                {{ 'boosters.per-pack-short' | translate }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of filteredRows(); track row.card.id) {
+            <tr [class.excluded]="!row.weight">
+              <td>{{ row.card.name }}</td>
+              <td class="muted">{{ row.deckName }}</td>
+              @if (groupField) { <td>{{ row.group }}</td> }
+              <td class="num">
+                <input type="number" class="weight-input" min="0" step="1" [value]="row.weight"
+                  (change)="setWeight(row, $any($event.target).valueAsNumber)"
+                  [attr.aria-label]="('boosters.weight' | translate) + ' ' + row.card.name" />
+              </td>
+              <td class="num">{{ percent(row.chance) }}</td>
+              <td class="num">{{ booster.allowDuplicates ? decimal(row.perPack) : percent(row.perPack) }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+    }
+
+    @case ('design') {
+    <div class="design-layout">
+      <div class="design-settings">
+        <p-selectButton [options]="[{ v: 'form', k: 'boosters.design.form' }, { v: 'template', k: 'boosters.design.template' }]"
+          [ngModel]="booster.design.mode" (ngModelChange)="setDesignMode($event)" optionValue="v" [allowEmpty]="false">
+          <ng-template #item let-option>{{ option.k | translate }}</ng-template>
+        </p-selectButton>
+
+        @if (booster.design.mode === 'form') {
+        <div class="settings-grid">
+          <label for="d-title">{{ 'boosters.design.title' | translate }}</label>
+          <input pInputText id="d-title" [(ngModel)]="booster.design.title" (ngModelChange)="changed()" />
+
+          <label for="d-sub">{{ 'boosters.design.subtitle' | translate }}</label>
+          <input pInputText id="d-sub" [(ngModel)]="booster.design.subtitle" (ngModelChange)="changed()" />
+
+          <label for="d-bg">{{ 'boosters.design.background' | translate }}</label>
+          <p-select inputId="d-bg" [options]="backgrounds" [(ngModel)]="booster.design.background" (ngModelChange)="changed()">
+            <ng-template #selectedItem let-v>{{ 'boosters.design.bg.' + v | translate }}</ng-template>
+            <ng-template #item let-v>{{ 'boosters.design.bg.' + v | translate }}</ng-template>
+          </p-select>
+
+          <span>{{ 'boosters.design.colors' | translate }}</span>
+          <div class="inline colors">
+            <input type="color" [(ngModel)]="booster.design.colorA" (ngModelChange)="changed()"
+              [attr.aria-label]="'boosters.design.color-a' | translate" [title]="'boosters.design.color-a' | translate" />
+            <input type="color" [(ngModel)]="booster.design.colorB" (ngModelChange)="changed()"
+              [attr.aria-label]="'boosters.design.color-b' | translate" [title]="'boosters.design.color-b' | translate" />
+            <input type="color" [(ngModel)]="booster.design.textColor" (ngModelChange)="changed()"
+              [attr.aria-label]="'boosters.design.color-text' | translate" [title]="'boosters.design.color-text' | translate" />
+          </div>
+
+          <label for="d-art">{{ 'boosters.design.art' | translate }}</label>
+          <p-select inputId="d-art" [options]="assets" optionLabel="label" optionValue="path" [(ngModel)]="booster.design.art"
+            (ngModelChange)="changed()" [filter]="true" [showClear]="true" [placeholder]="'boosters.design.no-image' | translate" />
+
+          <label for="d-logo">{{ 'boosters.design.logo' | translate }}</label>
+          <p-select inputId="d-logo" [options]="assets" optionLabel="label" optionValue="path" [(ngModel)]="booster.design.logo"
+            (ngModelChange)="changed()" [filter]="true" [showClear]="true" [placeholder]="'boosters.design.no-image' | translate" />
+
+          <label for="d-finish">{{ 'boosters.design.finish' | translate }}</label>
+          <p-select inputId="d-finish" [options]="finishes" [(ngModel)]="booster.design.finish" (ngModelChange)="changed()">
+            <ng-template #selectedItem let-v>{{ (v === 'mat' || v === 'brillant' ? 'boosters.design.finish-' + v : 'binder.foil-effects.' + v) | translate }}</ng-template>
+            <ng-template #item let-v>{{ (v === 'mat' || v === 'brillant' ? 'boosters.design.finish-' + v : 'binder.foil-effects.' + v) | translate }}</ng-template>
+          </p-select>
+
+          <label for="d-crimp">{{ 'boosters.design.crimped' | translate }}</label>
+          <p-toggleswitch inputId="d-crimp" [(ngModel)]="booster.design.crimped" (ngModelChange)="changed()" />
+        </div>
+        } @else {
+        <div class="template-editors">
+          <div class="template-help">
+            <span [innerHTML]="'boosters.design.template-help' | translate"></span>
+            <p-button [label]="'boosters.design.from-form' | translate" icon="pi pi-replay" [text]="true" size="small"
+              (onClick)="templateFromForm()" />
+          </div>
+          <div class="editor-block">
+            <span class="editor-label">HTML</span>
+            <ngx-monaco-editor class="code" [options]="editorOptions" [(ngModel)]="booster.design.html" (ngModelChange)="changed()" />
+          </div>
+          <div class="editor-block">
+            <span class="editor-label">CSS</span>
+            <ngx-monaco-editor class="code" [options]="cssEditorOptions" [(ngModel)]="booster.design.css" (ngModelChange)="changed()" />
+          </div>
+          <div class="settings-grid compact">
+            <label for="t-finish">{{ 'boosters.design.finish' | translate }}</label>
+            <p-select inputId="t-finish" [options]="finishes" [(ngModel)]="booster.design.finish" (ngModelChange)="changed()">
+              <ng-template #selectedItem let-v>{{ (v === 'mat' || v === 'brillant' ? 'boosters.design.finish-' + v : 'binder.foil-effects.' + v) | translate }}</ng-template>
+              <ng-template #item let-v>{{ (v === 'mat' || v === 'brillant' ? 'boosters.design.finish-' + v : 'binder.foil-effects.' + v) | translate }}</ng-template>
+            </p-select>
+            <label for="t-crimp">{{ 'boosters.design.crimped' | translate }}</label>
+            <p-toggleswitch inputId="t-crimp" [(ngModel)]="booster.design.crimped" (ngModelChange)="changed()" />
+          </div>
+        </div>
+        }
+      </div>
+      <div class="design-preview">
+        <div class="preview-pack" appCardTilt>
+          <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls" />
+        </div>
+        <small class="hint">{{ 'boosters.design.preview-hint' | translate }}</small>
+      </div>
+    </div>
+    }
+
+    @case ('stats') {
+    <div class="stats-layout">
+      <div class="stats-intro">
+        <div class="figure">
+          <strong>{{ fullSetMeasured !== null ? decimal(fullSetMeasured, 1) : '≈ ' + decimal(fullSetEstimate, 0) }}</strong>
+          <span>{{ 'boosters.stats.full-set' | translate }}</span>
+        </div>
+        <div class="figure">
+          <strong>{{ pool.length }}</strong>
+          <span>{{ 'boosters.stats.pool' | translate }}</span>
+        </div>
+        @if (stats) {
+        <div class="figure">
+          <strong>{{ decimal(stats.foilsPerPack) }}</strong>
+          <span>{{ 'boosters.stats.foils' | translate }}</span>
+        </div>
+        }
+      </div>
+      <div class="table-tools">
+        <span>{{ 'boosters.stats.simulate' | translate }}</span>
+        <p-inputNumber [(ngModel)]="statsPacks" [min]="100" [max]="200000" [step]="1000" [inputStyle]="{ width: '8rem' }"
+          [ariaLabel]="'boosters.stats.packs' | translate" />
+        <span>{{ 'boosters.stats.packs' | translate }}</span>
+        <p-button [label]="'boosters.stats.run' | translate" icon="pi pi-play" (onClick)="runStats()" [loading]="statsRunning"
+          [disabled]="!pool.length" />
+      </div>
+      @if (stats) {
+      @if (statsGroups().length) {
+      <h4>{{ 'boosters.stats.per-group' | translate: { attribute: groupLabel() } }}</h4>
+      <div class="bars">
+        @for (group of statsGroups(); track group.value) {
+        <div class="bar-row">
+          <span class="bar-label">{{ group.value }}</span>
+          <span class="bar"><span [style.width.%]="group.perPack / booster.cardsPerPack * 100"></span></span>
+          <span class="bar-value">{{ decimal(group.perPack) }}</span>
+        </div>
+        }
+      </div>
+      }
+      <h4>{{ 'boosters.stats.per-card' | translate }}</h4>
+      <div class="table-wrap">
+        <table class="pool-table">
+          <thead>
+            <tr>
+              <th>{{ 'boosters.card' | translate }}</th>
+              @if (groupField) { <th>{{ groupLabel() }}</th> }
+              <th class="num">{{ 'boosters.stats.in-packs' | translate }}</th>
+              <th class="num">{{ 'boosters.stats.one-in' | translate }}</th>
+              <th class="num">{{ 'boosters.stats.copies' | translate }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of statsCards(); track row.card.id) {
+            <tr>
+              <td>{{ row.card.name }}</td>
+              @if (groupField) { <td>{{ row.group }}</td> }
+              <td class="num">{{ percent(row.packsWithCard / stats.packs) }}</td>
+              <td class="num">{{ row.packsWithCard ? decimal(stats.packs / row.packsWithCard, 1) : '—' }}</td>
+              <td class="num">{{ row.copies }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      } @else {
+      <p class="muted">{{ 'boosters.stats.explain' | translate }}</p>
+      }
+    </div>
+    }
+    }
+  </section>
+  }
+</div>

@@ -40,6 +40,7 @@ export const routes: Routes = [
       { path: 'decks/:deckId/templates/:templateId', loadComponent: () => import('./card-templates/card-templates.component').then(m => m.CardTemplatesComponent), canActivate: [DeckGuard] },
       { path: 'decks/:deckId/export-cards', loadComponent: () => import('./export-cards/export-cards.component').then(m => m.ExportCardsComponent), canActivate: [DeckGuard] },
       { path: 'project', loadComponent: () => import('./project/project.component').then(m => m.ProjectComponent) },
+      { path: 'boosters', loadComponent: () => import('./boosters/boosters.component').then(m => m.BoostersComponent) },
       { path: 'simulator', loadComponent: () => import('./game-simulator/game-simulator.component').then(m => m.GameSimulatorComponent) },
     ]
   },
