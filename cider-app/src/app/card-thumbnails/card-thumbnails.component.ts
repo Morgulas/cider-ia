@@ -1,3 +1,4 @@
+import { FOIL_EFFECTS, FoilEffect, findFoilField, foilOf } from '../card-binder/foil';
 import { fieldOf } from '../data-services/types/entity-service.type';
 import { Component, OnInit, ViewChild, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -8,6 +9,7 @@ import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import { Bind } from 'primeng/bind';
 import { Card as Card_1 } from 'primeng/card';
 import { SelectButton } from 'primeng/selectbutton';
+import { Select } from 'primeng/select';
 import { FormsModule } from '@angular/forms';
 import { IconField } from 'primeng/iconfield';
 import { InputText } from 'primeng/inputtext';
@@ -28,7 +30,7 @@ const VIEW_KEY = 'cider.thumbnails.view';
     selector: 'app-card-thumbnails',
     templateUrl: './card-thumbnails.component.html',
     styleUrls: ['./card-thumbnails.component.scss'],
-    imports: [Bind, Card_1, SelectButton, FormsModule, IconField, InputText, InputIcon, DataView_1, CardPreviewComponent, AsyncPipe, EntityPipe, TranslatePipe, Button, Tooltip, CardIllustrationDialogComponent, CardBinderComponent]
+    imports: [Bind, Card_1, SelectButton, Select, FormsModule, IconField, InputText, InputIcon, DataView_1, CardPreviewComponent, AsyncPipe, EntityPipe, TranslatePipe, Button, Tooltip, CardIllustrationDialogComponent, CardBinderComponent]
 })
 export class CardThumbnailsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
@@ -39,6 +41,15 @@ export class CardThumbnailsComponent implements OnInit {
   thumbnailCards: Card[] = [];
   /** Cartes du classeur, après filtre et choix des faces. */
   binderItems: BinderItem[] = [];
+  /** Champ des cartes qui porte l'effet foil (attribut « Foil »), s'il existe. */
+  foilField: string | undefined;
+  /** Essai des effets : « auto » suit l'attribut, sinon l'effet est mis sur toutes les cartes. */
+  foilTest: FoilEffect | 'auto' | 'none' = 'auto';
+  readonly foilTestOptions: { value: FoilEffect | 'auto' | 'none'; key: string }[] = [
+    { value: 'auto', key: 'binder.foil-auto' },
+    ...FOIL_EFFECTS.map(effect => ({ value: effect, key: `binder.foil-effects.${effect}` })),
+    { value: 'none', key: 'binder.foil-none' },
+  ];
   searchText = '';
   view: 'binder' | 'grid' = CardThumbnailsComponent.loadView();
   viewOptions: { icon: string; value: string; tooltip: string }[] = [
@@ -75,6 +86,7 @@ export class CardThumbnailsComponent implements OnInit {
     void this.ai.refreshStatus();
     this.cardsService.getFields().then(fields => {
       this.filterFields = fields.map(field => field.field).join(',');
+      this.foilField = findFoilField(fields);
       this.refreshBinder();
     });
 
@@ -128,11 +140,13 @@ export class CardThumbnailsComponent implements OnInit {
       : this.thumbnailCards;
     const items: BinderItem[] = [];
     for (const card of cards) {
+      const foil = this.foilTest === 'auto' ? foilOf(card, this.foilField)
+        : this.foilTest === 'none' ? null : this.foilTest;
       if (this.sideSelected !== 'backs') {
-        items.push({ card, side: 'front' });
+        items.push({ card, side: 'front', foil });
       }
       if (this.sideSelected !== 'fronts') {
-        items.push({ card, side: 'back' });
+        items.push({ card, side: 'back', foil });
       }
     }
     this.binderItems = items;

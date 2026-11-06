@@ -14,6 +14,16 @@
       optionValue="value" required="true" allowEmpty="false" (onChange)="refreshBinder()"></p-selectButton>
     <p-selectButton [options]="copyOptions" [(ngModel)]="copySelected" class="p-mr-3" optionLabel="label"
       optionValue="value" required="true" (onChange)="refreshCards()" allowEmpty="false"></p-selectButton>
+    @if (view === 'binder') {
+    <p-select [options]="foilTestOptions" [(ngModel)]="foilTest" optionValue="value" (onChange)="refreshBinder()"
+      class="p-mr-3 foil-select" [ariaLabel]="'binder.foil' | translate" [pTooltip]="'binder.foil-tooltip' | translate"
+      tooltipPosition="bottom">
+      <ng-template #selectedItem let-option>
+        <i class="pi pi-sparkles"></i> {{ option.key | translate }}
+      </ng-template>
+      <ng-template #item let-option>{{ option.key | translate }}</ng-template>
+    </p-select>
+    }
     <div class="filler"></div>
     <p-iconfield>
       <input type="text" pInputText [placeholder]="'controls.search' | translate" [value]="searchText" (input)="filter($event)" />

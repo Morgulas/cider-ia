@@ -776,6 +776,19 @@
         "turn-over": "Turn card over",
         "close": "Close",
         "fullscreen": "Full screen (F)",
-        "exit-fullscreen": "Exit full screen (Esc)"
+        "exit-fullscreen": "Exit full screen (Esc)",
+        "foil": "Foil effect",
+        "foil-tooltip": "Card foil effect: from the cards' “Foil” attribute, or one effect to try on every card",
+        "foil-auto": "Foil: per card",
+        "foil-none": "No foil",
+        "foil-effects": {
+            "holo": "Holographic",
+            "galaxie": "Galaxy",
+            "or": "Gold",
+            "argent": "Silver",
+            "prisme": "Prism",
+            "paillettes": "Glitter",
+            "cadre": "Frame (reverse holo)"
+        }
     }
 }

@@ -75,6 +75,9 @@
         [attr.aria-label]="item.card.name" [title]="item.card.name" (click)="openZoom(item, $event)">
         <app-card-fit [card]="item.card" (measured)="onMeasured($event)"
           [template]="(item.side === 'front' ? item.card.frontCardTemplateId : item.card.backCardTemplateId) | entity: templatesService | async" />
+        @if (item.foil && item.side === 'front') {
+        <span class="foil pocket-foil foil-{{ item.foil }}" aria-hidden="true"></span>
+        }
         <span class="sheen" aria-hidden="true"></span>
       </button>
       } @else {
@@ -100,12 +103,18 @@
         <div class="zoom-face">
           <app-card-fit [card]="item.card" [maxScale]="4"
             [template]="zoomTemplateId('front') | entity: templatesService | async" />
+          @if (item.foil && item.side === 'front') {
+          <span class="foil foil-{{ item.foil }}" aria-hidden="true"></span>
+          }
           <span class="zoom-glare" aria-hidden="true"></span>
         </div>
         <div class="zoom-face zoom-back">
           @if (zoomBack || zoomBackShown) {
           <app-card-fit [card]="item.card" [maxScale]="4"
             [template]="zoomTemplateId('back') | entity: templatesService | async" />
+          @if (item.foil && item.side === 'back') {
+          <span class="foil foil-{{ item.foil }}" aria-hidden="true"></span>
+          }
           }
           <span class="zoom-glare" aria-hidden="true"></span>
         </div>

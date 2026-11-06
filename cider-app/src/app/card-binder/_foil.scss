@@ -1,0 +1,133 @@
+// Effets foil, posés par-dessus la carte (classe `foil foil-<effet>`).
+//
+// Ils suivent la lumière de l'inclinaison (directive appCardTilt) par les variables :
+//   --glare-x, --glare-y  position de la lumière (%, 50 % = carte à plat)
+//   --glare-o             intensité de l'inclinaison (0 à 1)
+// Hors agrandissement (pochettes), les valeurs par défaut donnent un foil au repos,
+// qui ondule doucement au survol de la pochette.
+
+.foil {
+  --fx: var(--glare-x, 50%);
+  --fy: var(--glare-y, 50%);
+  --fo: var(--glare-o, 0);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 3%;
+  overflow: hidden;
+  // présent au repos, plus vif quand la carte penche
+  opacity: calc(0.45 + var(--fo) * 0.55);
+}
+
+// Holographique : bande arc-en-ciel qui balaye la carte
+.foil-holo {
+  background:
+    linear-gradient(115deg,
+      transparent 18%,
+      rgba(255, 0, 132, 0.75) 28%,
+      rgba(255, 196, 0, 0.75) 36%,
+      rgba(0, 255, 140, 0.75) 44%,
+      rgba(0, 200, 255, 0.75) 52%,
+      rgba(150, 70, 255, 0.75) 60%,
+      transparent 72%);
+  background-size: 260% 260%;
+  background-position: var(--fx) var(--fy);
+  mix-blend-mode: color-dodge;
+  filter: saturate(1.2);
+  opacity: calc(0.3 + var(--fo) * 0.6);
+}
+
+// Galaxie : ciel étoilé en parallaxe, teinté arc-en-ciel
+.foil-galaxie {
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(255, 240, 200, 0.85) 0 0.8px, transparent 1.4px),
+    radial-gradient(circle, rgba(180, 220, 255, 0.9) 0 1.3px, transparent 2px),
+    linear-gradient(125deg, rgba(90, 0, 160, 0.55), rgba(0, 120, 255, 0.45) 35%,
+      rgba(255, 0, 170, 0.45) 65%, rgba(0, 220, 200, 0.5));
+  background-size: 23px 23px, 17px 17px, 41px 41px, 240% 240%;
+  background-position:
+    calc(var(--fx) * 0.4) calc(var(--fy) * 0.4),
+    calc(var(--fx) * -0.25) calc(var(--fy) * -0.25),
+    calc(var(--fx) * 0.7) calc(var(--fy) * 0.7),
+    var(--fx) var(--fy);
+  mix-blend-mode: color-dodge;
+}
+
+// Or : métal doré, reflets chauds
+.foil-or {
+  background:
+    linear-gradient(125deg,
+      #7a5a14 0%, #f7e08a 22%, #b8892c 36%, #fff5c0 50%, #a77c22 64%, #f2d06a 80%, #7a5a14 100%);
+  background-size: 300% 300%;
+  background-position: var(--fx) var(--fy);
+  mix-blend-mode: overlay;
+}
+
+// Argent : chrome brossé
+.foil-argent {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 3px),
+    linear-gradient(125deg,
+      #5d6168 0%, #f4f6f8 22%, #8d939b 38%, #ffffff 50%, #7c828a 64%, #e6e9ec 80%, #5d6168 100%);
+  background-size: auto, 300% 300%;
+  background-position: 0 0, var(--fx) var(--fy);
+  mix-blend-mode: overlay;
+}
+
+// Prisme : bandes arc-en-ciel en diagonale sur toute la carte
+.foil-prisme {
+  background:
+    repeating-linear-gradient(-45deg,
+      rgba(255, 0, 90, 0.6) 0%, rgba(255, 210, 0, 0.6) 4%, rgba(0, 255, 120, 0.6) 8%,
+      rgba(0, 170, 255, 0.6) 12%, rgba(170, 60, 255, 0.6) 16%, rgba(255, 0, 90, 0.6) 20%);
+  background-size: 200% 200%;
+  background-position: var(--fx) var(--fy);
+  mix-blend-mode: color-dodge;
+  opacity: calc(0.3 + var(--fo) * 0.5);
+}
+
+// Paillettes : scintillent seulement là où tombe la lumière
+// (motifs de tailles premières entre elles : la grille ne se voit pas)
+.foil-paillettes {
+  background:
+    radial-gradient(circle, #ffffff 0 0.9px, transparent 1.4px),
+    radial-gradient(circle, #ffe9a8 0 1.2px, transparent 1.8px),
+    radial-gradient(circle, #a8e4ff 0 0.7px, transparent 1.2px),
+    radial-gradient(circle, #ffb3ec 0 1px, transparent 1.6px),
+    radial-gradient(circle, #ffffff 0 1.5px, transparent 2.2px);
+  background-size: 7px 11px, 13px 17px, 11px 5px, 19px 23px, 29px 31px;
+  background-position: 0 0, 5px 3px, 2px 7px, 11px 13px, 17px 4px;
+  mix-blend-mode: color-dodge;
+  -webkit-mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%);
+  mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%);
+  opacity: calc(0.6 + var(--fo) * 0.4);
+}
+
+// Cadre (reverse holo) : holographique sur le pourtour seulement, l'illustration reste nette
+.foil-cadre {
+  @extend .foil-holo;
+  padding: 7%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+// Pochettes : le foil ondule doucement au survol
+@keyframes foil-drift {
+  0% { --glare-x: 20%; --glare-y: 30%; }
+  50% { --glare-x: 80%; --glare-y: 70%; }
+  100% { --glare-x: 20%; --glare-y: 30%; }
+}
+
+@property --glare-x {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 50%;
+}
+
+@property --glare-y {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 50%;
+}

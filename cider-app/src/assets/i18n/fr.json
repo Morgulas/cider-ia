@@ -779,6 +779,19 @@
         "turn-over": "Retourner la carte",
         "close": "Fermer",
         "fullscreen": "Plein écran (F)",
-        "exit-fullscreen": "Quitter le plein écran (Échap)"
+        "exit-fullscreen": "Quitter le plein écran (Échap)",
+        "foil": "Effet foil",
+        "foil-tooltip": "Effet foil des cartes : selon l'attribut « Foil » des cartes, ou un effet à essayer sur toutes",
+        "foil-auto": "Foil : selon la carte",
+        "foil-none": "Aucun foil",
+        "foil-effects": {
+            "holo": "Holographique",
+            "galaxie": "Galaxie",
+            "or": "Or",
+            "argent": "Argent",
+            "prisme": "Prisme",
+            "paillettes": "Paillettes",
+            "cadre": "Cadre (reverse holo)"
+        }
     }
 }

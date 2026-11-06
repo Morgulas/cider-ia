@@ -1,6 +1,8 @@
 // Classeur de cartes : couverture en cuir, pages anthracite, pochettes en plastique.
 // Les couleurs du classeur sont fixes (c'est un objet) et lisibles en thème clair comme sombre.
 
+@use 'foil';
+
 $cover-pad: 14px;
 $page-pad: 18px;
 $gap: 10px;
@@ -198,6 +200,15 @@ $folio: 26px;
   app-card-fit {
     border-radius: 4px;
   }
+}
+
+// foil dans la pochette : au bord de la carte (padding de la pochette)
+.pocket-foil {
+  inset: 4px;
+}
+
+.pocket.filled:hover .pocket-foil {
+  animation: foil-drift 4s ease-in-out infinite;
 }
 
 // reflet du plastique
@@ -482,6 +493,10 @@ $folio: 26px;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .pocket.filled:hover .pocket-foil {
+    animation: none;
+  }
+
   .zoom-tilt,
   .zoom-flipper,
   .pocket.filled,

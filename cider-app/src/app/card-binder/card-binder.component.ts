@@ -11,11 +11,14 @@ import { CardTemplatesService } from '../data-services/services/card-templates.s
 import { EntityPipe } from '../data-services/pipes/entity.pipe';
 import { CardFitComponent } from './card-fit.component';
 import { CardTiltDirective } from './card-tilt.directive';
+import { FoilEffect } from './foil';
 
 /** Une carte rangée dans le classeur, vue de face ou de dos. */
 export interface BinderItem {
   card: Card;
   side: 'front' | 'back';
+  /** Effet foil du recto de la carte, s'il en a un. */
+  foil?: FoilEffect | null;
 }
 
 interface Flip {
