@@ -248,7 +248,7 @@ export class ProjectsPageComponent implements OnInit {
       if (this.currentProject.project()?.id === project.id) {
         await this.currentProject.flush();
       }
-      const { data } = await this.api.loadData(project.id);
+      const data = await this.api.exportData(project.id);
       if (data) {
         FileUtils.saveAs(data, `${project.name}.json`);
       }

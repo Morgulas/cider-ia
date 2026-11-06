@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { cardHistory } from '../data-services/indexed-db/card-history';
 import { AppDB } from '../data-services/indexed-db/db';
+import { findBlobRefs, runLimited } from '../data-services/indexed-db/project-blobs';
 import { AuthService } from './auth.service';
 import { ProjectsApiService } from './projects-api.service';
 import { apiErrorMessage, ProjectMeta } from './server.types';
@@ -42,6 +43,8 @@ interface PendingMarker {
 export class CurrentProjectService {
   static readonly SAVE_DELAY_MS = 1500;
   static readonly RETRY_DELAY_MS = 10000;
+  /** project files downloaded or sent at the same time */
+  static readonly BLOB_CONCURRENCY = 4;
 
   private readonly db = inject(AppDB);
   private readonly api = inject(ProjectsApiService);
@@ -145,7 +148,8 @@ export class CurrentProjectService {
         return;
       }
       const { data, revision } = await this.api.loadData(projectId);
-      await this.db.loadProject(data, { userId: user.id, projectId, revision });
+      const blobs = data ? await this.downloadBlobs(data) : undefined;
+      await this.db.loadProject(data, { userId: user.id, projectId, revision }, blobs);
       this.setOpened(meta, user.id, revision);
       this.saveState.set('saved');
     } finally {
@@ -171,7 +175,7 @@ export class CurrentProjectService {
    */
   private async saveLeftoverChanges(pending: PendingMarker): Promise<void> {
     try {
-      await this.api.saveData(pending.projectId, await this.db.exportProject(), pending.revision);
+      await this.sendProject(pending.projectId, pending.revision);
       this.clearPendingMarker();
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 404) {
@@ -352,10 +356,7 @@ export class CurrentProjectService {
         this.copyReplaced();
         return;
       }
-      const data = await this.db.exportProject();
-      const saved = change.label || change.important
-        ? await this.api.saveData(project.id, data, this.revision, false, change)
-        : await this.api.saveData(project.id, data, this.revision);
+      const saved = await this.sendProject(project.id, this.revision, change.label || change.important ? change : undefined);
       if (this.project()?.id !== project.id) {
         return;
       }
@@ -393,6 +394,51 @@ export class CurrentProjectService {
       this.saveState.set('error');
       this.lastError.set(apiErrorMessage(error, 'The project could not be saved'));
       this.scheduleSave(CurrentProjectService.RETRY_DELAY_MS);
+    }
+  }
+
+  /*********************************************************************
+   * Project files (images, fonts...): stored apart on the server, once each
+   *********************************************************************/
+
+  /** Downloads the files referenced by project data (the browser cache serves those already seen) */
+  private async downloadBlobs(data: Blob): Promise<Map<string, Blob>> {
+    const blobs = new Map<string, Blob>();
+    await runLimited(findBlobRefs(await data.text()), CurrentProjectService.BLOB_CONCURRENCY, async hash => {
+      blobs.set(hash, await this.api.blob(hash));
+    });
+    return blobs;
+  }
+
+  /** Sends those of these files that the server does not have yet */
+  private async uploadBlobs(blobs: Map<string, Blob>, hashes?: string[]): Promise<void> {
+    const missing = hashes ?? await this.api.missingBlobs([...blobs.keys()]);
+    await runLimited(missing.filter(hash => blobs.has(hash)), CurrentProjectService.BLOB_CONCURRENCY,
+      hash => this.api.uploadBlob(hash, blobs.get(hash)!));
+  }
+
+  /**
+   * Saves the local copy to a project: the data with references, after the
+   * files the server does not have yet. Only new or changed images are sent.
+   */
+  private async sendProject(projectId: string, baseRevision: number,
+    change?: { label: string; important: boolean }): Promise<ProjectMeta> {
+    const { data, blobs } = await this.db.exportProjectForServer();
+    await this.uploadBlobs(blobs);
+    const send = () => change
+      ? this.api.saveData(projectId, data, baseRevision, false, change)
+      : this.api.saveData(projectId, data, baseRevision);
+    try {
+      return await send();
+    } catch (error) {
+      // files removed from the server meanwhile: send them, then try once more
+      const missing = error instanceof HttpErrorResponse && error.status === 422
+        ? (error.error as { missing?: unknown } | null)?.missing : undefined;
+      if (!Array.isArray(missing)) {
+        throw error;
+      }
+      await this.uploadBlobs(blobs, missing as string[]);
+      return send();
     }
   }
 

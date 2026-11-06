@@ -5,7 +5,9 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { ServerConfig } from './config.js';
 import { checkPasswordRules, hashPassword, verifyPassword } from './passwords.js';
+import { BlobStore, BlobStoreError } from './store/blobs.js';
 import { ProjectStore, ProjectStoreError, SaveInfo, VERSION_LABEL_MAX_LENGTH } from './store/projects.js';
+import { BLOB_HASH_PATTERN, inlineBlobs } from './store/project-blobs.js';
 import { SessionStore } from './store/sessions.js';
 import { toPublicUser, UserChanges, UserRecord, UserStore, UserStoreError } from './store/users.js';
 import { AiUsageStore, QuotaExceededError } from './store/ai-usage.js';
@@ -37,11 +39,19 @@ class HttpError extends Error {
 // a password hash computed once, to spend the same time on unknown usernames
 let decoyHash: Promise<string> | undefined;
 
+/** Content type of a project file (image, font...) sent on its own */
+export const BLOB_CONTENT_TYPE = 'application/octet-stream';
+/** Hashes accepted by one "which files are missing" request */
+const MAX_BLOB_QUERY = 10000;
+/** Unreferenced project files are looked for at start-up, then once a day */
+const BLOB_CLEANUP_INTERVAL_MS = 24 * 3600 * 1000;
+
 export interface CiderApp {
   app: FastifyInstance;
   users: UserStore;
   sessions: SessionStore;
   projects: ProjectStore;
+  blobs: BlobStore;
   aiUsage: AiUsageStore;
   aiSettings: AiSettingsStore;
   /** code required to create the first administrator */
@@ -86,7 +96,8 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
   let ai = effectiveAiConfig(config.ai, aiSettings.get());
   const users = new UserStore(config.dataDir, () => ai.defaultMonthlyImages);
   const sessions = new SessionStore(config.dataDir, config.sessionDays);
-  const projects = new ProjectStore(config.dataDir);
+  const blobs = new BlobStore(config.dataDir);
+  const projects = new ProjectStore(config.dataDir, blobs);
   const aiUsage = new AiUsageStore(config.dataDir);
   await users.load();
   await sessions.load();
@@ -124,6 +135,28 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
   // project bodies are stored as received: kept as raw bytes, never parsed whole
   app.addContentTypeParser(PROJECT_CONTENT_TYPE, { parseAs: 'buffer', bodyLimit: config.maxProjectMb * 1024 * 1024 },
     (_request, body, done) => done(null, body));
+  app.addContentTypeParser(BLOB_CONTENT_TYPE, { parseAs: 'buffer', bodyLimit: config.maxProjectMb * 1024 * 1024 },
+    (_request, body, done) => done(null, body));
+
+  /** Files of the projects that nothing references any more: removed in the background */
+  const cleanUpBlobs = async () => {
+    for (const userId of await blobs.users()) {
+      try {
+        const removed = await projects.collectBlobs(userId);
+        if (removed > 0) {
+          app.log.info(`removed ${removed} unused project file(s) of user ${userId}`);
+        }
+      } catch (error) {
+        app.log.warn(`project files cleanup failed for user ${userId}: ${(error as Error).message}`);
+      }
+    }
+  };
+  const cleanupTimer = setInterval(() => void cleanUpBlobs(), BLOB_CLEANUP_INTERVAL_MS);
+  cleanupTimer.unref();
+  app.addHook('onReady', async () => {
+    void cleanUpBlobs();
+  });
+  app.addHook('onClose', async () => clearInterval(cleanupTimer));
 
   if (users.count() === 0 && !config.setupToken) {
     app.log.warn(`No account yet. Setup code for the first administrator: ${setupToken}`);
@@ -138,11 +171,15 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
       request.log.warn(`image generation failed: ${error.message}`);
       return reply.status(error.status).send({ error: error.message });
     }
-    if (error instanceof HttpError || error instanceof AiSettingsError || error instanceof UserStoreError || error instanceof ProjectStoreError) {
+    if (error instanceof HttpError || error instanceof AiSettingsError || error instanceof UserStoreError
+      || error instanceof ProjectStoreError || error instanceof BlobStoreError) {
       const status = error.status;
       const body: Record<string, unknown> = { error: error.message };
       if (error instanceof ProjectStoreError && error.revision !== undefined) {
         body['revision'] = error.revision;
+      }
+      if (error instanceof ProjectStoreError && error.missing !== undefined) {
+        body['missing'] = error.missing;
       }
       return reply.status(status).send(body);
     }
@@ -395,6 +432,51 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
     return reply.type('application/json').send(data);
   });
 
+  /** The project as a complete export, files included (download, import elsewhere) */
+  app.get<{ Params: { id: string } }>('/api/projects/:id/export', async (request, reply) => {
+    const user = requireUser(request);
+    const { project, data } = await projects.readData(user.id, request.params.id);
+    reply.header('x-project-revision', String(project.revision));
+    reply.header('cache-control', 'no-store');
+    if (data === null) {
+      return reply.status(204).send();
+    }
+    return reply.type('application/json').send(await inlineBlobs(data, hash => blobs.read(user.id, hash)));
+  });
+
+  /*********************************************************************
+   * Files of the projects (images, fonts...), stored once by content
+   *********************************************************************/
+
+  /** Which of these files the server does not have yet */
+  app.post('/api/blobs/missing', async (request) => {
+    const user = requireUser(request);
+    const hashes = body(request)['hashes'];
+    if (!Array.isArray(hashes) || hashes.length > MAX_BLOB_QUERY
+      || !hashes.every(hash => typeof hash === 'string' && BLOB_HASH_PATTERN.test(hash))) {
+      throw new HttpError(400, `hashes must be a list of at most ${MAX_BLOB_QUERY} SHA-256 identifiers`);
+    }
+    return { missing: await blobs.missing(user.id, hashes as string[]) };
+  });
+
+  /** Sends a file; its identifier is the SHA-256 of its content */
+  app.put<{ Params: { hash: string } }>('/api/blobs/:hash', async (request) => {
+    const user = requireUser(request);
+    if (request.headers['content-type']?.split(';')[0] !== BLOB_CONTENT_TYPE || !Buffer.isBuffer(request.body)) {
+      throw new HttpError(415, `files must be sent as ${BLOB_CONTENT_TYPE}`);
+    }
+    await blobs.write(user.id, request.params.hash, request.body);
+    return { ok: true };
+  });
+
+  /** A file of the user's projects. Its content never changes: cached by the browser */
+  app.get<{ Params: { hash: string } }>('/api/blobs/:hash', async (request, reply) => {
+    const user = requireUser(request);
+    const data = await blobs.read(user.id, request.params.hash);
+    reply.header('cache-control', 'private, max-age=31536000, immutable');
+    return reply.type(BLOB_CONTENT_TYPE).send(data);
+  });
+
   /**
    * Saves the project data. The x-base-revision header carries the revision the
    * client started from; ?force=1 overwrites a newer version saved elsewhere.
@@ -419,11 +501,12 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
     versions: await projects.listVersions(requireUser(request).id, request.params.id),
   }));
 
-  /** Data of a version (download) */
+  /** Data of a version (download): a complete export, files included */
   app.get<{ Params: { id: string; revision: string } }>('/api/projects/:id/versions/:revision', async (request, reply) => {
-    const data = await projects.readVersion(requireUser(request).id, request.params.id, Number(request.params.revision));
+    const user = requireUser(request);
+    const data = await projects.readVersion(user.id, request.params.id, Number(request.params.revision));
     reply.header('cache-control', 'no-store');
-    return reply.type('application/json').send(data);
+    return reply.type('application/json').send(await inlineBlobs(data, hash => blobs.read(user.id, hash)));
   });
 
   /**
@@ -576,5 +659,5 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
     }
   });
 
-  return { app, users, sessions, projects, aiUsage, aiSettings, setupToken };
+  return { app, users, sessions, projects, blobs, aiUsage, aiSettings, setupToken };
 }

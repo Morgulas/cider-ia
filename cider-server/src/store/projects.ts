@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { BlobStore } from './blobs.js';
 import { readJson, SerialQueue, writeFileAtomic } from './json-file.js';
+import { extractBlobs, findBlobRefs, hasInlineBlobs } from './project-blobs.js';
 
 export interface ProjectMeta {
   id: string;
@@ -10,7 +12,7 @@ export interface ProjectMeta {
   updatedAt: string;
   /** Incremented on every save, used to detect concurrent edits */
   revision: number;
-  /** Size of the saved project data, in bytes */
+  /** Size of the saved project, in bytes: its data and the files (images...) it references */
   size: number;
 }
 
@@ -90,10 +92,15 @@ const USER_ID_PATTERN = /^[0-9a-f-]{36}$/;
 export const PROJECT_NAME_MAX_LENGTH = 100;
 
 export class ProjectStoreError extends Error {
-  constructor(message: string, readonly status: number, readonly revision?: number) {
+  constructor(message: string, readonly status: number, readonly revision?: number,
+    /** files referenced by the data but not sent yet */
+    readonly missing?: string[]) {
     super(message);
   }
 }
+
+/** Blobs written less than this long ago are never cleaned up (sent for a save still to come) */
+export const BLOB_MIN_AGE_MS = 24 * 3600 * 1000;
 
 export function cleanProjectName(name: unknown): string {
   if (typeof name !== 'string' || name.trim() === '') {
@@ -111,14 +118,41 @@ export function cleanProjectName(name: unknown): string {
  *   projects/<userId>/index.json        list of the user's projects
  *   projects/<userId>/<projectId>.json  project data (a Dexie database export)
  *   projects/<userId>/versions/<projectId>/history.json, <revision>.json  earlier versions
+ * The images and other files of the projects are not in these files: they are
+ * stored once in the BlobStore and referenced (see project-blobs.ts).
  * A user can only reach the files of their own folder.
  */
 export class ProjectStore {
   private readonly root: string;
   private readonly queues = new Map<string, SerialQueue>();
 
-  constructor(dataDir: string) {
+  constructor(dataDir: string, readonly blobs: BlobStore) {
     this.root = path.join(dataDir, 'projects');
+  }
+
+  /**
+   * Project data as it is stored: inline files are moved to the blob store, and
+   * every referenced file must be there. Returns the data and the full size.
+   */
+  private async prepareData(userId: string, data: Buffer): Promise<{ data: Buffer; size: number }> {
+    const extracted = extractBlobs(data);
+    for (const [hash, bytes] of extracted.blobs) {
+      await this.blobs.write(userId, hash, bytes);
+    }
+    let size = extracted.data.length;
+    const missing: string[] = [];
+    for (const hash of findBlobRefs(extracted.data)) {
+      const blobSize = await this.blobs.size(userId, hash);
+      if (blobSize === undefined) {
+        missing.push(hash);
+      } else {
+        size += blobSize;
+      }
+    }
+    if (missing.length > 0) {
+      throw new ProjectStoreError('some files of the project were not sent', 422, undefined, missing);
+    }
+    return { data: extracted.data, size };
   }
 
   private userDir(userId: string): string {
@@ -228,11 +262,12 @@ export class ProjectStore {
         size: 0,
       };
       if (data !== undefined) {
-        await writeFileAtomic(this.dataFile(userId, project.id), data);
+        const prepared = await this.prepareData(userId, data);
+        await writeFileAtomic(this.dataFile(userId, project.id), prepared.data);
         project.revision = 1;
-        project.size = data.length;
+        project.size = prepared.size;
         await this.writeHistory(userId, project.id, { version: 1, entries: [{
-          revision: 1, savedAt: now, by: info?.by ?? '', label: info?.label ?? '', size: data.length,
+          revision: 1, savedAt: now, by: info?.by ?? '', label: info?.label ?? '', size: prepared.size,
         }] });
       }
       index.projects.push(project);
@@ -244,18 +279,36 @@ export class ProjectStore {
   /**
    * Project data, or null for a project that was never saved (empty project).
    * Read in the write queue: the data and the revision always match.
+   * Data saved before the blob store (files inline) is converted on the way:
+   * same content and revision, files moved to the blob store.
    */
   readData(userId: string, projectId: string): Promise<{ project: ProjectMeta; data: Buffer | null }> {
     return this.queue(userId).run(async () => {
       const project = await this.get(userId, projectId);
+      let data: Buffer;
       try {
-        return { project, data: await fs.readFile(this.dataFile(userId, projectId)) };
+        data = await fs.readFile(this.dataFile(userId, projectId));
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           return { project, data: null };
         }
         throw error;
       }
+      if (hasInlineBlobs(data)) {
+        const prepared = await this.prepareData(userId, data);
+        if (prepared.data !== data) {
+          // replaced, not rewritten: a version hard-linked to this file keeps its content
+          await writeFileAtomic(this.dataFile(userId, projectId), prepared.data);
+          const index = await this.readIndex(userId);
+          const entry = index.projects.find(candidate => candidate.id === projectId);
+          if (entry) {
+            entry.size = prepared.size;
+            await this.writeIndex(userId, index);
+          }
+          return { project: entry ?? project, data: prepared.data };
+        }
+      }
+      return { project, data };
     });
   }
 
@@ -275,6 +328,7 @@ export class ProjectStore {
       if (!force && baseRevision !== project.revision) {
         throw new ProjectStoreError('the project was saved from somewhere else in the meantime', 409, project.revision);
       }
+      const prepared = await this.prepareData(userId, data);
       const history = await this.readHistory(userId, projectId);
       if (project.revision > 0) {
         await this.keepVersion(userId, project, history);
@@ -285,16 +339,16 @@ export class ProjectStore {
           }
         }
       }
-      await writeFileAtomic(this.dataFile(userId, projectId), data);
+      await writeFileAtomic(this.dataFile(userId, projectId), prepared.data);
       project.revision += 1;
-      project.size = data.length;
+      project.size = prepared.size;
       project.updatedAt = new Date().toISOString();
       history.entries.push({
         revision: project.revision,
         savedAt: project.updatedAt,
         by: info.by,
         label: (info.label ?? '').slice(0, VERSION_LABEL_MAX_LENGTH),
-        size: data.length,
+        size: prepared.size,
       });
       await this.prune(userId, project, history);
       await this.writeHistory(userId, projectId, history);
@@ -370,6 +424,39 @@ export class ProjectStore {
   deleteAll(userId: string): Promise<void> {
     return this.queue(userId).run(async () => {
       await fs.rm(this.userDir(userId), { recursive: true, force: true });
+      await this.blobs.deleteAll(userId);
+    });
+  }
+
+  /**
+   * Removes the files (images...) of a user that no project or kept version
+   * references any more. Returns the number of files removed.
+   */
+  collectBlobs(userId: string, minAgeMs = BLOB_MIN_AGE_MS): Promise<number> {
+    return this.queue(userId).run(async () => {
+      const referenced = new Set<string>();
+      const addRefs = async (file: string) => {
+        try {
+          findBlobRefs(await fs.readFile(file)).forEach(hash => referenced.add(hash));
+        } catch {
+          // removed meanwhile
+        }
+      };
+      const index = await this.readIndex(userId);
+      for (const project of index.projects) {
+        await addRefs(this.dataFile(userId, project.id));
+        const dir = this.versionsDir(userId, project.id);
+        let names: string[] = [];
+        try {
+          names = await fs.readdir(dir);
+        } catch {
+          // no versions
+        }
+        for (const name of names.filter(n => /^\d+\.json$/.test(n))) {
+          await addRefs(path.join(dir, name));
+        }
+      }
+      return this.blobs.collect(userId, referenced, minAgeMs);
     });
   }
 }

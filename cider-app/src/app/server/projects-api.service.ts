@@ -1,7 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { PROJECT_CONTENT_TYPE, ProjectMeta, ProjectVersion } from './server.types';
+import { BLOB_CONTENT_TYPE, PROJECT_CONTENT_TYPE, ProjectMeta, ProjectVersion } from './server.types';
 
 /** The logged-in user's projects on the server */
 @Injectable({ providedIn: 'root' })
@@ -52,6 +52,32 @@ export class ProjectsApiService {
     }
     const url = `/api/projects/${id}/data${force ? '?force=1' : ''}`;
     return (await firstValueFrom(this.http.put<{ project: ProjectMeta }>(url, data, { headers }))).project;
+  }
+
+  /** The project as a complete export, files included (download) */
+  async exportData(id: string): Promise<Blob | null> {
+    const response = await firstValueFrom(this.http.get(`/api/projects/${id}/export`,
+      { observe: 'response', responseType: 'blob' }));
+    return response.status === 204 ? null : response.body;
+  }
+
+  /** Which of these project files the server does not have yet */
+  async missingBlobs(hashes: string[]): Promise<string[]> {
+    if (hashes.length === 0) {
+      return [];
+    }
+    return (await firstValueFrom(this.http.post<{ missing: string[] }>('/api/blobs/missing', { hashes }))).missing;
+  }
+
+  /** Sends a project file, identified by the SHA-256 of its content */
+  async uploadBlob(hash: string, blob: Blob): Promise<void> {
+    await firstValueFrom(this.http.put(`/api/blobs/${hash}`, blob,
+      { headers: new HttpHeaders({ 'Content-Type': BLOB_CONTENT_TYPE }) }));
+  }
+
+  /** A project file (kept in the browser cache: its content never changes) */
+  blob(hash: string): Promise<Blob> {
+    return firstValueFrom(this.http.get(`/api/blobs/${hash}`, { responseType: 'blob' }));
   }
 
   /** Kept versions of a project, newest first */

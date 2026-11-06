@@ -72,6 +72,8 @@ export interface ProjectMeta {
 
 /** Content type of a project body (a Dexie database export) */
 export const PROJECT_CONTENT_TYPE = 'application/vnd.cider.project+json';
+/** Content type of a project file (image, font...) sent on its own */
+export const BLOB_CONTENT_TYPE = 'application/octet-stream';
 /** Header required by the server on every request that changes something */
 export const CSRF_HEADER = 'X-Cider-Request';
 

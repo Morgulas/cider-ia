@@ -45,14 +45,19 @@ Dans Dockhand, les variables de `.env.example` se renseignent dans les variables
 <CIDER_DATA_PATH>/
 ├── users.json              comptes (mots de passe hachés avec scrypt)
 ├── sessions.json           sessions ouvertes (seul le hash du jeton est stocké)
-└── projects/
-    └── <id utilisateur>/
-        ├── index.json      liste des projets de l'utilisateur
-        └── <id projet>.json  contenu d'un projet (export de base Cider)
+├── projects/
+│   └── <id utilisateur>/
+│       ├── index.json      liste des projets de l'utilisateur
+│       ├── <id projet>.json  contenu d'un projet (export de base Cider, images remplacées par des références)
+│       └── versions/       versions conservées de chaque projet
+└── blobs/
+    └── <id utilisateur>/<2 caractères>/<sha256>   images et fichiers des projets, une seule fois chacun
 ```
 
-- **Sauvegarde** : copier ce dossier suffit (de préférence conteneurs arrêtés, ou au moins en dehors d'un enregistrement).
-- Chaque fichier de projet est un export `database.json` standard : il peut être réimporté dans n'importe quelle instance de Cider.
+- **Sauvegarde** : copier ce dossier suffit (de préférence conteneurs arrêtés, ou au moins en dehors d'un enregistrement). `projects/` et `blobs/` vont ensemble.
+- **Images à part** : les images (et polices) d'un projet ne sont pas dans son fichier, mais dans `blobs/`, rangées sous l'empreinte SHA-256 de leur contenu. Le fichier du projet reste petit : l'ouverture ne télécharge que les images que le navigateur n'a pas déjà en cache, et un enregistrement n'envoie que les images nouvelles ou modifiées. Une image partagée par plusieurs versions ou projets n'est stockée qu'une fois. Les images que plus aucun projet ni version n'utilise sont supprimées automatiquement (au démarrage puis une fois par jour, après un délai de 24 h).
+- Les projets enregistrés avant ce fonctionnement sont convertis automatiquement à leur première ouverture.
+- Le **téléchargement** d'un projet ou d'une version (page Projets, historique des versions) produit un export `database.json` complet, images incluses : il peut être réimporté dans n'importe quelle instance de Cider.
 - Le conteneur `api` s'exécute sous l'utilisateur `PUID:PGID` et donne ce dossier à cet utilisateur au démarrage ; les fichiers ne sont lisibles que par lui.
 
 ## Fonctionnement des projets

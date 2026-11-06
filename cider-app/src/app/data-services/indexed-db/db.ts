@@ -8,6 +8,7 @@ import { exportDB, importInto } from "dexie-export-import";
 import { ReplaySubject, Subject } from "rxjs";
 import { Injectable } from "@angular/core";
 import { cardHistory, describeCard, IDENTIFIER_FIELDS, isInternalField } from "./card-history";
+import { BlobRef, isBlobRef, sha256Hex } from "./project-blobs";
 
 /** User and project a local working copy belongs to */
 export interface ProjectOwner {
@@ -47,6 +48,13 @@ export class AppDB extends Dexie {
     private changeSubject: Subject<any>;
     private loadSubject: ReplaySubject<null>;
     private isPopulating = false;
+    /**
+     * Reference (hash) of the file of each asset, by asset id: computed once,
+     * forgotten when the asset changes, so a save only hashes new files.
+     */
+    private readonly assetRefs = new Map<number, BlobRef>();
+    /** incremented on every asset change (detects a change during an export) */
+    private assetChanges = 0;
 
     constructor() {
         super(AppDB.DB_NAME);
@@ -181,6 +189,10 @@ export class AppDB extends Dexie {
         // Add hooks for granular dirty tracking
         const trackChange = (tableName: string, type: string, key: any) => {
             if (!this.isPopulating) {
+                if (tableName === AppDB.ASSETS_TABLE) {
+                    this.assetRefs.delete(key);
+                    this.assetChanges++;
+                }
                 this.changeSubject.next({ tableName, type, key });
             }
         };
@@ -307,12 +319,13 @@ export class AppDB extends Dexie {
      * No change events are emitted for the rows written here: they are not user
      * edits to save back.
      */
-    public async loadProject(data: Blob | null, owner?: ProjectOwner): Promise<void> {
+    public async loadProject(data: Blob | null, owner?: ProjectOwner, blobs?: Map<string, Blob>): Promise<void> {
         if (!this.isOpen()) {
             await this.open();
         }
         this.isPopulating = true;
         cardHistory.discard();
+        this.assetRefs.clear();
         try {
             await this.transaction('rw', this.tables, async () => {
                 await Promise.all(this.tables.map(table => table.clear()));
@@ -322,7 +335,9 @@ export class AppDB extends Dexie {
                     clearTablesBeforeImport: true,
                     acceptVersionDiff: true,
                     overwriteValues: true,
-                    skipTables: [AppDB.META_TABLE]
+                    skipTables: [AppDB.META_TABLE],
+                    // files saved apart on the server: references replaced by the downloaded files
+                    transform: (table, value, key) => ({ value: this.resolveBlobRefs(table, value, blobs), key }),
                 });
             }
             if (owner) {
@@ -345,6 +360,78 @@ export class AppDB extends Dexie {
         return record ? { userId: record.userId, projectId: record.projectId, revision: record.revision } : undefined;
     }
 
+    /** Replaces the file references of a row by the files themselves */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private resolveBlobRefs(table: string, value: any, blobs?: Map<string, Blob>): any {
+        if (!value || typeof value !== 'object') {
+            return value;
+        }
+        let row = value;
+        for (const [field, fieldValue] of Object.entries(value)) {
+            if (!isBlobRef(fieldValue)) {
+                continue;
+            }
+            const blob = blobs?.get(fieldValue.$ciderBlob);
+            if (!blob) {
+                throw new Error(`missing project file ${fieldValue.$ciderBlob}`);
+            }
+            row = { ...row, [field]: blob.type === fieldValue.type ? blob : blob.slice(0, blob.size, fieldValue.type) };
+            if (table === AppDB.ASSETS_TABLE && field === 'file' && typeof value.id === 'number') {
+                this.assetRefs.set(value.id, fieldValue);
+            }
+        }
+        return row;
+    }
+
+    /**
+     * The local working copy as saved on the server: the files of the assets
+     * are replaced by references, and returned apart (by hash) to be sent only
+     * if the server does not have them yet.
+     */
+    public async exportProjectForServer(): Promise<{ data: Blob; blobs: Map<string, Blob> }> {
+        if (!this.isOpen()) {
+            await this.open();
+        }
+        for (let attempt = 0; ; attempt++) {
+            const changesBefore = this.assetChanges;
+            const refs = new Map<number, BlobRef>();
+            const blobs = new Map<string, Blob>();
+            for (const asset of await this.table(AppDB.ASSETS_TABLE).toArray()) {
+                const file = asset.file;
+                if (!(file instanceof Blob) || typeof asset.id !== 'number') {
+                    continue;
+                }
+                let ref = this.assetRefs.get(asset.id);
+                if (!ref || ref.size !== file.size || ref.type !== file.type) {
+                    ref = { $ciderBlob: await sha256Hex(file), type: file.type, size: file.size };
+                    this.assetRefs.set(asset.id, ref);
+                }
+                refs.set(asset.id, ref);
+                blobs.set(ref.$ciderBlob, file);
+            }
+            const data = await exportDB(this, {
+                prettyJson: false,
+                skipTables: [AppDB.META_TABLE],
+                transform: (table, value, key) => {
+                    const ref = table === AppDB.ASSETS_TABLE ? refs.get(value?.id) : undefined;
+                    // a file not hashed above (added meanwhile) stays inline: the server takes it out
+                    if (ref && value.file instanceof Blob && value.file.size === ref.size && value.file.type === ref.type) {
+                        return { value: { ...value, file: ref }, key };
+                    }
+                    return { value, key };
+                },
+            });
+            // an asset changed during the export: its reference may be stale, start again
+            if (this.assetChanges === changesBefore || attempt >= 2) {
+                if (this.assetChanges !== changesBefore) {
+                    // still changing: send everything inline, always correct
+                    return { data: await this.exportProject(), blobs: new Map() };
+                }
+                return { data, blobs };
+            }
+        }
+    }
+
     /** Records the server revision the local copy now matches (after a save) */
     public async setOwnerRevision(revision: number): Promise<void> {
         await this.table(AppDB.META_TABLE).update('owner', { revision });
@@ -359,6 +446,7 @@ export class AppDB extends Dexie {
             await this.open();
         }
         cardHistory.discard();
+        this.assetRefs.clear();
         await this.initializeData();
         this.changeSubject.next({ tableName: 'all', type: 'reset', key: null });
         this.loadSubject.next(null);

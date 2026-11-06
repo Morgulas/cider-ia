@@ -22,8 +22,10 @@ describe('CurrentProjectService', () => {
   let changes: Subject<unknown>;
   /** owner recorded in the fake local copy */
   let copyOwner: ProjectOwner | undefined;
+  /** files of the fake local copy, by hash */
+  let exportedBlobs: Map<string, Blob>;
   let db: {
-    onChange: () => Subject<unknown>; loadProject: jasmine.Spy; exportProject: jasmine.Spy; getOwner: jasmine.Spy;
+    onChange: () => Subject<unknown>; loadProject: jasmine.Spy; exportProjectForServer: jasmine.Spy; getOwner: jasmine.Spy;
     setOwnerRevision: jasmine.Spy; reuseLocalCopy: jasmine.Spy;
   };
   let api: jasmine.SpyObj<ProjectsApiService>;
@@ -43,13 +45,14 @@ describe('CurrentProjectService', () => {
     clearStorage();
     changes = new Subject();
     copyOwner = undefined;
+    exportedBlobs = new Map();
     otherTabOpen = false;
     db = {
       onChange: () => changes,
       loadProject: jasmine.createSpy('loadProject').and.callFake(async (_data: Blob | null, owner?: ProjectOwner) => {
         copyOwner = owner;
       }),
-      exportProject: jasmine.createSpy('exportProject').and.resolveTo(new Blob(['{}'])),
+      exportProjectForServer: jasmine.createSpy('exportProjectForServer').and.callFake(async () => ({ data: new Blob(['{}']), blobs: new Map(exportedBlobs) })),
       getOwner: jasmine.createSpy('getOwner').and.callFake(async () => copyOwner),
       setOwnerRevision: jasmine.createSpy('setOwnerRevision').and.callFake(async (revision: number) => {
         if (copyOwner) {
@@ -58,7 +61,11 @@ describe('CurrentProjectService', () => {
       }),
       reuseLocalCopy: jasmine.createSpy('reuseLocalCopy').and.resolveTo(),
     };
-    api = jasmine.createSpyObj<ProjectsApiService>('ProjectsApiService', ['get', 'loadData', 'saveData']);
+    api = jasmine.createSpyObj<ProjectsApiService>('ProjectsApiService',
+      ['get', 'loadData', 'saveData', 'missingBlobs', 'uploadBlob', 'blob']);
+    api.missingBlobs.and.resolveTo([]);
+    api.uploadBlob.and.resolveTo();
+    api.blob.and.callFake(async (hash: string) => new Blob([hash]));
     api.get.and.callFake(async (id: string) => meta(id, 3));
     api.loadData.and.resolveTo({ data: new Blob(['{}']), revision: 3 });
     api.saveData.and.callFake(async (id, _data, base) => meta(id, base + 1));
@@ -101,7 +108,7 @@ describe('CurrentProjectService', () => {
 
   it('loads the server version and records the owner of the local copy', async () => {
     await service.open('p1');
-    expect(db.loadProject).toHaveBeenCalledWith(jasmine.any(Blob), { userId: 'ua', projectId: 'p1', revision: 3 });
+    expect(db.loadProject).toHaveBeenCalledWith(jasmine.any(Blob), { userId: 'ua', projectId: 'p1', revision: 3 }, jasmine.any(Map));
     expect(service.project()?.name).toBe('Projet p1');
     expect(service.saveState()).toBe('saved');
     expect(localStorage.getItem('cider.last.ua')).toBe('p1');
@@ -138,6 +145,41 @@ describe('CurrentProjectService', () => {
     await changeAndWaitForSave();
     expect(db.setOwnerRevision).toHaveBeenCalledWith(4);
     expect(copyOwner?.revision).toBe(4);
+  });
+
+  it('downloads the files referenced by the project and gives them to the local copy', async () => {
+    const hash = 'a'.repeat(64);
+    api.loadData.and.resolveTo({ data: new Blob([`{"file":{"$ciderBlob":"${hash}","type":"image/png","size":1}}`]), revision: 3 });
+    await service.open('p1');
+    expect(api.blob).toHaveBeenCalledOnceWith(hash);
+    const blobs = db.loadProject.calls.mostRecent().args[2] as Map<string, Blob>;
+    expect([...blobs.keys()]).toEqual([hash]);
+  });
+
+  it('sends only the files the server does not have, before the project data', async () => {
+    const known = 'b'.repeat(64);
+    const added = 'c'.repeat(64);
+    exportedBlobs = new Map([[known, new Blob(['old'])], [added, new Blob(['new'])]]);
+    api.missingBlobs.and.resolveTo([added]);
+    await service.open('p1');
+    await changeAndWaitForSave();
+    expect(api.missingBlobs).toHaveBeenCalledOnceWith([known, added]);
+    expect(api.uploadBlob).toHaveBeenCalledOnceWith(added, jasmine.any(Blob));
+    expect(api.uploadBlob).toHaveBeenCalledBefore(api.saveData);
+    expect(service.saveState()).toBe('saved');
+  });
+
+  it('sends the files the server reports missing, then saves again', async () => {
+    const lost = 'd'.repeat(64);
+    exportedBlobs = new Map([[lost, new Blob(['image'])]]);
+    await service.open('p1');
+    api.saveData.and.returnValues(
+      Promise.reject(new HttpErrorResponse({ status: 422, error: { missing: [lost] } })),
+      Promise.resolve(meta('p1', 4)));
+    await changeAndWaitForSave();
+    expect(api.uploadBlob).toHaveBeenCalledOnceWith(lost, jasmine.any(Blob));
+    expect(api.saveData).toHaveBeenCalledTimes(2);
+    expect(service.saveState()).toBe('saved');
   });
 
   it('saves a change after a short delay, from the loaded revision', async () => {
@@ -230,7 +272,7 @@ describe('CurrentProjectService', () => {
     copyOwner = { userId: 'ua', projectId: 'p1' };
     await service.open('p2');
     expect(api.saveData).toHaveBeenCalledOnceWith('p1', jasmine.any(Blob), 3);
-    expect(db.loadProject).toHaveBeenCalledWith(jasmine.any(Blob), { userId: 'ua', projectId: 'p2', revision: 3 });
+    expect(db.loadProject).toHaveBeenCalledWith(jasmine.any(Blob), { userId: 'ua', projectId: 'p2', revision: 3 }, jasmine.any(Map));
     expect(service.project()?.id).toBe('p2');
   });
 
