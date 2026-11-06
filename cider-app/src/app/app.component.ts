@@ -42,12 +42,16 @@ export class AppComponent implements OnInit {
   }
 
   private initTranslateService() {
-    this.translateService.addLangs(['en', 'fr', 'es', 'bg', 'de', 'it',
-      'pt', 'ru', 'pl', 'uk', 'ko', 'ja', 'zh', 'tr', 'nl']);
+    // French and English only: the other languages of the original Cider were
+    // not kept up to date with this fork (also update settings-dialog languages)
+    this.translateService.addLangs(['fr', 'en']);
 
+    const langs = this.translateService.getLangs();
     const browserLang = this.translateService.getBrowserLang();
     const savedLang = this.localStorageService.getLanguage();
-    const langToSet = savedLang ? savedLang : (browserLang && this.translateService.getLangs().includes(browserLang) ? browserLang : 'en');
+    // a language saved before it was removed falls back like a new visitor
+    const langToSet = savedLang && langs.includes(savedLang) ? savedLang
+      : (browserLang && langs.includes(browserLang) ? browserLang : 'fr');
     this.translateService.use(langToSet);
   }
 

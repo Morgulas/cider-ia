@@ -3,7 +3,7 @@
   @if (cache && cachedImageUrl) {
   <div class="card-preview" [style.transform]="'scale(' + scale + ')'">
     <div class="image-placeholder" [style.width.px]="initialWidth" [style.height.px]="initialHeight">
-      <img [src]="cachedImageUrl | safeUrl">
+      <img [src]="cachedImageUrl | safeUrl" alt="">
     </div>
   </div>
   }

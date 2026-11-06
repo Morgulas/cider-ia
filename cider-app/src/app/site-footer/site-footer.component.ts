@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Dialog } from 'primeng/dialog';
 import PackageUtils from '../shared/utils/package-utils';
@@ -14,7 +14,7 @@ import { CurrentProjectService } from '../server/current-project.service';
     styleUrls: ['./site-footer.component.scss'],
     imports: [Bind, Button, Tooltip, Dialog, DatePipe, TranslatePipe]
 })
-export class SiteFooterComponent implements OnInit {
+export class SiteFooterComponent {
   appVersion = '0.0.0';
   protected readonly currentProject = inject(CurrentProjectService);
   /** the conflict dialog stays open until the user picks a version */
@@ -37,9 +37,6 @@ export class SiteFooterComponent implements OnInit {
 
   constructor() {
     this.appVersion = PackageUtils.getVersion();
-  }
-
-  ngOnInit(): void {
   }
 
   protected async keepLocal(): Promise<void> {

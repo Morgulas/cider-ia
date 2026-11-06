@@ -1,6 +1,6 @@
+import { AnyEntityService, fieldOf, setField } from '../../data-services/types/entity-service.type';
 
 import { EntityField } from 'src/app/data-services/types/entity-field.type';
-import { EntityService } from 'src/app/data-services/types/entity-service.type';
 import { FieldType } from 'src/app/data-services/types/field-type.type';
 import * as XLSX from 'xlsx';
 import FileUtils from './file-utils';
@@ -16,14 +16,14 @@ export default class XlsxUtils {
      * @param lookups 
      */
     static entityExport<Entity>(columns: EntityField<Entity>[],
-        lookups: Map<EntityService<any, string | number>, Map<string | number, string>>, records: Entity[]) {
+        lookups: Map<AnyEntityService, Map<string | number, string>>, records: Entity[]) {
         const headers = columns.filter(column => !column.hidden);
         const headerNames = headers.map(column => column.header);
         const worksheet: XLSX.WorkSheet = XLSX.utils.aoa_to_sheet([headerNames]);
         records.forEach(record => {
             const values = headers.map(header => {
                 if (header.service) {
-                    return lookups.get(header.service)?.get((record[header.field] as any));
+                    return lookups.get(header.service)?.get(record[header.field] as string | number);
                 }
 
                 if (header.type === FieldType.dropdown || header.type === FieldType.dropdownOptions) {
@@ -50,7 +50,7 @@ export default class XlsxUtils {
      * @param lookups 
      */
     static entityExportToFile<Entity>(columns: EntityField<Entity>[],
-        lookups: Map<EntityService<any, string | number>, Map<string | number, string>>, records: Entity[]) {
+        lookups: Map<AnyEntityService, Map<string | number, string>>, records: Entity[]) {
         const csv = XlsxUtils.entityExport(columns, lookups, records);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
         FileUtils.saveAs(blob, 'data.csv');
@@ -65,7 +65,7 @@ export default class XlsxUtils {
      * @param file 
      */
     static entityImport<Entity>(columns: EntityField<Entity>[],
-        lookups: Map<EntityService<any, string | number>, Map<string | number, string>>,
+        lookups: Map<AnyEntityService, Map<string | number, string>>,
         file: File): Promise<Entity[]> {
         const headers = columns.filter(column => !column.hidden);
         return file.arrayBuffer().then(buffer => {
@@ -79,46 +79,46 @@ export default class XlsxUtils {
                         let foundValue = false;
                         lookups.get(header.service)?.forEach((value, key) => {
                             const dbValue = String(value).trim();
-                            const csvValue = String((object as any)[header.header] || '').trim();
+                            const csvValue = String(fieldOf(object, header.header) || '').trim();
                             if (dbValue === csvValue) {
-                                (converted as any)[header.field] = key;
+                                setField(converted, header.field, key);
                                 foundValue = true;
                             } else {
                                 // Fallback: try kebab-case comparison
                                 // This handles cases where template names are "My Template" (DB) but "my-template" (CSV)
                                 if (StringUtils.toKebabCase(dbValue) === StringUtils.toKebabCase(csvValue)) {
-                                    (converted as any)[header.field] = key;
+                                    setField(converted, header.field, key);
                                     foundValue = true;
                                 }
                             }
                         });
                         if (!foundValue) {
-                            console.warn(`Could not find value (${(object as any)[header.header]}) for column: ${header.header}. Available keys:`, [...(lookups.get(header.service)?.values() || [])]);
+                            console.warn(`Could not find value (${fieldOf(object, header.header)}) for column: ${header.header}. Available keys:`, [...(lookups.get(header.service)?.values() || [])]);
                         }
 
                     } else if (header.type === FieldType.dropdown) {
-                        const val = (object as any)[header.header];
+                        const val = fieldOf(object, header.header);
                         if (header.options && header.options.length > 0) {
                             const valid = header.options.some(o => o.value === val);
                             if (!valid) {
                                 console.warn(`Value "${val}" for column "${header.header}" is not in the allowed options: ${header.options.map(o => o.value).join(', ')}`);
                             }
                         }
-                        (converted as any)[header.field] = val;
+                        setField(converted, header.field, val);
                     } else if (header.type === FieldType.checkbox) {
-                        const val = (object as any)[header.header];
+                        const val = fieldOf(object, header.header);
                         if (typeof val === 'boolean') {
-                            (converted as any)[header.field] = val;
+                            setField(converted, header.field, val);
                         } else if (typeof val === 'string') {
                             const lower = val.toLowerCase().trim();
-                            (converted as any)[header.field] = lower === 'true' || lower === '1' || lower === 'yes';
+                            setField(converted, header.field, lower === 'true' || lower === '1' || lower === 'yes');
                         } else if (typeof val === 'number') {
-                            (converted as any)[header.field] = val !== 0;
+                            setField(converted, header.field, val !== 0);
                         } else {
-                            (converted as any)[header.field] = false;
+                            setField(converted, header.field, false);
                         }
                     } else {
-                        (converted as any)[header.field] = (object as any)[header.header];
+                        setField(converted, header.field, fieldOf(object, header.header));
                     }
                 });
                 return converted;

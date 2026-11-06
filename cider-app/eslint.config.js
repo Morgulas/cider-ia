@@ -72,7 +72,11 @@ module.exports = defineConfig([
     ],
     rules: {
       // accessibility of the editor UI: reported, to be improved progressively
-      "@angular-eslint/template/elements-content": "warn",
+      // PrimeNG buttons get their text from label / icon (and a tooltip or aria-label)
+      "@angular-eslint/template/elements-content": [
+        "warn",
+        { allowList: ["label", "icon", "pTooltip", "ariaLabel", "aria-label", "title", "innerHTML", "pButtonLabel"] },
+      ],
       "@angular-eslint/template/no-autofocus": "warn",
       "@angular-eslint/template/click-events-have-key-events": "warn",
       "@angular-eslint/template/interactive-supports-focus": "warn",

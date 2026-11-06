@@ -1,3 +1,4 @@
+import { Asset } from '../data-services/types/asset.type';
 import { Component } from '@angular/core';
 import { generateRandomCardSymbol } from '../shared/generators/card-symbol-generator';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -298,7 +299,7 @@ export class AssetGeneratorComponent {
     });
   }
 
-  public showSavePopover(event: any, popover: any, asset: GeneratedSvg) {
+  public showSavePopover(event: Event, popover: Popover, asset: GeneratedSvg) {
     if (!popover.render) {
       this.saveSvg = asset.svg;
       this.saveName = `${asset.type.value}-${Math.random().toString(36).substr(2, 9)}`;
@@ -306,13 +307,13 @@ export class AssetGeneratorComponent {
     popover.toggle(event);
   }
 
-  public saveAsset(event: any, popover: any) {
+  public saveAsset(_event: Event, popover: Popover) {
     // save the selected asset
     this.assetsService.create({
       name: this.saveName,
       file: FileUtils.svgStringToBlob(this.saveSvg),
-    } as any).then(() => {
-      popover.hide(event);
+    } as Asset).then(() => {
+      popover.hide();
     });
   }
 

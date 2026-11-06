@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CardsService } from '../data-services/services/cards.service';
 import { Card } from '../data-services/types/card.type';
 import { Bind } from 'primeng/bind';
@@ -15,7 +15,7 @@ import { TranslatePipe } from '@ngx-translate/core';
     styleUrls: ['./export-selection-dialog.component.scss'],
     imports: [Bind, Dialog, PrimeTemplate, EntityTableComponent, ButtonDirective, Ripple, TranslatePipe]
 })
-export class ExportSelectionDialogComponent implements OnInit {
+export class ExportSelectionDialogComponent {
   @Input() records: Card[] = [];
   @Input() visible = false;
   @Output() visibleChange: EventEmitter<boolean> = new EventEmitter<boolean>();
@@ -23,9 +23,6 @@ export class ExportSelectionDialogComponent implements OnInit {
   public cards: Card | Card[] | undefined = undefined;
 
   constructor(public cardsService: CardsService) {
-  }
-
-  ngOnInit(): void {
   }
 
   public onShow() {

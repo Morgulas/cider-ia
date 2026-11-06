@@ -1,3 +1,4 @@
+import { AssetUrls } from '../data-services/types/asset.type';
 import { Component, OnInit, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DocumentsService } from '../data-services/services/documents.service';
@@ -15,7 +16,7 @@ import { debounceTime, filter } from 'rxjs';
 export class SiteContentComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   protected globalDocument: Document | undefined;
-  assetUrls: any;
+  assetUrls?: AssetUrls;
 
   constructor(private db: AppDB,
       private documentsService: DocumentsService,

@@ -1,3 +1,4 @@
+import { AssetUrls } from '../data-services/types/asset.type';
 import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, QueryList, SimpleChanges, ViewChildren, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AssetsService } from '../data-services/services/assets.service';
@@ -21,9 +22,11 @@ import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
 })
 export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
-  @ViewChildren('cardElement') cardElement: QueryList<any> = {} as QueryList<any>;
+  @ViewChildren('cardElement') cardElement: QueryList<ElementRef<HTMLElement>> = {} as QueryList<ElementRef<HTMLElement>>;
   @Input() card: Card = {} as Card;
-  @Input() template: CardTemplate = {} as CardTemplate;
+  /** null or undefined (template still loading, e.g. through the async pipe): nothing to show yet */
+  @Input({ transform: (template: CardTemplate | null | undefined) => template ?? ({} as CardTemplate) })
+  template: CardTemplate = {} as CardTemplate;
   @Input() scale = 1.0;
   @Input() lowInk = false;
   @Input() cache = false;
@@ -37,7 +40,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
 
   initialWidth = 0;
   initialHeight = 0;
-  assetUrls: any;
+  assetUrls?: AssetUrls;
   uuid: string = uuid();
   cachedImageUrl?: string;
   invalidTemplate = false;
@@ -49,7 +52,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     private assetsService: AssetsService,
     private renderCacheService: RenderCacheService,
     private imageRendererService: ImageRendererService,
-    private element: ElementRef,
+    public readonly element: ElementRef<HTMLElement>,
     private changeDetectorRef: ChangeDetectorRef,
     private cardToHtmlPipe: CardToHtmlPipe,
     private sanitizer: DomSanitizer) {
@@ -90,7 +93,6 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   ngOnChanges(changes: SimpleChanges): void {
     const cardChange = changes['card'];
     const templateChange = changes['template'];
-    const scaleChange = changes['scale'];
 
     if ((cardChange && !cardChange.isFirstChange()) || (templateChange && !templateChange.isFirstChange())) {
       this.isLoadedSubject = new AsyncSubject();
@@ -131,14 +133,15 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
 
   public getHash(): number {
     const html = this.cardToHtmlPipe.transform(this.template, this.card, this.assetUrls);
-    return this.renderCacheService.calculateHash((html as any).changingThisBreaksApplicationSecurity);
+    // the HTML string inside Angular's SafeHtml wrapper
+    return this.renderCacheService.calculateHash((html as unknown as { changingThisBreaksApplicationSecurity: string }).changingThisBreaksApplicationSecurity);
   }
 
   public toImageUrl(): Promise<string> {
     const filter = (node: HTMLElement) => {
       return 'style' !== node.localName;
     };
-    return this.imageRendererService.toPng((this.cardElement.get(0) as any).nativeElement, { pixelRatio: 1.0, filter: filter });
+    return this.imageRendererService.toPng(this.cardElement.get(0)!.nativeElement, { pixelRatio: 1.0, filter: filter });
   }
 
   public isLoaded() {

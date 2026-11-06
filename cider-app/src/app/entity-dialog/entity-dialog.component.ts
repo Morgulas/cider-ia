@@ -1,8 +1,9 @@
+import type { FileSelectEvent } from 'primeng/types/fileupload';
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { MessageService, PrimeTemplate } from 'primeng/api';
 import { EntityField } from '../data-services/types/entity-field.type';
-import { EntityService } from '../data-services/types/entity-service.type';
+import { EntityService, fieldOf, setField } from '../data-services/types/entity-service.type';
 import { FieldType } from '../data-services/types/field-type.type';
 import { TranslateService, TranslatePipe } from '@ngx-translate/core';
 import TranslateUtils from '../shared/utils/translate-utils';
@@ -60,7 +61,7 @@ export class EntityDialogComponent<Entity, Identifier extends string | number> i
     if (!this.service) {
       return;
     }
-    const id = (this.entity as any)[this.service?.getIdField()];
+    const id = fieldOf<Identifier>(this.entity, this.service?.getIdField());
     if (id) {
       this.updateExisting(id, this.entity);
     } else {
@@ -91,9 +92,9 @@ export class EntityDialogComponent<Entity, Identifier extends string | number> i
     });
   }
 
-  public uploadFile(entity: Entity, field: string | number | symbol, event: any) {
+  public uploadFile(entity: Entity, field: string | number | symbol, event: FileSelectEvent) {
     if (event?.currentFiles?.length) {
-      (entity as any)[field] = event.files[0];
+      setField(entity, field, event.files[0]);
     }
   }
 

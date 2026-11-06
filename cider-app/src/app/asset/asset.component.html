@@ -21,7 +21,7 @@
   <!-- <img [src]="asset.file | fileUrl" [style.transform]="'scale(' + zoom + ')'"/> -->
   @if (fileType === 'image' && !isSvg) {
     <div class="image-container">
-      <img [src]="asset.file | fileUrl" />
+      <img [src]="asset.file | fileUrl" [alt]="asset.name" />
     </div>
   }
 
@@ -38,32 +38,34 @@
       </div>
 
       <div class="preview-section">
-        <label>Preview Text</label>
-        <textarea pInputTextarea [autoResize]="true" [(ngModel)]="previewText" [style.font-family]="fontPreviewFamily"
+        <label for="font-preview-text">Preview Text</label>
+        <textarea id="font-preview-text" pInputTextarea [autoResize]="true" [(ngModel)]="previewText" [style.font-family]="fontPreviewFamily"
         [style.font-size.px]="previewFontSize" class="live-preview-input"></textarea>
         <div class="preview-controls">
-          <i class="pi pi-minus-circle" (click)="decreasePreviewFontSize()"></i>
+          <i class="pi pi-minus-circle" role="button" tabindex="0" aria-label="-" (click)="decreasePreviewFontSize()"
+            (keydown.enter)="decreasePreviewFontSize()"></i>
           <span>{{ previewFontSize }}px</span>
-          <i class="pi pi-plus-circle" (click)="increasePreviewFontSize()"></i>
+          <i class="pi pi-plus-circle" role="button" tabindex="0" aria-label="+" (click)="increasePreviewFontSize()"
+            (keydown.enter)="increasePreviewFontSize()"></i>
         </div>
       </div>
 
       @if (fontMetadata) {
         <div class="metadata-grid">
           <div class="meta-item">
-            <label>Full Name</label>
+            <span class="meta-label">Full Name</span>
             <span>{{ fontMetadata.fullName }}</span>
           </div>
           <div class="meta-item">
-            <label>Version</label>
+            <span class="meta-label">Version</span>
             <span>{{ fontMetadata.version }}</span>
           </div>
           <div class="meta-item">
-            <label>Copyright</label>
+            <span class="meta-label">Copyright</span>
             <span>{{ fontMetadata.copyright }}</span>
           </div>
           <div class="meta-item">
-            <label>License</label>
+            <span class="meta-label">License</span>
             @if (fontMetadata.licenseURL) {
               <a [href]="fontMetadata.licenseURL" target="_blank">View License</a>
             }
@@ -73,7 +75,7 @@
           </div>
           @if (fontMetadata.designer) {
             <div class="meta-item full-width">
-              <label>Designer</label>
+              <span class="meta-label">Designer</span>
               @if (fontMetadata.designerURL) {
                 <a [href]="fontMetadata.designerURL" target="_blank">{{ fontMetadata.designer
                 }}</a>
@@ -100,7 +102,8 @@
   @if (isSvg) {
     <div class="svg-editor-container">
       <div class="svg-header">
-        <div class="editor-controls-title" (click)="showSvgEditor = !showSvgEditor"
+        <div class="editor-controls-title" role="button" tabindex="0" [attr.aria-expanded]="showSvgEditor"
+          (click)="showSvgEditor = !showSvgEditor" (keydown.enter)="showSvgEditor = !showSvgEditor"
           style="cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
           <i class="pi" [ngClass]="showSvgEditor ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
           <h3>Editor</h3>
@@ -127,7 +130,7 @@
                     <input type="color" [(ngModel)]="color.current" (change)="onSvgChange()"
                       [pTooltip]="color.current + (color.currentAlpha < 1 ? ' (' + math.round(color.currentAlpha * 100) + '%)' : '')"
                       tooltipPosition="top">
-                    <div class="opacity-control" (click)="$event.stopPropagation()">
+                    <div class="opacity-control" role="presentation" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
                       <input type="range" min="0" max="1" step="0.01" [(ngModel)]="color.currentAlpha" (change)="onSvgChange()">
                       <input type="number" [ngModel]="math.round(color.currentAlpha * 100)"
                         (ngModelChange)="color.currentAlpha = $event / 100; onSvgChange()" min="0" max="100" step="1"
@@ -145,9 +148,9 @@
               <div class="width-list">
                 @for (width of svgStrokeWidths; track width) {
                   <div class="width-item">
-                    <label>Original: {{ width.original }}</label>
+                    <label [for]="'stroke-' + $index">Original: {{ width.original }}</label>
                     <div class="input-wrapper">
-                      <input pInputText type="number" [(ngModel)]="width.current" (change)="onSvgChange()" step="0.5">
+                      <input pInputText [id]="'stroke-' + $index" type="number" [(ngModel)]="width.current" (change)="onSvgChange()" step="0.5">
                       <span class="suffix">{{ width.suffix }}</span>
                     </div>
                   </div>
@@ -166,7 +169,7 @@
 
       <div class="svg-preview-area">
         @if (svgPreviewUrl) {
-          <img [src]="svgPreviewUrl" class="svg-preview-img"
+          <img [src]="svgPreviewUrl" [alt]="asset.name" class="svg-preview-img"
             [style.transform]="'scale(' + zoom + ')'" />
         }
 

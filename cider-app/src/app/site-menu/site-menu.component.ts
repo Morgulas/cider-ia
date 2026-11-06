@@ -1,3 +1,4 @@
+import type { FileSelectEvent } from 'primeng/types/fileupload';
 import { Component, NgZone, OnInit, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmationService, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
@@ -111,8 +112,8 @@ export class SiteMenuComponent implements OnInit {
 
     // use the router to update the current route
     this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd)
-    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event: any) => {
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd)
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {
       this.ngZone.run(async () => {
         const routeUrl = event.urlAfterRedirects;
         this.currentRoute = routeUrl;
@@ -173,7 +174,7 @@ export class SiteMenuComponent implements OnInit {
     this.breadcrumbs = breadcrumbs;
   }
 
-  public uploadFile(event: any) {
+  public uploadFile(event: FileSelectEvent) {
     if (event?.currentFiles?.length) {
       this.importFile = event.files[0];
     }

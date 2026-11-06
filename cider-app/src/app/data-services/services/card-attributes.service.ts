@@ -8,6 +8,9 @@ import { DecksService } from './decks.service';
 import StringUtils from 'src/app/shared/utils/string-utils';
 import { EqualityCriteria } from '../types/equality-criteria.type';
 
+/** A dropdown option as older projects may have stored it */
+type LegacyOption = string | { value?: string | { value?: unknown; color?: string }; color?: string } | null | undefined;
+
 @Injectable({
   providedIn: 'root'
 })
@@ -45,10 +48,10 @@ export class CardAttributesService extends DecksChildService<CardAttribute, numb
   }
 
   // Backwards compatibility helper to normalize options and flatten legacy nested formats
-  normalizeDropdownOptions(options: any): DropdownOption[] {
+  normalizeDropdownOptions(options: unknown): DropdownOption[] {
     if (!options) return [];
 
-    let parsedOptions: any[];
+    let parsedOptions: LegacyOption[];
     if (typeof options === 'string') {
       const trimmed = options.trim();
       if (trimmed.startsWith('[')) {
@@ -137,7 +140,7 @@ export class CardAttributesService extends DecksChildService<CardAttribute, numb
           width: 135,
           order: attr.order,
           isSystem: true
-        } as any), true);
+        } as unknown as CardAttribute), true);
       } else {
         if (!existing.isSystem) {
           existing.isSystem = true;

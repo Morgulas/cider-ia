@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { Bind } from 'primeng/bind';
 import { Card } from 'primeng/card';
 
@@ -8,13 +8,8 @@ import { Card } from 'primeng/card';
     styleUrls: ['./page-header.component.scss'],
     imports: [Bind, Card]
 })
-export class PageHeaderComponent implements OnInit {
+export class PageHeaderComponent {
   @Input() header: string | undefined;
   @Input() subheader: string | undefined;
-
-  constructor() { }
-
-  ngOnInit(): void {
-  }
 
 }

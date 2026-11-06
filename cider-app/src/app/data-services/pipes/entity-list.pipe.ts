@@ -7,11 +7,9 @@ import { EntityService } from '../types/entity-service.type';
 @Pipe({ name: 'entityList' })
 export class EntityListPipe implements PipeTransform {
 
-  transform(service: EntityService<any, any>): Promise<any[]> {
+  transform<E, I extends string | number>(service: EntityService<E, I>): Promise<E[]> {
     if (!service) {
-      return new Promise<any>((resolve, reject) => {
-        resolve([]);
-      });
+      return Promise.resolve([]);
     }
     return service.getAll();
   }

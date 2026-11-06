@@ -107,7 +107,6 @@ export class GameSimulatorStateService {
 
         // 1. Fetch all current Decks and Cards
         const decks = await this.decksService.getAll();
-        const allDeckIds = new Set(decks.map(d => d.id));
 
         const allCards: Card[] = [];
         for (const deck of decks) {

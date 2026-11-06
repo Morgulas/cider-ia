@@ -1,3 +1,4 @@
+import { fieldOf } from '../data-services/types/entity-service.type';
 import { Component, OnInit, ViewChild, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
@@ -34,31 +35,31 @@ export class CardThumbnailsComponent implements OnInit {
   protected readonly ai = inject(AiService);
   protected illustrationVisible = false;
   protected illustrationCard: Card | null = null;
-  @ViewChild('dv') dv!: DataView;
+  @ViewChild('dv') dv?: DataView_1;
   thumbnailCards: Card[] = [];
   /** Cartes du classeur, après filtre et choix des faces. */
   binderItems: BinderItem[] = [];
   searchText = '';
   view: 'binder' | 'grid' = CardThumbnailsComponent.loadView();
-  viewOptions: any[] = [
+  viewOptions: { icon: string; value: string; tooltip: string }[] = [
     { icon: 'pi pi-book', value: 'binder', tooltip: 'Classeur' },
     { icon: 'pi pi-th-large', value: 'grid', tooltip: 'Grille' }
   ];
   zoomLevel = 0.3;
-  zoomOptions: any[] = [
+  zoomOptions: { label: string; value: number }[] = [
     { label: 's', value: 0.2 },
     { label: 'm', value: 0.3 },
     { label: 'l', value: 0.5 },
     { label: 'xl', value: 0.8 }
   ];
   sideSelected = 'fronts';
-  sideOptions: any[] = [
+  sideOptions: { label: string; value: string }[] = [
     { label: 'Fronts', value: 'fronts' },
     { label: 'Backs', value: 'backs' },
     { label: 'Both', value: 'both' }
   ];
   filterFields = "";
-  copyOptions: any[] = [
+  copyOptions: { label: string; value: string }[] = [
     { label: 'Singles', value: 'singles' },
     { label: 'Copies', value: 'copies' }
   ];
@@ -107,10 +108,10 @@ export class CardThumbnailsComponent implements OnInit {
     });
   }
 
-  filter(input: any) {
-    this.searchText = input.target.value;
+  filter(input: Event) {
+    this.searchText = (input.target as HTMLInputElement).value;
     if (this.dv) {
-      (this.dv as any).filter(this.searchText, 'contains');
+      this.dv.filter(this.searchText, 'contains');
     }
     this.refreshBinder();
   }
@@ -121,7 +122,7 @@ export class CardThumbnailsComponent implements OnInit {
     const fields = this.filterFields ? this.filterFields.split(',') : ['name'];
     const cards = query
       ? this.thumbnailCards.filter(card => fields.some(field => {
-        const value = (card as any)[field];
+        const value = fieldOf(card, field);
         return value !== undefined && value !== null && String(value).toLocaleLowerCase().includes(query);
       }))
       : this.thumbnailCards;
@@ -145,7 +146,7 @@ export class CardThumbnailsComponent implements OnInit {
     }
     if (this.view === 'grid' && this.searchText) {
       // la grille se crée maintenant : on lui réapplique la recherche en cours
-      setTimeout(() => this.dv && (this.dv as any).filter(this.searchText, 'contains'));
+      setTimeout(() => this.dv && this.dv.filter(this.searchText, 'contains'));
     }
   }
 

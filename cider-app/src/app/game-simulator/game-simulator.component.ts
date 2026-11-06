@@ -21,16 +21,21 @@ import { Dialog } from 'primeng/dialog';
 import { FormsModule } from '@angular/forms';
 import { InputText } from 'primeng/inputtext';
 import { Button } from 'primeng/button';
-import { DecksComponent } from '../decks/decks.component';
 import { EntityPipe } from '../data-services/pipes/entity.pipe';
 
 
+
+/** A position scaled to the zoom, with the position it was computed from */
+interface ScaledPos extends Point {
+  sourceX: number;
+  sourceY: number;
+}
 
 @Component({
     selector: 'app-game-simulator',
     templateUrl: './game-simulator.component.html',
     styleUrl: './game-simulator.component.scss',
-    imports: [CdkDropListGroup, NgStyle, CdkDrag, CardPreviewComponent, Bind, Dialog, FormsModule, InputText, Button, ContextMenu, DecksComponent, AsyncPipe, EntityPipe, TranslatePipe]
+    imports: [CdkDropListGroup, NgStyle, CdkDrag, CardPreviewComponent, Bind, Dialog, FormsModule, InputText, Button, ContextMenu, AsyncPipe, EntityPipe, TranslatePipe]
 })
 export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit {
   public static readonly BASE_CARD_WIDTH = 825; // Approximated from visual reference or default - Fallback only
@@ -68,7 +73,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
   private isPanning = false;
   public isShiftPressed = false;
 
-  private _scaledPosMap = new Map<string, Point | any>();
+  private _scaledPosMap = new Map<string, ScaledPos>();
   private _lastZoomForScaledPos = 1;
 
   public getScaledPos(item: Positionable): Point {
@@ -77,7 +82,8 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
       this._scaledPosMap.clear();
     }
 
-    let cached = this._scaledPosMap.get((item as any).uniqueId);
+    const key = (item as Partial<GameCard>).uniqueId ?? '';
+    let cached = this._scaledPosMap.get(key);
     if (!cached || cached.sourceX !== item.pos.x || cached.sourceY !== item.pos.y) {
       cached = {
         x: item.pos.x * this.simulatorZoom,
@@ -85,7 +91,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
         sourceX: item.pos.x,
         sourceY: item.pos.y
       };
-      this._scaledPosMap.set((item as any).uniqueId, cached);
+      this._scaledPosMap.set(key, cached);
     }
     return cached;
   }
@@ -104,7 +110,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
   shortcutsVisible = false;
   stackToRename: CardStack | undefined;
   isZooming = false;
-  private zoomTimeout: any;
+  private zoomTimeout?: ReturnType<typeof setTimeout>;
 
   saveStackName() {
     if (this.stackToRename && this.renameStackName.trim().length > 0) {
@@ -354,11 +360,13 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     }
   }
 
-  public onDrawClick(event: MouseEvent, stack: CardStack) {
+  /** Click, or Enter on the focused draw button (Angular types key events as Event) */
+  public onDrawClick(event: Event, stack: CardStack) {
     event.stopPropagation();
-    // Left click only (button 0)
-    if (event.button === 0) {
-      const faceUp = !event.shiftKey;
+    const input = event as MouseEvent | KeyboardEvent;
+    // Left click only (button 0), or Enter
+    if (!(input instanceof MouseEvent) || input.button === 0) {
+      const faceUp = !input.shiftKey;
       this.drawCard(stack, faceUp);
     }
   }
@@ -633,7 +641,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     this.draggingCard = true;
   }
 
-  onDragEnded(event: CdkDragEnd<any>, items: Positionable[], item: Positionable) {
+  onDragEnded(event: CdkDragEnd<unknown>, items: Positionable[], item: Positionable) {
     const rawPos = event.source.getFreeDragPosition();
     const pos = { x: rawPos.x / this.simulatorZoom, y: rawPos.y / this.simulatorZoom };
 
@@ -691,7 +699,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     this.draggingStack = false;
   }
 
-  onCardDragEnded(event: CdkDragEnd<any>, cards: GameCard[], card: GameCard) {
+  onCardDragEnded(event: CdkDragEnd<unknown>, cards: GameCard[], card: GameCard) {
     const rawPos = event.source.getFreeDragPosition();
     const pos = { x: rawPos.x / this.simulatorZoom, y: rawPos.y / this.simulatorZoom };
 
@@ -711,7 +719,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     if (this.hoveredItem) {
       const index = cards.indexOf(card);
       cards.splice(index, 1);
-      (this.hoveredItem as any).cards.push(card);
+      (this.hoveredItem as CardStack).cards.push(card);
 
       // Crucial: Clear hoveredItem to prevent ghost merging on future drops!
       this.hoveredItem = undefined;
@@ -719,7 +727,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     this.draggingCard = false;
   }
 
-  onMouseEntered(event: any, item: Positionable) {
+  onMouseEntered(_event: Event, item: Positionable) {
     if (this.hoveredItem == item) {
       return;
     }
@@ -727,7 +735,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     this.hoveredItem = item;
   }
 
-  onMouseExited(event: any, item: Positionable) {
+  onMouseExited(_event: Event, item: Positionable) {
     // console.log('mouse exited: ', event, item);
     if (this.hoveredItem == item) {
       this.hoveredItem = undefined;
@@ -850,7 +858,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     };
   }
 
-  public handleDragPosition = (proposedPosition: Point, _dragRef: DragRef, dimensions: any, pickupPositionInElement: Point): Point => {
+  public handleDragPosition = (proposedPosition: Point, _dragRef: DragRef, _dimensions: DOMRect, pickupPositionInElement: Point): Point => {
     // 1. Proposed position is the unscaled screen cursor `point`.
     // Calculate the screen position of the card's top-left corner
     const screenTopLeft = {
@@ -954,7 +962,7 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     // Normalized rotation (0, 90, 180, 270)
     const rot = ((rotation % 360) + 360) % 360;
 
-    let style: any;
+    let style: Record<string, string>;
 
     // Base position is bottom: 5px, right: 5px
     // Center is 50%, 50%

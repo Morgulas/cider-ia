@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
 import { Bind } from 'primeng/bind';
 import { Card } from 'primeng/card';
@@ -10,11 +10,8 @@ import { EntityTableComponent } from '../entity-table/entity-table.component';
     styleUrls: ['./card-attributes.component.scss'],
     imports: [Bind, Card, EntityTableComponent]
 })
-export class CardAttributesComponent implements OnInit {
+export class CardAttributesComponent {
 
   constructor(public attributesService: CardAttributesService) { }
-
-  ngOnInit(): void {
-  }
 
 }

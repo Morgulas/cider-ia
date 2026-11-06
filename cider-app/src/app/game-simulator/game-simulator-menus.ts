@@ -1,5 +1,5 @@
 import { TranslateService } from '@ngx-translate/core';
-import { MenuItem } from 'primeng/api';
+import { MenuItem, MenuItemCommandEvent } from 'primeng/api';
 import { Card } from '../data-services/types/card.type';
 import { EntityField } from '../data-services/types/entity-field.type';
 import StringUtils from '../shared/utils/string-utils';
@@ -52,7 +52,7 @@ export class GameSimulatorMenus {
       {
         label: this.translate.instant('simulator.shuffle-stack'),
         icon: 'pi pi-arrow-right-arrow-left',
-        command: (event: any) => {
+        command: () => {
           stack.shuffling = true;
           setTimeout(() => {
             this.sim.shuffleCards(stack.cards);
@@ -194,7 +194,7 @@ export class GameSimulatorMenus {
               {
                 label: this.translate.instant('simulator.flip-randomly'),
                 icon: 'pi pi-percentage',
-                command: (event: any) => {
+                command: (event: MenuItemCommandEvent) => {
                   const componentState: GameComponent | undefined =
                     event.item?.state as GameComponent;
                   if (componentState) {
@@ -212,7 +212,7 @@ export class GameSimulatorMenus {
               {
                 label: this.translate.instant('simulator.flip-over'),
                 icon: 'pi pi-refresh',
-                command: (event: any) => {
+                command: (event: MenuItemCommandEvent) => {
                   const componentState: GameComponent | undefined =
                     event.item?.state as GameComponent;
                   if (componentState) {
@@ -245,7 +245,7 @@ export class GameSimulatorMenus {
                 {
                   label: this.translate.instant('simulator.flip-over'),
                   icon: 'pi pi-refresh',
-                  command: (event: any) => {
+                  command: (event: MenuItemCommandEvent) => {
                     const componentState: GameComponent | undefined =
                       event.item?.state as GameComponent;
                     if (componentState) {
@@ -280,7 +280,7 @@ export class GameSimulatorMenus {
                 {
                   label: this.translate.instant('simulator.roll-die'),
                   icon: 'pi pi-percentage',
-                  command: (event: any) => {
+                  command: (event: MenuItemCommandEvent) => {
                     const componentState: GameComponent | undefined =
                       event.item?.state as GameComponent;
                     if (componentState) {
@@ -318,7 +318,7 @@ export class GameSimulatorMenus {
                 {
                   label: this.translate.instant('simulator.flip-over'),
                   icon: 'pi pi-refresh',
-                  command: (event: any) => {
+                  command: (event: MenuItemCommandEvent) => {
                     const componentState: GameComponent | undefined =
                       event.item?.state as GameComponent;
                     if (componentState) {

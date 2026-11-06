@@ -16,7 +16,7 @@ export interface EntityService<Entity, Identity extends string | number> {
     getFields: (equalityCriterias?: EqualityCriteria) => Promise<EntityField<Entity>[]>;
     getIdField: () => string;
     getIdToNameMap: (equalityCriterias?: EqualityCriteria) => Promise<Map<Identity, string>>;
-    getLookups: (equalityCriterias?: EqualityCriteria) => Promise<Map<EntityService<any, string | number>, Map<string | number, string>>>;
+    getLookups: (equalityCriterias?: EqualityCriteria) => Promise<Map<AnyEntityService, Map<string | number, string>>>;
     search: (searchParameters: SearchParameters) => Promise<SearchResult<Entity>>;
     getAll: () => Promise<Entity[]>;
     get: (id: Identity) => Promise<Entity>;
@@ -25,4 +25,27 @@ export interface EntityService<Entity, Identity extends string | number> {
     delete: (id: Identity) => Promise<boolean>;
     deleteAll: () => Promise<boolean>;
     emptyTable: () => Promise<boolean>;
+}
+
+/**
+ * A service of any table, for the code that works on every kind of entity
+ * (tables, dialogs, pipes, imports): the entity type is not known there.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyEntityService = EntityService<any, any>;
+
+/** An entity read or written field by field (field names come from the column definitions) */
+export type EntityRecord = Record<PropertyKey, unknown>;
+
+/**
+ * Value of a field of an entity of any type. The type parameter states what
+ * the caller expects there (an id, a text...): it is not checked.
+ */
+export function fieldOf<T = unknown>(entity: unknown, field: PropertyKey): T {
+    return (entity as EntityRecord | null | undefined)?.[field] as T;
+}
+
+/** Sets a field of an entity of any type */
+export function setField(entity: unknown, field: PropertyKey, value: unknown): void {
+    (entity as EntityRecord)[field] = value;
 }

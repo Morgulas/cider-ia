@@ -1,3 +1,6 @@
+import type * as Monaco from 'monaco-editor';
+import type { SplitterResizeEndEvent, SplitterResizeStartEvent } from 'primeng/types/splitter';
+import { fieldOf } from '../data-services/types/entity-service.type';
 import { Component, OnInit, OnDestroy, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
@@ -22,11 +25,11 @@ import ScriptLoader from '../shared/utils/script-loader';
 })
 export class DocumentComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
-  editorOptions: any = {
+  editorOptions: { theme: string; language: string; automaticLayout: boolean; minimap: { enabled: boolean } } = {
     theme: 'vs-dark-extended', language: 'markdown',
     automaticLayout: true, minimap: { enabled: false }
   };
-  mermaidOptions: any = {
+  mermaidOptions: Record<string, unknown> = {
     theme: 'dark'
   };
   /** Mermaid is downloaded only when a markdown document is opened */
@@ -38,8 +41,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
   } as Document;
   disablePanels = false;
   documentChanges: Subject<boolean>;
-  private editor: any;
-  private monaco: any;
+  private editor?: Monaco.editor.IStandaloneCodeEditor;
+  private monaco?: typeof Monaco;
   private themeSubscription: Subscription | null = null;
 
   constructor(private route: ActivatedRoute,
@@ -74,9 +77,9 @@ export class DocumentComponent implements OnInit, OnDestroy {
     };
   }
 
-  protected editorInitialized(editor: any) {
+  protected editorInitialized(editor: Monaco.editor.IStandaloneCodeEditor) {
     this.editor = editor;
-    this.monaco = (window as any).monaco;
+    this.monaco = (window as unknown as { monaco: typeof Monaco }).monaco;
     this.updateEditorType();
   }
 
@@ -92,7 +95,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
     }
 
     if (this.editor && this.monaco) {
-      this.monaco.editor.setModelLanguage(this.editor.getModel(), this.editorOptions.language);
+      const model = this.editor.getModel();
+      if (model) {
+        this.monaco.editor.setModelLanguage(model, this.editorOptions.language);
+      }
     }
   }
 
@@ -125,14 +131,14 @@ export class DocumentComponent implements OnInit, OnDestroy {
   }
 
   public save(entity: Document) {
-    const id = (this.textDocument as any)[this.documentsService?.getIdField()];
+    const id = fieldOf<number>(this.textDocument, this.documentsService?.getIdField());
     if (id) {
       this.updateExisting(id, this.textDocument);
     }
   }
 
   public updateExisting(id: number, entity: Document) {
-    this.documentsService?.update(id, entity).then(result => { }).catch(error => { });
+    this.documentsService?.update(id, entity).catch(error => console.error('document not saved', error));
   }
 
   public debounceSave() {
@@ -140,11 +146,11 @@ export class DocumentComponent implements OnInit, OnDestroy {
   }
 
 
-  public onResizeStart(event: any) {
+  public onResizeStart(_event: SplitterResizeStartEvent) {
     this.disablePanels = true;
   }
 
-  public onResizeEnd(event: any) {
+  public onResizeEnd(_event: SplitterResizeEndEvent) {
     this.disablePanels = false;
   }
 

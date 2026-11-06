@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { AssetsService } from '../data-services/services/assets.service';
 import { Bind } from 'primeng/bind';
 import { Card } from 'primeng/card';
@@ -10,11 +10,8 @@ import { EntityTableComponent } from '../entity-table/entity-table.component';
     styleUrls: ['./assets.component.scss'],
     imports: [Bind, Card, EntityTableComponent]
 })
-export class AssetsComponent implements OnInit {
+export class AssetsComponent {
 
   constructor(public assetsService: AssetsService) { }
-
-  ngOnInit(): void {
-  }
 
 }

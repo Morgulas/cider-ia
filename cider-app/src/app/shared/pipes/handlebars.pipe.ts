@@ -1,3 +1,4 @@
+import { AssetUrls } from '../../data-services/types/asset.type';
 import { Pipe, PipeTransform } from '@angular/core';
 import { registerHandlebarsHelpers } from '../utils/handlebars-helpers';
 import * as Handlebars from 'handlebars';
@@ -13,11 +14,11 @@ export class HandlebarsPipe implements PipeTransform {
     registerHandlebarsHelpers();
   }
 
-  transform(handlebars: string, assetUrls?: any): string {
+  transform(handlebars: string, assetUrls?: AssetUrls): string {
     return this.sanitizeCss(this.executeHandlebars(handlebars, assetUrls));
   }
 
-  private executeHandlebars(handlebars: string, assetUrls?: any): string {
+  private executeHandlebars(handlebars: string, assetUrls?: AssetUrls): string {
     if (!handlebars) {
       return '';
     }

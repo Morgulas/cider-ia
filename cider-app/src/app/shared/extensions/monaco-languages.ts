@@ -1,4 +1,40 @@
 import * as Handlebars from 'handlebars';
+// types only (Monaco itself is loaded by ngx-monaco-editor, as window.monaco)
+import type * as Monaco from 'monaco-editor';
+
+type MonacoApi = typeof Monaco;
+
+/** Positions and edits as the CSS language service (LSP) gives them: 0-based */
+interface LspPosition { line: number; character: number; }
+interface LspRange { start: LspPosition; end: LspPosition; }
+interface LspTextEdit { range: LspRange; newText: string; }
+interface LspInsertReplaceEdit { newText: string; insert: LspRange; replace: LspRange; }
+interface LspCommand { title: string; command: string; arguments?: unknown[]; }
+interface LspCompletionItem {
+    label: string;
+    kind?: number;
+    detail?: string;
+    documentation?: string | Monaco.IMarkdownString;
+    sortText?: string;
+    filterText?: string;
+    insertText?: string;
+    insertTextFormat?: number;
+    textEdit?: LspTextEdit | LspInsertReplaceEdit;
+    additionalTextEdits?: LspTextEdit[];
+    command?: LspCommand;
+}
+interface LspColorInformation { range: LspRange; color: Monaco.languages.IColor; }
+interface LspColorPresentation { label: string; textEdit?: LspTextEdit; additionalTextEdits?: LspTextEdit[]; }
+
+/** What the CSS worker of Monaco answers (vs/language/css/cssWorker) */
+export interface CssWorkerClient {
+    doComplete(uri: string, position: LspPosition): Promise<{ isIncomplete: boolean; items: LspCompletionItem[] } | null>;
+    findDocumentColors(uri: string): Promise<LspColorInformation[] | null>;
+    getColorPresentations(uri: string, color: Monaco.languages.IColor, range: LspRange): Promise<LspColorPresentation[] | null>;
+}
+export type CssWorker = Monaco.editor.MonacoWebWorker<CssWorkerClient>;
+export type CssWorkerAccessor = (resource: Monaco.Uri) => Promise<CssWorkerClient>;
+
 
 /** A value offered after {{ : card.niveau, @root.card.name... */
 export interface CompletionVariable {
@@ -22,8 +58,8 @@ export interface HandlebarsCompletionContext {
 
 export default class MonacoLanguages {
 
-    static createCssWorker(monaco: any): any {
-        return monaco.editor.createWebWorker({
+    static createCssWorker(monaco: MonacoApi): CssWorker {
+        return monaco.editor.createWebWorker<CssWorkerClient>({
             // module that exports the create() method and returns a `CSSWorker` instance
             moduleId: 'vs/language/css/cssWorker',
             label: 'css',
@@ -36,10 +72,9 @@ export default class MonacoLanguages {
         });
     }
 
-    static createWorkerPromise(worker: any): any {
-        return (resource: any) => worker.getProxy()
-            .then((client: any) => worker.withSyncedResources([resource])
-            .then((worker: any) => client));
+    static createWorkerPromise(worker: CssWorker): CssWorkerAccessor {
+        return (resource: Monaco.Uri) => worker.getProxy()
+            .then(client => worker.withSyncedResources([resource]).then(() => client));
     }
 
     /**
@@ -49,30 +84,31 @@ export default class MonacoLanguages {
      */
     static completionContext: HandlebarsCompletionContext = { variables: [], assets: [], helperDocs: {} };
 
-    static createHandlebarsCompletionProvider(monaco: any): any {
+    static createHandlebarsCompletionProvider(monaco: MonacoApi): Monaco.languages.CompletionItemProvider {
         return {
             triggerCharacters: ['{', '.'],
-            provideCompletionItems: (model: any, position: any) => {
+            provideCompletionItems: (model: Monaco.editor.ITextModel, position: Monaco.Position) => {
                 if (!MonacoLanguages.isInsideHandlebars(model, position)) {
                     return { suggestions: [] };
                 }
                 // the whole path before the cursor (card.cl, assets.dossier.im...) is replaced
                 const before = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
                 const typed = /[\w.@#-]*$/.exec(before)?.[0] ?? '';
-                const wordRange: any = {
+                const wordRange: Monaco.IRange = {
                     startLineNumber: position.lineNumber,
                     startColumn: position.column - typed.length,
                     endLineNumber: position.lineNumber,
                     endColumn: position.column
                 };
                 const context = MonacoLanguages.completionContext;
+                const kinds = monaco.languages.CompletionItemKind;
 
                 // card attributes of the deck (default ones until the editor gives them)
                 const variables: CompletionVariable[] = context.variables.length > 0 ? context.variables
                     : ['card.name', 'card.description', 'card.count'].map(path => ({ path, label: path }));
-                const variableSuggestions = variables.map((variable, i) => ({
+                const variableSuggestions: Monaco.languages.CompletionItem[] = variables.map((variable, i) => ({
                     label: { label: variable.path, description: variable.label },
-                    kind: monaco.languages.CompletionItemKind.Field,
+                    kind: kinds.Field,
                     insertText: variable.path,
                     filterText: variable.path,
                     sortText: 'a' + String(i).padStart(4, '0'),
@@ -82,10 +118,10 @@ export default class MonacoLanguages {
                 }));
 
                 // project images
-                const assetSuggestions = (context.assets.length > 0 ? context.assets : [{ path: 'assets', label: 'assets' }])
+                const assetSuggestions: Monaco.languages.CompletionItem[] = (context.assets.length > 0 ? context.assets : [{ path: 'assets', label: 'assets' }])
                     .map(asset => ({
                         label: { label: asset.path, description: asset.label },
-                        kind: monaco.languages.CompletionItemKind.File,
+                        kind: kinds.File,
                         insertText: asset.path,
                         filterText: asset.path,
                         sortText: 'b' + asset.path,
@@ -93,22 +129,19 @@ export default class MonacoLanguages {
                     }));
 
                 const snippetKeys = ['if', 'unless', 'each', 'with', 'repeat'];
-                const snippetSuggestions = snippetKeys.map(snippet => {
-                    return {
-                        label: '#' + snippet,
-                        kind: monaco.languages.CompletionItemKind.Snippet,
-                        insertText: '#' + snippet + ' $1}}\n\t$0\n{{/' + snippet,
-                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                        documentation: context.helperDocs[snippet] ?? snippet,
-                        sortText: 'c' + snippet,
-                        range: wordRange
-                    };
-                });
+                const snippetSuggestions: Monaco.languages.CompletionItem[] = snippetKeys.map(snippet => ({
+                    label: '#' + snippet,
+                    kind: kinds.Snippet,
+                    insertText: '#' + snippet + ' $1}}\n\t$0\n{{/' + snippet,
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    documentation: context.helperDocs[snippet] ?? snippet,
+                    sortText: 'c' + snippet,
+                    range: wordRange
+                }));
                 snippetSuggestions.push({
                     label: 'else',
-                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    kind: kinds.Keyword,
                     insertText: 'else',
-                    insertTextRules: undefined as any,
                     documentation: context.helperDocs['else'] ?? 'else',
                     sortText: 'celse',
                     range: wordRange
@@ -117,55 +150,54 @@ export default class MonacoLanguages {
                 // setup handlebars helpers suggestions
                 const helperExclusions = ['helperMissing', 'blockHelperMissing', 'compileImages', 'kebab-case', ...snippetKeys, 'else'];
                 const helperKeys = Object.keys(Handlebars.helpers).filter(key => helperExclusions.indexOf(key) === -1);
-                const helperSuggestions = helperKeys.map(key => {
-                    return {
-                        label: key,
-                        kind: monaco.languages.CompletionItemKind.Function,
-                        insertText: key + ' ',
-                        documentation: context.helperDocs[key] ?? key,
-                        sortText: 'd' + key,
-                        range: wordRange
-                    };
-                });
+                const helperSuggestions: Monaco.languages.CompletionItem[] = helperKeys.map(key => ({
+                    label: key,
+                    kind: kinds.Function,
+                    insertText: key + ' ',
+                    documentation: context.helperDocs[key] ?? key,
+                    sortText: 'd' + key,
+                    range: wordRange
+                }));
 
-                const suggestions: any[] = [
-                    ...variableSuggestions,
-                    ...assetSuggestions,
-                    ...snippetSuggestions,
-                    ...helperSuggestions,
-                ];
-                return { suggestions: suggestions };
+                return {
+                    suggestions: [
+                        ...variableSuggestions,
+                        ...assetSuggestions,
+                        ...snippetSuggestions,
+                        ...helperSuggestions,
+                    ]
+                };
             }
-        }
+        };
     }
 
-    static createCssCompletionProvider(monaco: any, cssWorker: any): any {
+    static createCssCompletionProvider(monaco: MonacoApi, cssWorker: CssWorker): Monaco.languages.CompletionItemProvider {
         return {
             triggerCharacters: ['/', '-', ':'],
-            provideCompletionItems: (model: any, position: any) => {
+            provideCompletionItems: (model: Monaco.editor.ITextModel, position: Monaco.Position) => {
                 if (MonacoLanguages.isInsideHandlebars(model, position)) {
                     return { suggestions: [] };
                 }
-            
+
                 const resource = model.uri;
-                return cssWorker.getProxy().then((client: any) => {
-                    return cssWorker.withSyncedResources([resource]).then((worker: any) => {
+                return cssWorker.getProxy().then(client => {
+                    return cssWorker.withSyncedResources([resource]).then(() => {
                         return client.doComplete(resource.toString(), MonacoLanguages.fromPosition(position));
                     });
-                }).then((info: any) => {
+                }).then(info => {
                     if (!info) {
-                        return;
+                        return undefined;
                     }
                     const wordInfo = model.getWordUntilPosition(position);
-                    const wordRange: any = {
+                    const wordRange: Monaco.IRange = {
                         startLineNumber: position.lineNumber,
                         startColumn: wordInfo.startColumn,
                         endLineNumber: position.lineNumber,
                         endColumn: wordInfo.endColumn
                     };
-    
-                    const items: any[] = info.items.map((entry: any) => {
-                        const item: any = {
+
+                    const items = info.items.map(entry => {
+                        const item: Monaco.languages.CompletionItem = {
                             label: entry.label,
                             insertText: entry.insertText || entry.label,
                             sortText: entry.sortText,
@@ -174,7 +206,7 @@ export default class MonacoLanguages {
                             detail: entry.detail,
                             command: MonacoLanguages.toCommand(entry.command),
                             range: wordRange,
-                            kind: MonacoLanguages.toCompletionItemKind(entry.kind)
+                            kind: MonacoLanguages.toCompletionItemKind(monaco, entry.kind)
                         };
                         if (entry.textEdit) {
                             if (MonacoLanguages.isInsertReplaceEdit(entry.textEdit)) {
@@ -188,62 +220,48 @@ export default class MonacoLanguages {
                             item.insertText = entry.textEdit.newText;
                         }
                         if (entry.additionalTextEdits) {
-                            item.additionalTextEdits =
-                                entry.additionalTextEdits.map(MonacoLanguages.toTextEdit);
+                            item.additionalTextEdits = entry.additionalTextEdits.map(MonacoLanguages.toTextEdit);
                         }
                         if (entry.insertTextFormat === 2) {
                             item.insertTextRules = monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet;
                         }
                         return item;
                     });
-    
+
                     return {
-                        isIncomplete: info.isIncomplete,
+                        incomplete: info.isIncomplete,
                         suggestions: items
                     };
                 });
-    
+
             }
         };
     }
 
     // Utility function to detect if the current position is inside a Handlebars block.
-    static isInsideHandlebars(model: any, position: any): boolean {
+    static isInsideHandlebars(model: Monaco.editor.ITextModel, position: Monaco.IPosition): boolean {
         // a {{ before the cursor, not closed yet by }}
         const before = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
         const lastIndexOfOpen = before.lastIndexOf('{{');
         return lastIndexOfOpen > -1 && before.lastIndexOf('}}') < lastIndexOfOpen;
     }
 
-    static fromPosition(position: any): any {
-        if (!position) {
-            return void 0;
-        }
+    static fromPosition(position: Monaco.IPosition): LspPosition {
         return { character: position.column - 1, line: position.lineNumber - 1 };
     }
 
-
-    static toTextEdit(textEdit: any): any {
-        if (!textEdit) {
-            return void 0;
-        }
+    static toTextEdit(textEdit: LspTextEdit): Monaco.languages.TextEdit {
         return {
             range: MonacoLanguages.toRange(textEdit.range),
             text: textEdit.newText
         };
     }
 
-    static isInsertReplaceEdit(edit: any): any {
-        return (
-            typeof (edit as any).insert !== 'undefined' &&
-            typeof (edit as any).replace !== 'undefined'
-        );
+    static isInsertReplaceEdit(edit: LspTextEdit | LspInsertReplaceEdit): edit is LspInsertReplaceEdit {
+        return 'insert' in edit && 'replace' in edit;
     }
 
-    static fromRange(range: any): any {
-        if (!range) {
-            return void 0;
-        }
+    static fromRange(range: Monaco.IRange): LspRange {
         return {
             start: {
                 line: range.startLineNumber - 1,
@@ -253,10 +271,7 @@ export default class MonacoLanguages {
         };
     }
 
-    static toRange(range: any): any {
-        if (!range) {
-            return void 0;
-        }
+    static toRange(range: LspRange): Monaco.IRange {
         return {
             startLineNumber: range.start.line + 1,
             startColumn: range.start.character + 1,
@@ -265,38 +280,22 @@ export default class MonacoLanguages {
         };
     }
 
-    static toCommand(c: any): any {
+    static toCommand(c: LspCommand | undefined): Monaco.languages.Command | undefined {
         return c && c.command === 'editor.action.triggerSuggest'
             ? { id: c.command, title: c.title, arguments: c.arguments }
             : undefined;
     }
 
-    static toCompletionItemKind(kind: number | undefined): any {
-        const monaco: any = (window as any).monaco;
-        switch (kind) {
-            case 0: return monaco.languages.CompletionItemKind.Text;
-            case 1: return monaco.languages.CompletionItemKind.Method;
-            case 2: return monaco.languages.CompletionItemKind.Function;
-            case 3: return monaco.languages.CompletionItemKind.Constructor;
-            case 4: return monaco.languages.CompletionItemKind.Field;
-            case 5: return monaco.languages.CompletionItemKind.Variable;
-            case 6: return monaco.languages.CompletionItemKind.Class;
-            case 7: return monaco.languages.CompletionItemKind.Interface;
-            case 8: return monaco.languages.CompletionItemKind.Module;
-            case 9: return monaco.languages.CompletionItemKind.Property;
-            case 10: return monaco.languages.CompletionItemKind.Unit;
-            case 11: return monaco.languages.CompletionItemKind.Value;
-            case 12: return monaco.languages.CompletionItemKind.Enum;
-            case 13: return monaco.languages.CompletionItemKind.Keyword;
-            case 14: return monaco.languages.CompletionItemKind.Snippet;
-            case 15: return monaco.languages.CompletionItemKind.Color;
-            case 16: return monaco.languages.CompletionItemKind.File;
-            case 17: return monaco.languages.CompletionItemKind.Reference;
-        }
-        return kind;
+    /** LSP completion kinds (0-based here) to Monaco's */
+    static toCompletionItemKind(monaco: MonacoApi, kind: number | undefined): Monaco.languages.CompletionItemKind {
+        const kinds = monaco.languages.CompletionItemKind;
+        const byLspKind = [kinds.Text, kinds.Method, kinds.Function, kinds.Constructor, kinds.Field, kinds.Variable,
+            kinds.Class, kinds.Interface, kinds.Module, kinds.Property, kinds.Unit, kinds.Value, kinds.Enum,
+            kinds.Keyword, kinds.Snippet, kinds.Color, kinds.File, kinds.Reference];
+        return kind !== undefined && kind >= 0 && kind < byLspKind.length ? byLspKind[kind] : kinds.Property;
     }
 
-    static optionsDefault: any = {
+    static optionsDefault: Record<string, unknown> = {
         validate: true,
         lint: {
             compatibleVendorPrefixes: 'ignore',
@@ -330,49 +329,39 @@ export default class MonacoLanguages {
     };
 }
 
-export class DocumentColorAdapter {
-    constructor(private readonly _worker: any) {}
+export class DocumentColorAdapter implements Monaco.languages.DocumentColorProvider {
+    constructor(private readonly _worker: CssWorkerAccessor) {}
 
-    public provideDocumentColors(model: any, token: any): Promise<any> {
+    public provideDocumentColors(model: Monaco.editor.ITextModel): Promise<Monaco.languages.IColorInformation[] | undefined> {
         const resource = model.uri;
 
         return this._worker(resource)
-            .then((worker: any) => worker.findDocumentColors(resource.toString()))
-            .then((infos: any) => {
-                if (!infos) {
-                    return;
-                }
-                return infos.map((item: any) => ({
-                    color: item.color,
-                    range: MonacoLanguages.toRange(item.range)
-                }));
-            });
+            .then(worker => worker.findDocumentColors(resource.toString()))
+            .then(infos => infos?.map(item => ({
+                color: item.color,
+                range: MonacoLanguages.toRange(item.range)
+            })));
     }
 
-    public provideColorPresentations(model: any, info: any, token: any): Promise<any> {
+    public provideColorPresentations(model: Monaco.editor.ITextModel,
+        info: Monaco.languages.IColorInformation): Promise<Monaco.languages.IColorPresentation[] | undefined> {
         const resource = model.uri;
 
         return this._worker(resource)
-            .then((worker: any) =>
+            .then(worker =>
                 worker.getColorPresentations(resource.toString(), info.color, MonacoLanguages.fromRange(info.range))
             )
-            .then((presentations: any) => {
-                if (!presentations) {
-                    return;
+            .then(presentations => presentations?.map(presentation => {
+                const item: Monaco.languages.IColorPresentation = {
+                    label: presentation.label
+                };
+                if (presentation.textEdit) {
+                    item.textEdit = MonacoLanguages.toTextEdit(presentation.textEdit);
                 }
-                return presentations.map((presentation: any) => {
-                    const item: any = {
-                        label: presentation.label
-                    };
-                    if (presentation.textEdit) {
-                        item.textEdit = MonacoLanguages.toTextEdit(presentation.textEdit);
-                    }
-                    if (presentation.additionalTextEdits) {
-                        item.additionalTextEdits =
-                            presentation.additionalTextEdits.map(MonacoLanguages.toTextEdit);
-                    }
-                    return item;
-                });
-            });
+                if (presentation.additionalTextEdits) {
+                    item.additionalTextEdits = presentation.additionalTextEdits.map(MonacoLanguages.toTextEdit);
+                }
+                return item;
+            }));
     }
 }

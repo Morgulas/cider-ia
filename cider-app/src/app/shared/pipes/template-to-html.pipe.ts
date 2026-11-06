@@ -1,3 +1,4 @@
+import { AssetUrls } from '../../data-services/types/asset.type';
 import { Pipe, PipeTransform } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CardTemplate } from 'src/app/data-services/types/card-template.type';
@@ -21,7 +22,7 @@ export class CardToHtmlPipe implements PipeTransform {
     registerHandlebarsHelpers();
   }
 
-  transform(template: CardTemplate, card: Card, assetUrls?: any, uuid?: string, version?: number): SafeHtml {
+  transform(template: CardTemplate, card: Card, assetUrls?: AssetUrls, uuid?: string, version?: number): SafeHtml {
 
     if (!template || !card) {
       return '';
@@ -33,7 +34,7 @@ export class CardToHtmlPipe implements PipeTransform {
       uuid);
   }
 
-  private executeHandlebars(htmlTemplate: string, card: Card, assetUrls?: any): string {
+  private executeHandlebars(htmlTemplate: string, card: Card, assetUrls?: AssetUrls): string {
     if (!htmlTemplate) {
       return '';
     }

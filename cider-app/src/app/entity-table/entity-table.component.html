@@ -173,7 +173,7 @@
       </td>
       }
       @case (!col.hidden && col.type === FieldType.file) {
-      <td class="preview-image" [class]="col.type"><img [src]="rowData[col.field] | fileUrl" /></td>
+      <td class="preview-image" [class]="col.type"><img [src]="rowData[col.field] | fileUrl" alt="" /></td>
       }
       @default {
       @if (!allowEditing || !showInlineEditor || (rowData.isSystem && ['name', 'type', 'description',

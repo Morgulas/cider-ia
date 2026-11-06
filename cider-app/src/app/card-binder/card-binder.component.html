@@ -87,10 +87,11 @@
 
 <!-- Carte agrandie -->
 @if (zoomItem; as item) {
-<div class="zoom-layer" #zoomLayer (click)="closeZoom()" role="dialog" aria-modal="true" [attr.aria-label]="item.card.name">
-  <div class="zoom-body" (click)="$event.stopPropagation()">
+<div class="zoom-layer" #zoomLayer (click)="closeZoom()" (keydown.escape)="closeZoom()" tabindex="-1" role="dialog" aria-modal="true" [attr.aria-label]="item.card.name">
+  <div class="zoom-body" role="presentation" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
     <div class="zoom-card" #zoomCard [style.width.px]="zoomW" [style.height.px]="zoomH">
-      <div class="zoom-flipper" [class.turned]="zoomBack" (click)="turnZoomed()">
+      <div class="zoom-flipper" [class.turned]="zoomBack" role="button" tabindex="0" (click)="turnZoomed()"
+        (keydown.enter)="turnZoomed()" (keydown.space)="turnZoomed(); $event.preventDefault()">
         <div class="zoom-face">
           <app-card-fit [card]="item.card" [maxScale]="4"
             [template]="zoomTemplateId('front') | entity: templatesService | async" />

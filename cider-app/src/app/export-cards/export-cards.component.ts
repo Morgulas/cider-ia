@@ -1,5 +1,6 @@
 import { ActivatedRoute } from '@angular/router';
-import { AfterViewChecked, Component, OnInit, QueryList, ViewChildren, DestroyRef, inject } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, OnInit, QueryList, ViewChildren, DestroyRef, inject } from '@angular/core';
+import type { PaginatorState } from 'primeng/types/paginator';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CardPreviewComponent } from '../card-preview/card-preview.component';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
@@ -64,7 +65,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     { name: 'Custom (Portrait)', width: 8.5, height: 11, orientation: 'portrait', mirrorBacksX: true, mirrorBacksY: false },
     { name: 'Tabletop Simulator', width: 8.5, height: 11, orientation: 'portrait', mirrorBacksX: false, mirrorBacksY: false }
   ];
-  @ViewChildren('cardSheets') cardSheets: QueryList<any> = {} as QueryList<any>;
+  @ViewChildren('cardSheets') cardSheets: QueryList<ElementRef<HTMLElement>> = {} as QueryList<ElementRef<HTMLElement>>;
   @ViewChildren('cardSheetCards') cardSheetCards: QueryList<CardPreviewComponent> = {} as QueryList<CardPreviewComponent>;
   @ViewChildren('frontCards') frontCards: QueryList<CardPreviewComponent> = {} as QueryList<CardPreviewComponent>;
   @ViewChildren('backCards') backCards: QueryList<CardPreviewComponent> = {} as QueryList<CardPreviewComponent>;
@@ -129,7 +130,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   public simulateUnsharpMask = true;
   public isProcessingSoftProof = false;
 
-  public intentOptions: any[] = [
+  public intentOptions: { name: string; value: number }[] = [
     { name: 'Perceptual', value: 0 },
     { name: 'Relative Colorimetric', value: 1 },
     { name: 'Absolute Colorimetric', value: 3 }
@@ -142,7 +143,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   private scrollLeftStart = 0;
   private scrollTopStart = 0;
 
-  zoomOptions: any[] = [
+  zoomOptions: { label: string; value: number }[] = [
     { label: 's', value: 0.05 },
     { label: 'm', value: 0.1 },
     { label: 'l', value: 0.2 },
@@ -457,16 +458,16 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     this.showSettings = !this.showSettings;
   }
 
-  public onPageChange(event: any) {
-    this.currentPageIndex = event.page;
+  public onPageChange(event: PaginatorState) {
+    this.currentPageIndex = event.page ?? 0;
     this.sheet = this.slicedCards ? this.slicedCards[this.currentPageIndex] : [];
     if (this.softProofEnabled && this.softProofMode !== 'none') {
       this.generateSoftProofPreview();
     }
   }
 
-  public onSingularPageChange(event: any) {
-    this.currentSingularPageIndex = event.page;
+  public onSingularPageChange(event: PaginatorState) {
+    this.currentSingularPageIndex = event.page ?? 0;
     this.singularSheet = this.slicedSingularCards ? this.slicedSingularCards[this.currentSingularPageIndex] : [];
     // Soft proofing is currently only supported for sheet export
   }
@@ -669,7 +670,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
           this.loadingInfo = 'Generating sheet ' + sheetIndex + ' '
             + (showFront ? 'front' : 'back') + ' image...';
           const cardSheet = this.cardSheets.first;
-          const imgUri = await limit(() => this.imageRendererService.toPng((cardSheet as any).nativeElement,
+          const imgUri = await limit(() => this.imageRendererService.toPng(cardSheet.nativeElement,
             { pixelRatio: this.pixelRatio, style: { transform: 'none', margin: '0', filter: 'none' } }));
           const imgName = 'sheet-' + (showFront ? 'front-' : 'back-')
             + sheetIndex + '.png';
@@ -716,7 +717,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
 
         this.loadingInfo = 'Generating sheet ' + sheetIndex + ' images...';
         const cardSheets = await Promise.all(this.cardSheets.map(cardSheet => limit(() => {
-          return this.imageRendererService.toPng((cardSheet as any).nativeElement, {
+          return this.imageRendererService.toPng(cardSheet.nativeElement, {
             pixelRatio: 1.0,
             style: { transform: 'none', margin: '0', filter: 'none' },
             onImageErrorHandler: (error) => { console.log('error', error); }
@@ -796,7 +797,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
         this.loadingInfo = 'Generating PNGs for chunk ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
 
         const frontCards$ = this.frontCards.map(async cardPreview => {
-          const imgUri = await limit(() => this.imageRendererService.toPng((cardPreview as any).element.nativeElement,
+          const imgUri = await limit(() => this.imageRendererService.toPng(cardPreview.element.nativeElement,
             { pixelRatio: this.individualExportPixelRatio }));
           const imgIdentifier = this.individualExportUseCardName
             ? StringUtils.toKebabCase(cardPreview.card?.name)
@@ -808,7 +809,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
         let backCards$: Promise<File>[] = [];
         if (!this.excludeCardBacks) {
           backCards$ = this.backCards.map(async cardPreview => {
-            const imgUri = await limit(() => this.imageRendererService.toPng((cardPreview as any).element.nativeElement,
+            const imgUri = await limit(() => this.imageRendererService.toPng(cardPreview.element.nativeElement,
               { pixelRatio: this.individualExportPixelRatio }));
             const imgIdentifier = this.individualExportUseCardName
               ? StringUtils.toKebabCase(cardPreview.card?.name)
@@ -849,11 +850,11 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
    * @param chunkSize 
    * @returns 
    */
-  public sliceIntoChunks(array: any[], chunkSize: number) {
+  public sliceIntoChunks<T>(array: T[], chunkSize: number): T[][] {
     if (!array || chunkSize <= 0) {
-      return array;
+      return array ? [array] : [];
     }
-    const result = [];
+    const result: T[][] = [];
     for (let i = 0; i < array.length; i += chunkSize) {
       result.push(array.slice(i, i + chunkSize));
     }
@@ -866,7 +867,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
    * @param promises 
    * @param onProgress 
    */
-  private promisesProgress(promises: Promise<any>[], onProgress: () => void): Promise<any>[] {
+  private promisesProgress<T>(promises: Promise<T>[], onProgress: () => void): Promise<T>[] {
     return promises.map(promise => promise.then(result => {
       onProgress();
       return result;
@@ -907,11 +908,11 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     return new File([blobArray], fileName, { type: mime });
   }
 
-  private async processSoftProofSheet(cardSheet: any): Promise<string | null> {
+  private async processSoftProofSheet(cardSheet: ElementRef<HTMLElement> | null | undefined): Promise<string | null> {
     if (!cardSheet) return null;
     try {
       // 1. Render HTML to Data URL at 1.0 pixel ratio to match print size accurately
-      const imgUri = await this.imageRendererService.toPng((cardSheet as any).nativeElement, {
+      const imgUri = await this.imageRendererService.toPng(cardSheet.nativeElement, {
         pixelRatio: 1.0,
         style: { transform: 'none', margin: '0' }
       });

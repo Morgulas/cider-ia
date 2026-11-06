@@ -12,15 +12,11 @@ export class RenderCacheService {
   renderCache: BehaviorSubject<Map<number, string | AsyncSubject<string>>>;
 
   constructor() {
-    this.renderCache = new BehaviorSubject<Map<number, any>>(new Map());
-  }
-
-  private getRenderCache(): Observable<any> {
-    return this.renderCache.asObservable();
+    this.renderCache = new BehaviorSubject<Map<number, string | AsyncSubject<string>>>(new Map());
   }
 
   public getOrSet(key: number, setter: () => Promise<string>): Observable<string> {
-    const cachedValue: any = this.renderCache.getValue().get(key);
+    const cachedValue = this.renderCache.getValue().get(key);
     if (cachedValue instanceof AsyncSubject) {
       // console.log('read AsyncSubject', key)
       return cachedValue.asObservable();

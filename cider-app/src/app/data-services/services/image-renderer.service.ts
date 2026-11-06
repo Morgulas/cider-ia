@@ -6,8 +6,8 @@ import { LocalStorageService } from '../local-storage/local-storage.service';
 export interface ImageRendererOptions {
     pixelRatio?: number;
     filter?: (node: HTMLElement) => boolean;
-    onImageErrorHandler?: (error: any) => void;
-    style?: any;
+    onImageErrorHandler?: (error: unknown) => void;
+    style?: Partial<CSSStyleDeclaration>;
 }
 
 @Injectable({

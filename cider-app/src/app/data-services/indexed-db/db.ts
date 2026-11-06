@@ -3,6 +3,7 @@ import { Card } from "../types/card.type";
 import { Asset } from "../types/asset.type";
 import { CardTemplate } from "../types/card-template.type";
 import { FieldType } from "../types/field-type.type";
+import { DropdownOption } from "../types/dropdown-option.type";
 import { Deck } from "../types/deck.type";
 import { exportDB, importInto } from "dexie-export-import";
 import { ReplaySubject, Subject } from "rxjs";
@@ -19,6 +20,13 @@ export interface ProjectOwner {
      * Lets a page reload reuse the copy instead of downloading the project again.
      */
     revision?: number;
+}
+
+/** A change of the local copy: a row created, updated or deleted, or the whole copy replaced */
+export interface DbChange {
+    tableName: string;
+    type: 'create' | 'update' | 'delete' | 'reset';
+    key: unknown;
 }
 
 @Injectable({
@@ -45,7 +53,7 @@ export class AppDB extends Dexie {
     cards!: Table<Card, number>;
     assets!: Table<Asset, number>;
     cardTemplates!: Table<CardTemplate, number>;
-    private changeSubject: Subject<any>;
+    private changeSubject: Subject<DbChange>;
     private loadSubject: ReplaySubject<null>;
     private isPopulating = false;
     /**
@@ -58,7 +66,7 @@ export class AppDB extends Dexie {
 
     constructor() {
         super(AppDB.DB_NAME);
-        this.changeSubject = new Subject<any>();
+        this.changeSubject = new Subject<DbChange>();
         // replayed: a subscriber that arrives after the database is ready still gets the event
         this.loadSubject = new ReplaySubject<null>(1);
         /**
@@ -132,9 +140,9 @@ export class AppDB extends Dexie {
         }).upgrade(transaction => {
             return transaction.table(AppDB.CARD_ATTRIBUTES_TABLE).toCollection().modify(attribute => {
                 // Map old types to new types
-                if ((attribute.type as any) === 'number') attribute.type = 'numeric';
-                if ((attribute.type as any) === 'option') attribute.type = 'dropdown';
-                if ((attribute.type as any) === 'text-area') attribute.type = 'text';
+                if ((attribute.type as string) === 'number') attribute.type = 'numeric';
+                if ((attribute.type as string) === 'option') attribute.type = 'dropdown';
+                if ((attribute.type as string) === 'text-area') attribute.type = 'text';
             });
         });
         this.version(7).stores({
@@ -187,10 +195,10 @@ export class AppDB extends Dexie {
         });
 
         // Add hooks for granular dirty tracking
-        const trackChange = (tableName: string, type: string, key: any) => {
+        const trackChange = (tableName: string, type: DbChange['type'], key: unknown) => {
             if (!this.isPopulating) {
                 if (tableName === AppDB.ASSETS_TABLE) {
-                    this.assetRefs.delete(key);
+                    this.assetRefs.delete(key as number);
                     this.assetChanges++;
                 }
                 this.changeSubject.next({ tableName, type, key });
@@ -536,9 +544,9 @@ export class AppDB extends Dexie {
         const attributesTable = this.table(AppDB.CARD_ATTRIBUTES_TABLE);
         await attributesTable.toCollection().modify(attribute => {
             // Map old types to new types
-            if ((attribute.type as any) === 'number') attribute.type = FieldType.numeric;
-            if ((attribute.type as any) === 'option') attribute.type = FieldType.dropdown;
-            if ((attribute.type as any) === 'text-area') attribute.type = FieldType.text;
+            if ((attribute.type as string) === 'number') attribute.type = FieldType.numeric;
+            if ((attribute.type as string) === 'option') attribute.type = FieldType.dropdown;
+            if ((attribute.type as string) === 'text-area') attribute.type = FieldType.text;
 
             // Set default width
             if (!attribute.width) {
@@ -551,7 +559,7 @@ export class AppDB extends Dexie {
             }
 
             if (attribute.type === 'dropdown' && attribute.options) {
-                let options: any[] = [];
+                let options: DropdownOption[] = [];
                 let changed = false;
                 const usedColors = new Set<string>();
 
@@ -618,7 +626,7 @@ export class AppDB extends Dexie {
                     await attributesTable.add({
                         deckId: deck.id,
                         name: attr.name,
-                        type: attr.type as any,
+                        type: attr.type as FieldType,
                         description: attr.description,
                         options: [],
                         width: 135,

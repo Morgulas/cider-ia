@@ -1,3 +1,4 @@
+import { AssetUrls } from '../../data-services/types/asset.type';
 import * as Handlebars from 'handlebars';
 import StringUtils from '../utils/string-utils';
 
@@ -21,21 +22,22 @@ export function registerHandlebarsHelpers(): void {
   /**
    * Resolves the asset URL from the provided path (dot notation support)
    */
-  const resolveAsset = (rootAssets: any, path: string): string => {
+  const resolveAsset = (rootAssets: AssetUrls | undefined, path: string): string => {
     if (!rootAssets || !path) return '';
     // Try direct access first (legacy/flat) - normalize to kebab case for key
-    const flatKey = StringUtils.toKebabCase(path);
-    if (rootAssets[flatKey] && typeof rootAssets[flatKey] === 'string') {
-      return rootAssets[flatKey];
+    const flat = rootAssets[StringUtils.toKebabCase(path)];
+    if (flat && typeof flat === 'string') {
+      return flat;
     }
 
     // Try nested access
     const parts = path.split('.');
-    let current = rootAssets;
+    let current: string | AssetUrls | undefined = rootAssets;
     for (const part of parts) {
       const key = StringUtils.toKebabCase(part);
-      if (current && current[key]) {
-        current = current[key];
+      const next: string | AssetUrls | undefined = typeof current === 'object' ? current[key] : undefined;
+      if (next) {
+        current = next;
       } else {
         return '';
       }
@@ -78,15 +80,13 @@ export function registerHandlebarsHelpers(): void {
    * contain HTML on purpose (bold, line breaks...), so it is returned unescaped;
    * the rendered card is sanitized as a whole by CardToHtmlPipe (HtmlSanitizer).
    */
-  const compile = function (value: any, options: any): any {
+  const compile = function (value: unknown, options: Handlebars.HelperOptions): unknown {
     if (!value) {
       return value;
     }
-    if (typeof value !== 'string') {
-      value = String(value);
-    }
-    return new Handlebars.SafeString(value.replace(/[{][{]([^} ]*)( [0-9]+)?[}][}]/g,
-      (match: boolean, assetPath: string, count: string) => {
+    const text = typeof value === 'string' ? value : String(value);
+    return new Handlebars.SafeString(text.replace(/[{][{]([^} ]*)( [0-9]+)?[}][}]/g,
+      (match: string, assetPath: string, count: string) => {
         const assetUrl = resolveAsset(options.data.root.assets, assetPath);
         const width = options.hash['width'];
         const image = `<img src="${Handlebars.escapeExpression(assetUrl)}"`
@@ -192,8 +192,8 @@ export function registerHandlebarsHelpers(): void {
    * {{kebabcase 'Clear Orb'}}
    * {{kebab-case 'Clear Orb'}}
    */
-  const kebabCase = function (a: any) {
-    return StringUtils.toKebabCase(a);
+  const kebabCase = function (a: unknown) {
+    return StringUtils.toKebabCase(String(a ?? ''));
   };
   Handlebars.registerHelper('kebabcase', kebabCase);
   Handlebars.registerHelper('kebab-case', kebabCase);

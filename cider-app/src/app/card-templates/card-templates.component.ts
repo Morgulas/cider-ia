@@ -1,3 +1,5 @@
+import type { SplitterResizeEndEvent, SplitterResizeStartEvent } from 'primeng/types/splitter';
+import { fieldOf } from '../data-services/types/entity-service.type';
 import { Component, OnInit, HostListener, ViewChild, ElementRef, AfterViewInit, OnDestroy, DestroyRef, NgZone, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer } from '@angular/platform-browser';
@@ -25,7 +27,6 @@ import { ConfirmDialog } from 'primeng/confirmdialog';
 import { Dialog } from 'primeng/dialog';
 import { Checkbox } from 'primeng/checkbox';
 import { InputNumber } from 'primeng/inputnumber';
-import { DecksComponent } from '../decks/decks.component';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { InputText } from 'primeng/inputtext';
@@ -161,7 +162,7 @@ const templateHtmlFront =
     templateUrl: './card-templates.component.html',
     styleUrls: ['./card-templates.component.scss'],
     providers: [MessageService, ConfirmationService],
-    imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, DecksComponent, TranslatePipe, InputText, TemplateChatbotDialogComponent, NgTemplateOutlet]
+    imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, TranslatePipe, InputText, TemplateChatbotDialogComponent, NgTemplateOutlet]
 })
 export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
@@ -181,9 +182,9 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   readonly ZOOM_DOWN: number = 1/1.5;
   readonly DEFAULT_ZOOM: number = Math.pow(this.ZOOM_DOWN, 2);
 
-  htmlEditorOptions: any = { theme: 'vs-dark-extended', language: 'handlebars', 
+  htmlEditorOptions: { theme: string; language: string; automaticLayout: boolean; minimap: { enabled: boolean } } = { theme: 'vs-dark-extended', language: 'handlebars', 
     automaticLayout: true, minimap: { enabled: false } };
-  cssEditorOptions: any = { theme: 'vs-dark-extended', language: 'css-handlebars', 
+  cssEditorOptions: { theme: string; language: string; automaticLayout: boolean; minimap: { enabled: boolean } } = { theme: 'vs-dark-extended', language: 'css-handlebars', 
     automaticLayout: true, minimap: { enabled: false } };
   templates: CardTemplate[] = [];
   cards: Card[] = [];
@@ -397,7 +398,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   @HostListener('window:resize', ['$event'])
-  onResize(event: any) {
+  onResize(_event: UIEvent) {
     this.disablePanels = true;
     this.windowResizing$.next(true);
   }
@@ -1278,14 +1279,18 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
 
   
   public save(entity : CardTemplate) {
-    const id = (this.selectedTemplate as any)[this.service?.getIdField()];
+    const id = fieldOf<number>(this.selectedTemplate, this.service?.getIdField());
     if (id) {
       this.updateExisting(id, this.selectedTemplate);
     }
   }
 
   public updateExisting(id: number, entity: CardTemplate) {
-    this.service?.update(id, entity, true).then(result => {}).catch(error => {});
+    this.service?.update(id, entity, true).catch(error => {
+      console.error('template not saved', error);
+      this.messageService.add({ severity: 'error', life: 6000,
+        summary: this.translate.instant('template-editor.save-failed'), detail: String(error?.message ?? error) });
+    });
   }
 
   public openCreateNew() {
@@ -1321,7 +1326,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       header: 'Confirm',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.service?.delete((entity as any)[this.service?.getIdField()]).then(deleted => {
+        this.service?.delete(fieldOf(entity, this.service?.getIdField())).then(deleted => {
           this.updateTemplatesList();
           this.messageService.add({severity:'success', summary: 'Successful', detail: 'Entity Deleted', life: 3000});
         });
@@ -1329,13 +1334,13 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     });
   }
 
-  public onResizeStart(event: any) {
+  public onResizeStart(_event: SplitterResizeStartEvent) {
     this.disablePanels = true;
   }
 
-  public onResizeEnd(event: any) {
+  public onResizeEnd(event: SplitterResizeEndEvent) {
     this.disablePanels = false;
-    this.previewPanelWidth = event.sizes[0];
+    this.previewPanelWidth = Number(event.sizes[0]);
     setTimeout(() => this.centerPreview(), 100);
   }
 

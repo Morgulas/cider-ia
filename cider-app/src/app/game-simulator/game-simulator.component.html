@@ -42,7 +42,8 @@
             style="transform-origin: center">{{ stack.name }}</span>
         </div>
         }
-        <div class="draw-action" (click)="onDrawClick($event, stack)" (auxclick)="onDrawAuxClick($event, stack)"
+        <div class="draw-action" role="button" tabindex="0" (click)="onDrawClick($event, stack)"
+          (keydown.enter)="onDrawClick($event, stack)" (auxclick)="onDrawAuxClick($event, stack)"
           (mousedown)="$event.stopPropagation()"
           [style.transform]="'translate(-50%, -50%) scale(' + (1 / simulatorZoom) + ')'"
           style="transform-origin: center">
@@ -55,9 +56,10 @@
 
         @if (draggingCard || draggingStack) {
         <div class="dropzone" (mouseover)="onMouseEntered($event, stack)" (mouseout)="onMouseExited($event, stack)"
+          (focus)="onMouseEntered($event, stack)" (blur)="onMouseExited($event, stack)"
           [style.rotate]="(stack.rotation || 0) + 'deg'"></div>
         }
-        <div class="count" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()"
+        <div class="count" role="presentation" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()"
           [ngStyle]="getStackCountStyle(stack.rotation)" [style.transform]="'scale(' + (1 / simulatorZoom) + ')'"
           style="transform-origin: right bottom">
           {{ stack.name }} {{
@@ -155,25 +157,29 @@
 
     <!-- Off-screen Indicators -->
     @if (offScreenIndicators.top) {
-    <div class="off-screen-indicator top" (click)="panToDirection('top')">
+    <div class="off-screen-indicator top" role="button" tabindex="0" (click)="panToDirection('top')"
+      (keydown.enter)="panToDirection('top')">
       <i class="pi pi-chevron-up"></i>
       <span class="indicator-count">{{ offScreenIndicators.top }}</span>
     </div>
     }
     @if (offScreenIndicators.bottom) {
-    <div class="off-screen-indicator bottom" (click)="panToDirection('bottom')">
+    <div class="off-screen-indicator bottom" role="button" tabindex="0" (click)="panToDirection('bottom')"
+      (keydown.enter)="panToDirection('bottom')">
       <i class="pi pi-chevron-down"></i>
       <span class="indicator-count">{{ offScreenIndicators.bottom }}</span>
     </div>
     }
     @if (offScreenIndicators.left) {
-    <div class="off-screen-indicator left" (click)="panToDirection('left')">
+    <div class="off-screen-indicator left" role="button" tabindex="0" (click)="panToDirection('left')"
+      (keydown.enter)="panToDirection('left')">
       <i class="pi pi-chevron-left"></i>
       <span class="indicator-count">{{ offScreenIndicators.left }}</span>
     </div>
     }
     @if (offScreenIndicators.right) {
-    <div class="off-screen-indicator right" (click)="panToDirection('right')">
+    <div class="off-screen-indicator right" role="button" tabindex="0" (click)="panToDirection('right')"
+      (keydown.enter)="panToDirection('right')">
       <i class="pi pi-chevron-right"></i>
       <span class="indicator-count">{{ offScreenIndicators.right }}</span>
     </div>
@@ -200,7 +206,8 @@
     </span>
     <div class="card-list">
       @for (card of filteredCards; track card.uniqueId) {
-      <div class="card-item" (click)="onDrawSpecificCardSelect(card)">
+      <div class="card-item" role="button" tabindex="0" (click)="onDrawSpecificCardSelect(card)"
+        (keydown.enter)="onDrawSpecificCardSelect(card)">
         {{ card.card.name }}
       </div>
       }

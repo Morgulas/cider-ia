@@ -1,3 +1,4 @@
+import { AnyEntityService } from '../types/entity-service.type';
 import { Injectable } from '@angular/core';
 import { Card } from '../types/card.type';
 import { AppDB } from '../indexed-db/db';
@@ -89,7 +90,7 @@ export class CardsService extends DecksChildService<Card, number> {
           field: 'frontCardTemplateId',
           header: attribute.name,
           type: attribute.type,
-          service: this.cardTemplatesService as any,
+          service: this.cardTemplatesService as unknown as AnyEntityService,
           description: attribute.description,
           width: attribute.width
         } as EntityField<Card>;
@@ -99,7 +100,7 @@ export class CardsService extends DecksChildService<Card, number> {
           field: 'backCardTemplateId',
           header: attribute.name,
           type: attribute.type,
-          service: this.cardTemplatesService as any,
+          service: this.cardTemplatesService as unknown as AnyEntityService,
           description: attribute.description,
           width: attribute.width
         } as EntityField<Card>;

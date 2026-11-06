@@ -9,12 +9,19 @@ import { debounceTime, firstValueFrom } from 'rxjs';
 import StringUtils from '../shared/utils/string-utils';
 import { TreeNodeContextMenuSelectEvent, TreeNodeSelectEvent, TreeNodeDropEvent, Tree } from 'primeng/tree';
 import { Router } from '@angular/router';
-import { EntityService } from '../data-services/types/entity-service.type';
+import { AnyEntityService } from '../data-services/types/entity-service.type';
+
+/** The entity edited in the dialog: any table, its id and name when it has them */
+interface DialogEntity {
+  id?: number | string;
+  name?: string;
+  [field: string]: unknown;
+}
 import { DocumentsService } from '../data-services/services/documents.service';
 import { HttpClient } from '@angular/common/http';
 import { AppDB } from '../data-services/indexed-db/db';
 import { TranslateService, TranslatePipe } from '@ngx-translate/core';
-import { Asset } from '../data-services/types/asset.type';
+import { Asset, StoredAsset } from '../data-services/types/asset.type';
 import { Bind } from 'primeng/bind';
 import { ContextMenu } from 'primeng/contextmenu';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
@@ -38,8 +45,8 @@ export class SiteSidebarComponent implements OnInit {
   updatingFiles = false;
   dialogVisible = false;
   dialogTitle = '';
-  service: EntityService<any, any>;
-  entity: any = {};
+  service: AnyEntityService;
+  entity: DialogEntity = {};
 
   constructor(private decksService: DecksService,
     private cardAttributesService: CardAttributesService,
@@ -55,7 +62,7 @@ export class SiteSidebarComponent implements OnInit {
     // Initialize or fetch any necessary data here
     // observe the decks and templates
     // for every deck, fetch every template and create a tree node
-    this.service = {} as EntityService<any, any>;
+    this.service = {} as AnyEntityService;
   }
 
   ngOnInit() {
@@ -72,7 +79,7 @@ export class SiteSidebarComponent implements OnInit {
     });
 
     // Structural changes (create/delete/reset): full tree rebuild
-    this.db.onChange().pipe(debounceTime(500)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((change: any) => {
+    this.db.onChange().pipe(debounceTime(500)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(change => {
       // only what the tree shows: a card edit (and its journal entry, written at
       // every save) used to rebuild the whole tree
       const treeTables = [AppDB.DECKS_TABLE, AppDB.CARD_TEMPLATES_TABLE, AppDB.DOCUMENTS_TABLE,
@@ -639,8 +646,8 @@ export class SiteSidebarComponent implements OnInit {
     }
   }
 
-  getAssetIcon(asset: Asset): string {
-    const rawType = (asset as any).type || asset.file?.type || '';
+  getAssetIcon(asset: Asset | StoredAsset): string {
+    const rawType = ('type' in asset ? asset.type : undefined) || asset.file?.type || '';
     const fileType = StringUtils.mimeToTypeCategory(rawType);
     switch (fileType) {
       case 'image':
@@ -684,7 +691,7 @@ export class SiteSidebarComponent implements OnInit {
     }
   }
 
-  public openDeleteDialog(entityId: any, service: EntityService<any, any>) {
+  public openDeleteDialog(entityId: string | number, service: AnyEntityService) {
     this.confirmationService.confirm({
       message: this.translate.instant('sidebar.confirm-entity-delete-message'),
       header: this.translate.instant('sidebar.delete-entity'),
@@ -700,7 +707,7 @@ export class SiteSidebarComponent implements OnInit {
     });
   }
 
-  public async openCreateDocumentDialog(service: EntityService<any, any>, dialogTitle: string) {
+  public async openCreateDocumentDialog(service: AnyEntityService, dialogTitle: string) {
     // Create a random name for the new document
     const randomName = `README-${Math.random().toString(36).substr(2, 9)}`;
     const blob = await firstValueFrom(this.httpClient.get('assets/README-TEMPLATE.md', { responseType: 'blob' }));
@@ -709,22 +716,22 @@ export class SiteSidebarComponent implements OnInit {
       name: randomName,
       mime: 'text/markdown',
       content: defaultContent,
-    } as any;
+    };
     this.openCreateDialog(service, dialogTitle, this.entity);
   }
 
-  public openCreateDialog(service: EntityService<any, any>, dialogTitle: string, entity?: any) {
+  public openCreateDialog(service: AnyEntityService, dialogTitle: string, entity?: DialogEntity) {
     this.service = service;
     this.dialogTitle = dialogTitle || 'Create New Entity';
     if (entity) {
       this.entity = entity;
     } else {
-      this.entity = {} as any;
+      this.entity = {};
     }
     this.dialogVisible = true;
   }
 
-  public onEntityCreated(entity: any) {
+  public onEntityCreated(entity: { id: number }) {
     if (this.service === this.decksService) {
       console.log('Deck created, creating system attributes for deck ' + entity.id);
       this.cardAttributesService.createSystemAttributes(entity.id);
@@ -738,20 +745,20 @@ export class SiteSidebarComponent implements OnInit {
     }
   }
 
-  public openEditDialog(service: EntityService<any, any>, entityId: any, dialogTitle: string) {
+  public openEditDialog(service: AnyEntityService, entityId: string | number, dialogTitle: string) {
     this.service = service;
     this.dialogTitle = dialogTitle || 'Edit Entity';
-    this.entity = {} as any;
+    this.entity = {};
     service.get(entityId).then(entity => {
       this.entity = entity;
     });
     this.dialogVisible = true;
   }
 
-  public openDuplicateDialog(service: EntityService<any, any>, entityId: any, dialogTitle: string) {
+  public openDuplicateDialog(service: AnyEntityService, entityId: string | number, dialogTitle: string) {
     this.service = service;
     this.dialogTitle = dialogTitle || 'Duplicate Entity';
-    this.entity = {} as any;
+    this.entity = {};
     service.get(entityId).then(entity => {
       // Create a new entity with the same properties but without the ID
       this.entity = { ...entity };
@@ -891,9 +898,10 @@ export class SiteSidebarComponent implements OnInit {
     // Or we create a dummy service / override the behavior.
     // Simplified: Just use prompt() for now? No, better UX.
     // Use openCreateDialog with a proxy object having a create method.
+    // only what the entity dialog calls
     const folderService = {
-      create: (entity: any) => {
-        const folderName = entity.name;
+      create: (entity: DialogEntity) => {
+        const folderName = entity.name ?? '';
         const fullPath = parentPath ? parentPath + '/' + folderName : folderName;
         return this.assetsService.createFolder(fullPath);
       },
@@ -902,7 +910,7 @@ export class SiteSidebarComponent implements OnInit {
       ]),
       getLookups: () => Promise.resolve([]),
       getIdField: () => 'id',
-    } as any;
+    } as unknown as AnyEntityService;
 
     this.openCreateDialog(folderService, this.translate.instant('sidebar.create-new-folder'), { name: 'New Folder' });
   }
@@ -913,8 +921,8 @@ export class SiteSidebarComponent implements OnInit {
 
     // Proxy service for rename
     const renameService = {
-      create: (entity: any) => { // we hijack create to mean "save rename"
-        const newName = entity.name;
+      create: (entity: DialogEntity) => { // we hijack create to mean "save rename"
+        const newName = entity.name ?? '';
         // If generic rename (just name change), new path is parent + newName
         let newPath = newName;
         if (parentPath) {
@@ -927,7 +935,7 @@ export class SiteSidebarComponent implements OnInit {
       ]),
       getLookups: () => Promise.resolve([]),
       getIdField: () => 'id'
-    } as any;
+    } as unknown as AnyEntityService;
 
     this.openCreateDialog(renameService, this.translate.instant('sidebar.edit-rename-folder'), { name: currentName });
   }

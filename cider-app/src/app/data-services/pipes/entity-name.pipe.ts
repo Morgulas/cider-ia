@@ -8,13 +8,11 @@ import { EntityService } from '../types/entity-service.type';
 @Pipe({ name: 'entityName' })
 export class EntityNamePipe implements PipeTransform {
 
-  transform(entityId: unknown, service: EntityService<any, any>): Promise<string> {
+  transform<E, I extends string | number>(entityId: unknown, service: EntityService<E, I>): Promise<string> {
     if (!entityId || !service) {
-      return new Promise<any>((resolve, reject) => {
-        resolve('');
-      });
+      return Promise.resolve('');
     }
-    return service.get(entityId).then(entity => service.getEntityName(entity));
+    return service.get(entityId as I).then(entity => service.getEntityName(entity));
   }
 
 }

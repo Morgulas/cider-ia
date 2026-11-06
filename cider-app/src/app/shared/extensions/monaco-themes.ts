@@ -1,7 +1,8 @@
+import type * as Monaco from 'monaco-editor';
 
 export default class MonacoThemes {
 
-    static defineVsDarkExtendedTheme(monaco: any) {
+    static defineVsDarkExtendedTheme(monaco: typeof Monaco) {
         // vs code dark theme properties: https://github.com/Microsoft/vscode/blob/main/src/vs/editor/standalone/common/themes.ts#L13
         monaco.editor.defineTheme('vs-dark-extended', {
             base: 'vs-dark', // can also be 'vs' or 'hc-black'

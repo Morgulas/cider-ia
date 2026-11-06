@@ -25,12 +25,11 @@ export class DropdownOptionEditorComponent implements ControlValueAccessor {
 
     disabled = false;
 
-    private onTouched = () => { };
-    private onChanged = (value: DropdownOption[]) => { };
+    // replaced by registerOnTouched / registerOnChange (forms API)
+    private onTouched: () => void = () => undefined;
+    private onChanged: (value: DropdownOption[]) => void = () => undefined;
 
-    constructor() { }
-
-    writeValue(obj: any): void {
+    writeValue(obj: unknown): void {
         if (obj) {
             if (Array.isArray(obj)) {
                 this.options = obj;
@@ -52,11 +51,11 @@ export class DropdownOptionEditorComponent implements ControlValueAccessor {
         }
     }
 
-    registerOnChange(fn: any): void {
+    registerOnChange(fn: (value: DropdownOption[]) => void): void {
         this.onChanged = fn;
     }
 
-    registerOnTouched(fn: any): void {
+    registerOnTouched(fn: () => void): void {
         this.onTouched = fn;
     }
 

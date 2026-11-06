@@ -1,3 +1,4 @@
+import { fieldOf } from '../../data-services/types/entity-service.type';
 import { CardTemplate } from "src/app/data-services/types/card-template.type";
 import { Card } from "src/app/data-services/types/card.type";
 import { CORE_TEMPLATE } from "./templates/core-template";
@@ -46,6 +47,13 @@ interface GeneratedSvg {
     field: string;
     svg: string;
     uri: string;
+}
+
+/** A sample card of the template generator: the design it shows and its template */
+export interface DesignCard extends Card {
+    key: string;
+    design: TemplateDesign;
+    frontCardTemplate: CardTemplate;
 }
 
 export interface TemplateDesign {
@@ -124,9 +132,9 @@ export default class TemplateDefaults {
         const html = design.layout.html;
         const attributeMap = new Map<string, string>();
         Object.keys(design.size).forEach(key => 
-            attributeMap.set(`size.${key}`, '' + (design.size as any)[key]));
+            attributeMap.set(`size.${key}`, '' + fieldOf(design.size, key)));
         Object.keys(design.theme).forEach(key => 
-            attributeMap.set(`theme.${key}`, '' + (design.theme as any)[key]));
+            attributeMap.set(`theme.${key}`, '' + fieldOf(design.theme, key)));
 
         const css = Array.from(attributeMap.entries())
         .reduce((currentCss, [key, value]) => {
@@ -149,11 +157,11 @@ export default class TemplateDefaults {
         // replace and populate attributes (non blob)
         const attributeMap = new Map<string, string>();
         Object.keys(design.size).forEach(key => 
-            attributeMap.set(`size.${key}`, '' + (design.size as any)[key]));
+            attributeMap.set(`size.${key}`, '' + fieldOf(design.size, key)));
         Object.keys(design.theme)
             .filter(key => !design.theme.assets.some(asset => asset.field == key))
             .forEach(key => 
-            attributeMap.set(`theme.${key}`, '' + (design.theme as any)[key]));
+            attributeMap.set(`theme.${key}`, '' + fieldOf(design.theme, key)));
         const preCss = Array.from(attributeMap.entries())
         .reduce((currentCss, [key, value]) => {
             return currentCss.replaceAll('{{' + key + '}}', value);
@@ -184,7 +192,7 @@ export default class TemplateDefaults {
         };
     }
 
-    public static createCard(design: TemplateDesign, key: string): Card {
+    public static createCard(design: TemplateDesign, key: string): DesignCard {
         const cardTemplate = TemplateDefaults.generateCardTemplate(design);
         return {
             id: 34,
@@ -195,10 +203,10 @@ export default class TemplateDefaults {
             description: `The brewer is a very important card in the game. 
             It allows you to brew potions and create powerful effects.`,
             frontCardTemplate: cardTemplate,
-        } as any as Card;
+        } as unknown as DesignCard;
     }
 
-    public static getSizeCards(theme?: CardTheme): Card[] {
+    public static getSizeCards(theme?: CardTheme): DesignCard[] {
         return Object.keys(TemplateDefaults.CARD_SIZES).map((key) => {
             const design: TemplateDesign = {
                 size: TemplateDefaults.CARD_SIZES[key],
@@ -209,11 +217,11 @@ export default class TemplateDefaults {
         });
     }
 
-    public static getLayoutCards(size: string, theme?: CardTheme): Card[] {
+    public static getLayoutCards(size: string, theme?: CardTheme): DesignCard[] {
         const cardSize = TemplateDefaults.CARD_SIZES[size];
         return Object.keys(TemplateDefaults.CARD_LAYOUTS).map((key) => {
             const design: TemplateDesign = {
-                size: TemplateDefaults.CARD_SIZES[size],
+                size: cardSize,
                 layout: TemplateDefaults.CARD_LAYOUTS[key],
                 theme: theme ?? this.DEFAULT_THEME
             };
@@ -221,7 +229,7 @@ export default class TemplateDefaults {
         });
     }
 
-    public static getThemeCards(size: string, layout: string, theme?: CardTheme): Card[] {
+    public static getThemeCards(size: string, layout: string, theme?: CardTheme): DesignCard[] {
         return MathUtils.range(0, 5).map((index) => {
             const design: TemplateDesign = {
                 size: TemplateDefaults.CARD_SIZES[size],

@@ -46,7 +46,7 @@ export class ColorManagementService {
         this.wasmInitPromise = init(wasmPath).then(() => {
           this.wasmReady = true;
           console.log('ColorManagementService: WASM module initialized successfully.');
-        }).catch((err: any) => {
+        }).catch((err: unknown) => {
           console.error(`ColorManagementService: WASM initialization failed for ${wasmPath}`, err);
           this.wasmInitPromise = null; // Allow retry
           throw err;
@@ -78,7 +78,7 @@ export class ColorManagementService {
     imageData: ImageData,
     profileName: string,
     intent = 1, // 1 = RelativeColorimetric
-    options: any = {}
+    options: Record<string, unknown> = {}
   ): Promise<ImageData> {
     if (!this.wasmReady) {
       await this.initialize();

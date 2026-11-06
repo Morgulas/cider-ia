@@ -1,15 +1,15 @@
 import { Pipe, PipeTransform } from '@angular/core';
-import { EntityService } from '../types/entity-service.type';
+import { AnyEntityService, EntityService } from '../types/entity-service.type';
 
 @Pipe({ name: 'entityListCached' })
 export class EntityListCachedPipe implements PipeTransform {
 
-  async transform(service: EntityService<any, any>, cache: Map<EntityService<any, any>, any[]>): Promise<any[] | undefined> {
+  async transform<E, I extends string | number>(service: EntityService<E, I>, cache: Map<AnyEntityService, unknown[]>): Promise<E[] | undefined> {
     if (!cache) {
       return service.getAll();
     }
 
-    const options = cache.get(service);
+    const options = cache.get(service) as E[] | undefined;
     if (!options && service) {
       const takenOptions = await service.getAll();
       cache.set(service, takenOptions);

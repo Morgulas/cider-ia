@@ -109,6 +109,8 @@
                   <div class="grid-axis-x"></div>
                   <div class="grid-axis-y"></div>
                 </div>
+                <!-- inspector: pointer only (from the keyboard, the cursor in the code outlines the element) -->
+                <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
                 <div #previewContent class="preview-content" [class.multi]="viewMode !== 'card'" [style.--cols]="pairColumns()"
                   (mousemove)="onInspectMove($event)" (click)="onInspectClick($event)">
                   <ng-container *ngTemplateOutlet="previewBody"></ng-container>
@@ -121,6 +123,7 @@
           <div #popoutHost class="popout-host">
             <div class="popout-content">
               <div class="popout-zoom" [style.zoom]="popoutScale">
+                <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
                 <div #popoutInner class="preview-content" [class.multi]="viewMode !== 'card'" [class.inspecting]="inspecting"
                   [style.--cols]="pairColumns()" (mousemove)="onInspectMove($event)" (click)="onInspectClick($event)">
                   <ng-container *ngTemplateOutlet="previewBody"></ng-container>
@@ -310,9 +313,9 @@
       </div>
       @if (previewSettings.trimLinesEnabled) {
       <div class="p-field p-mt-4 p-mb-0">
-        <label class="p-text-xs p-mb-2 p-d-block">{{ 'template-editor.offset-from-edge' | translate }}</label>
+        <label for="trim-offset" class="p-text-xs p-mb-2 p-d-block">{{ 'template-editor.offset-from-edge' | translate }}</label>
         <div class="p-inputgroup">
-          <p-inputNumber [(ngModel)]="previewSettings.trimOffset" [minFractionDigits]="2" [maxFractionDigits]="3"
+          <p-inputNumber inputId="trim-offset" [(ngModel)]="previewSettings.trimOffset" [minFractionDigits]="2" [maxFractionDigits]="3"
             placeholder="Offset" class="p-mr-2" (ngModelChange)="saveSettings()"></p-inputNumber>
           <p-select [options]="unitOptions" [(ngModel)]="previewSettings.trimUnit" optionLabel="label"
             optionValue="value" class="unit-dropdown" [style]="{'min-width': '100px'}" (ngModelChange)="saveSettings()"></p-select>
@@ -328,9 +331,9 @@
       </div>
       @if (previewSettings.safeLinesEnabled) {
       <div class="p-field p-mt-4 p-mb-0">
-        <label class="p-text-xs p-mb-2 p-d-block">{{ 'template-editor.offset-from-edge' | translate }}</label>
+        <label for="safe-offset" class="p-text-xs p-mb-2 p-d-block">{{ 'template-editor.offset-from-edge' | translate }}</label>
         <div class="p-inputgroup">
-          <p-inputNumber [(ngModel)]="previewSettings.safeOffset" [minFractionDigits]="2" [maxFractionDigits]="3"
+          <p-inputNumber inputId="safe-offset" [(ngModel)]="previewSettings.safeOffset" [minFractionDigits]="2" [maxFractionDigits]="3"
             placeholder="Offset" class="p-mr-2" (ngModelChange)="saveSettings()"></p-inputNumber>
           <p-select [options]="unitOptions" [(ngModel)]="previewSettings.safeUnit" optionLabel="label"
             optionValue="value" class="unit-dropdown" [style]="{'min-width': '100px'}" (ngModelChange)="saveSettings()"></p-select>

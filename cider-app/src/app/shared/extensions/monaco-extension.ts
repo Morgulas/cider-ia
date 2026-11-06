@@ -1,6 +1,14 @@
 import { NgxMonacoEditorConfig } from 'ngx-monaco-editor-v2';
 import MonacoLanguages, { DocumentColorAdapter } from './monaco-languages';
 import MonacoThemes from './monaco-themes';
+import type * as Monaco from 'monaco-editor';
+
+type MonacoApi = typeof Monaco;
+
+/** A built-in language of Monaco: its definition is loaded on demand */
+interface LoadableLanguage extends Monaco.languages.ILanguageExtensionPoint {
+    loader?: () => Promise<{ language: Monaco.languages.IMonarchLanguage; conf: Monaco.languages.LanguageConfiguration }>;
+}
 
 export default class MonacoExtension {
 
@@ -11,7 +19,7 @@ export default class MonacoExtension {
     };
 
     static loadMonacoEditor() {
-        const monaco: any = (window as any).monaco;
+        const monaco = (window as unknown as { monaco: MonacoApi }).monaco;
         // create the css-handlebars language
         MonacoExtension.registerCssHandlebars(monaco);
         MonacoThemes.defineVsDarkExtendedTheme(monaco);
@@ -21,24 +29,24 @@ export default class MonacoExtension {
         monaco.languages.registerCompletionItemProvider('handlebars', handlebarsCompletionProvider);
     }
 
-    static registerCssHandlebars(monaco: any) {
+    static registerCssHandlebars(monaco: MonacoApi) {
         monaco.languages.register({ id: 'css-handlebars' });
 
         // Get the existing CSS language configuration and tokenizer
         // https://github.com/microsoft/monaco-editor/blob/main/src/basic-languages/css/css.ts
-        const cssLanguage = monaco.languages.getLanguages().find((lang: { id: string; }) => lang.id === 'css');
-        if (cssLanguage) {
-            cssLanguage.loader().then((cssModule: any) => {
+        const cssLanguage = (monaco.languages.getLanguages() as LoadableLanguage[]).find(lang => lang.id === 'css');
+        if (cssLanguage?.loader) {
+            cssLanguage.loader().then(cssModule => {
                 const cssLanguage = cssModule.language;
                 const cssTokenizer = cssLanguage.tokenizer;
                 const cssConfiguration = cssModule.conf;
 
                 // Extend the CSS tokenizer to include Handlebars
-                const handlebarsTokenizer = {
+                const handlebarsTokenizer: Record<string, Monaco.languages.IMonarchLanguageRule[]> = {
                     ...cssTokenizer,
                     root: [
                         [/\{\{/, { token: 'delimiter.handlebars', next: '@handlebars' }],
-                        ...cssTokenizer.root,
+                        ...cssTokenizer['root'],
                     ],
                     handlebars: [
                         [/\}\}/, { token: 'delimiter.handlebars', next: '@pop' }],
@@ -52,11 +60,11 @@ export default class MonacoExtension {
                     ];
                 }
 
-                const handlebarsConfiguration = {
+                const handlebarsConfiguration: Monaco.languages.LanguageConfiguration = {
                     ...cssConfiguration,
                     brackets: [
                         ['{{', '}}'],
-                        ...cssConfiguration.brackets
+                        ...(cssConfiguration.brackets ?? [])
                     ],
                     // blockComment: ['{{!--', '--}}'],
                 }

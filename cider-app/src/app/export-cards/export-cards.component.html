@@ -30,7 +30,7 @@
             [style.width.px]="selectedPaper.orientation === 'portrait' ? paperWidth * paperDpi * scale: paperHeight * paperDpi * scale"
             [style.height.px]="selectedPaper.orientation === 'portrait' ? paperHeight * paperDpi * scale: paperWidth * paperDpi * scale">
             @if (softProofEnabled && softProofFrontImageUrl) {
-              <img [src]="softProofFrontImageUrl | safeUrl" class="preview-page"
+              <img [src]="softProofFrontImageUrl | safeUrl" alt="" class="preview-page"
                 [style.width.px]="selectedPaper.orientation === 'portrait' ? paperWidth * paperDpi : paperHeight * paperDpi"
                 [style.height.px]="selectedPaper.orientation === 'portrait' ? paperHeight * paperDpi : paperWidth * paperDpi"
                 [style.transform]="'scale(' + scale + ')'"
@@ -112,7 +112,7 @@
             [style.width.px]="selectedPaper.orientation === 'portrait' ? paperWidth * paperDpi * scale: paperHeight * paperDpi * scale"
             [style.height.px]="selectedPaper.orientation === 'portrait' ? paperHeight * paperDpi * scale: paperWidth * paperDpi * scale">
             @if (softProofEnabled && softProofBackImageUrl) {
-              <img [src]="softProofBackImageUrl | safeUrl" class="preview-page"
+              <img [src]="softProofBackImageUrl | safeUrl" alt="" class="preview-page"
                 [style.width.px]="selectedPaper.orientation === 'portrait' ? paperWidth * paperDpi : paperHeight * paperDpi"
                 [style.height.px]="selectedPaper.orientation === 'portrait' ? paperHeight * paperDpi : paperWidth * paperDpi"
                 [style.transform]="'scale(' + scale + ')'"

@@ -1,3 +1,5 @@
+import { AssetUrls } from '../data-services/types/asset.type';
+import { fieldOf } from '../data-services/types/entity-service.type';
 import { Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AssetsService } from '../data-services/services/assets.service';
@@ -23,6 +25,23 @@ import { ConfirmDialog } from 'primeng/confirmdialog';
 import { Toast } from 'primeng/toast';
 import { FileUrlPipe } from '../shared/pipes/file-url.pipe';
 
+/** What the font preview shows about a font file */
+interface FontMetadata {
+  fontFamily: string;
+  fontSubfamily: string;
+  fullName: string;
+  postScriptName: string;
+  designer: string;
+  designerURL: string;
+  manufacturer: string;
+  manufacturerURL: string;
+  license: string;
+  licenseURL: string;
+  version: string;
+  copyright: string;
+  description: string;
+}
+
 @Component({
     selector: 'app-asset',
     templateUrl: './asset.component.html',
@@ -42,14 +61,14 @@ export class AssetComponent {
   public fileExtension = '';
   public fileMime = '';
   public fileType = '';
-  assetUrls: any;
+  assetUrls?: AssetUrls;
   public fontPreviewFamily = '';
   public previewText = 'The quick brown fox jumps over the lazy dog. 1234567890';
   public previewFontSize = 24;
 
   // Dictionary for 'Copied' state management
   public copyState: Record<string, boolean> = {};
-  public fontMetadata: any = null;
+  public fontMetadata: FontMetadata | null = null;
   public fontUsageSnippet = '';
 
   // SVG Editor Properties
@@ -216,24 +235,7 @@ export class AssetComponent {
   }
 
   public updateSvgPreview() {
-    const content = this.originalSvgContent;
-
-    // Apply Colors
-    this.svgColors.forEach(color => {
-      if (color.original !== color.current) {
-        // Creating a global regex to replace all instances of this color
-        // Escaping special characters for regex
-        const safeOriginal = color.original.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const regex = new RegExp(`(?<=[:"'])${safeOriginal}(?=['";])|(?<=[:"'])${safeOriginal}$`, 'g');
-        // This simple regex might be risky if color strings are very short standard words, but for hex/rgb it's usually fine.
-        // Better safety: replace attributes specifically? String replace is faster/easier but less robust.
-        // Let's stick to string replacement for now but maybe refine if needed.
-        // Actually, global replace on the string is dangerous (e.g. replacing 'fff' inside 'xfff').
-        // A safer approach is re-parsing the DOM, but that's heavier. 
-        // Let's try DOM manipulation on the preview copy.
-      }
-    });
-
+    // the colors are changed on a DOM copy of the SVG (a text replace could hit other values)
     // Better approach: Work on a DOM copy for preview generation
     const parser = new DOMParser();
     const doc = parser.parseFromString(this.originalSvgContent, 'image/svg+xml');
@@ -335,7 +337,7 @@ export class AssetComponent {
     }
   }
 
-  private restoreState(state: any) {
+  private restoreState(state: AssetComponent['svgHistory'][number]) {
     this.svgColors = JSON.parse(JSON.stringify(state.colors));
     this.svgStrokeWidths = JSON.parse(JSON.stringify(state.strokeWidths));
     this.updateSvgPreview();
@@ -363,7 +365,7 @@ export class AssetComponent {
       const buffer = e.target?.result as ArrayBuffer;
       try {
         const font = parse(buffer);
-        const names = font.names as any;
+        const names = font.names as unknown as Record<string, Record<string, string> | undefined>;
         const getEnglishName = (key: string) => {
           return names[key] ? (names[key]['en'] || Object.values(names[key])[0]) : '';
         };
@@ -417,7 +419,7 @@ export class AssetComponent {
         const previewFamilyName = `PreviewFont-${this.asset.id}`;
         const fontFace = new FontFace(previewFamilyName, buffer);
         await fontFace.load();
-        (document.fonts as any).add(fontFace);
+        document.fonts.add(fontFace);
         this.fontPreviewFamily = previewFamilyName;
 
       } catch (err) {
@@ -461,14 +463,13 @@ export class AssetComponent {
   }
 
   public save(asset: Asset) {
-    const id = (asset as any)[this.assetsService?.getIdField()];
+    const id = fieldOf<number>(asset, this.assetsService?.getIdField());
     this.updateExisting(id, asset);
   }
 
   public updateExisting(id: number, asset: Asset) {
-    this.assetsService?.update(id, asset).then(result => {
-    }).catch(error => {
-      console.log('error saving entity', error);
+    this.assetsService?.update(id, asset).catch(error => {
+      console.error('error saving the asset', error);
     });
   }
 
@@ -478,27 +479,28 @@ export class AssetComponent {
       header: 'Delete Entity',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.assetsService?.delete((entity as any)[this.assetsService?.getIdField()]).then(deleted => {
+        this.assetsService?.delete(fieldOf(entity, this.assetsService?.getIdField())).then(deleted => {
           // this.messageService.add({severity:'success', summary: 'Successful', detail: 'Entity Deleted', life: 3000});
         });
       }
     });
   }
 
-  public getAssetUrl(asset: Asset, assetUrls: any): string {
+  public getAssetUrl(asset: Asset, assetUrls: AssetUrls): string {
     let currentLevel = assetUrls;
     if (asset.path) {
       const parts = asset.path.split('/');
       for (const part of parts) {
-        const key = StringUtils.toKebabCase(part);
-        if (currentLevel[key]) {
-          currentLevel = currentLevel[key];
+        const next = currentLevel[StringUtils.toKebabCase(part)];
+        if (next && typeof next === 'object') {
+          currentLevel = next;
         } else {
           return '';
         }
       }
     }
-    return currentLevel[StringUtils.toKebabCase(asset.name)];
+    const url = currentLevel[StringUtils.toKebabCase(asset.name)];
+    return typeof url === 'string' ? url : '';
   }
 
   private parseColor(color: string): { hex: string, alpha: number } {

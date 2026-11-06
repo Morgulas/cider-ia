@@ -1,3 +1,4 @@
+import { fieldOf, setField } from '../data-services/types/entity-service.type';
 import { Component, OnDestroy, OnInit, computed, signal, viewChild, WritableSignal } from '@angular/core';
 import { CardsService } from '../data-services/services/cards.service';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
@@ -12,6 +13,23 @@ import { FieldType } from '../data-services/types/field-type.type';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { TranslateModule } from '@ngx-translate/core';
 
+
+/**
+ * An option as the spreadsheet gives it back: a plain value, an option,
+ * or an option whose value is itself an option (after a column edit)
+ */
+type SpreadsheetOption = string | DropdownOption | { value: DropdownOption; color?: string } | null | undefined;
+
+function optionValue(option: SpreadsheetOption): string {
+    if (typeof option === 'string') return option;
+    if (!option) return '';
+    return typeof option.value === 'object' && option.value ? option.value.value : option.value as string;
+}
+
+function optionColor(option: SpreadsheetOption): string | undefined {
+    if (!option || typeof option === 'string' || !option.color) return undefined;
+    return typeof option.value === 'object' && option.value ? option.value.color || option.color : option.color;
+}
 
 @Component({
     selector: 'app-entity-spreadsheet',
@@ -167,9 +185,9 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
                 const idToName = new Map<number, string>();
 
                 options = [];
-                entities.forEach((e: any) => {
-                    const name = e.name;
-                    const id = e.id;
+                entities.forEach(e => {
+                    const name = fieldOf<string>(e, 'name');
+                    const id = fieldOf<number>(e, 'id');
                     options.push(name);
                     nameToId.set(name, id);
                     idToName.set(id, name);
@@ -184,7 +202,7 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
             return {
                 name: f.header,
                 field: f.field as string,
-                width: ((f.width as any) === 'auto' || !f.width) ? 135 : f.width,
+                width: f.width ? f.width : 135,
                 readOnly: f.field === 'id',
                 editor: editor,
                 options: options,
@@ -209,10 +227,10 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
         const rows: Cell[][] = this.cards.map(card => {
             const row: Cell[] = [];
             this.columnConfig().forEach(col => {
-                let val = (card as any)[col.field];
+                let val = fieldOf<string | number | boolean | undefined | null>(card, col.field);
 
                 if (this.reverseLookups.has(col.field) && val !== undefined && val !== null) {
-                    val = this.reverseLookups.get(col.field)?.get(val) || val;
+                    val = this.reverseLookups.get(col.field)?.get(val as number) || val;
                 }
 
                 row.push({ value: val !== undefined && val !== null ? val : '' });
@@ -262,7 +280,7 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
                     : undefined;
 
                 if (originalCard) {
-                    const updatedCard: any = { ...originalCard };
+                    const updatedCard: Card = { ...originalCard };
 
                     row.forEach((cell, cellIndex) => {
                         const colConfig = currentConfig[cellIndex];
@@ -274,7 +292,7 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
                                     val = mapped;
                                 }
                             }
-                            updatedCard[colConfig.field] = val;
+                            setField(updatedCard, colConfig.field, val);
                         }
                     });
 
@@ -289,7 +307,7 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
                 } else {
                     // New card creation
                     // Create a basic card object.
-                    const newCard: any = { count: 1 }; // Default count
+                    const newCard = { count: 1 } as Card; // Default count
                     let hasData = false;
 
                     row.forEach((cell, cellIndex) => {
@@ -302,7 +320,7 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
                                     val = mapped;
                                 }
                             }
-                            newCard[colConfig.field] = val;
+                            setField(newCard, colConfig.field, val);
                             if (cell.value !== '' && cell.value !== null && cell.value !== undefined) {
                                 hasData = true;
                             }
@@ -335,7 +353,7 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
         }
     }
 
-    private hasChanged(oldCard: Card, newCard: any): boolean {
+    private hasChanged(oldCard: Card, newCard: Card): boolean {
         return JSON.stringify(oldCard) !== JSON.stringify(newCard);
     }
 
@@ -381,8 +399,8 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
                     }
 
                     // 2. Update Description (if present in config)
-                    if (!attr.isSystem && (config as any).description !== undefined && attr.description !== (config as any).description) {
-                        attr.description = (config as any).description;
+                    if (!attr.isSystem && config.description !== undefined && attr.description !== config.description) {
+                        attr.description = config.description;
                         changed = true;
                     }
 
@@ -395,8 +413,8 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
 
                     // 4. Update Options
                     if (config.options && Array.isArray(config.options)) {
-                        const newOptionsStr = config.options as any[];
-                        let currentOptions: any[] = [];
+                        const newOptionsStr = config.options as SpreadsheetOption[];
+                        let currentOptions: DropdownOption[] = [];
                         if (Array.isArray(attr.options)) {
                             currentOptions = attr.options;
                         } else if (typeof attr.options === 'string') {
@@ -406,18 +424,14 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
 
                         const currentValues = currentOptions.map(o => o.value);
                         // Extract option values since newOptionsStr elements can be strings, standard objects, or nested objects.
-                        const newValues = newOptionsStr.map((val: any) => {
-                            if (typeof val === 'string') return val;
-                            if (val && typeof val.value === 'object' && val.value) return val.value.value;
-                            return val ? val.value : '';
-                        });
+                        const newValues = newOptionsStr.map(optionValue);
                         const valuesChanged = JSON.stringify(currentValues) !== JSON.stringify(newValues);
 
                         if (!attr.isSystem && valuesChanged) {
-                            const mergedOptions = newOptionsStr.map((val: any) => {
-                                const valStr = typeof val === 'string' ? val : (val && typeof val.value === 'object' && val.value ? val.value.value : (val ? val.value : ''));
-                                const valColor = (val && typeof val !== 'string' && val.color) ? (typeof val.value === 'object' && val.value ? val.value.color || val.color : val.color) : undefined;
-                                
+                            const mergedOptions = newOptionsStr.map(val => {
+                                const valStr = optionValue(val);
+                                const valColor = optionColor(val);
+
                                 const existing = currentOptions.find(o => o.value === valStr);
                                 if (existing) return existing;
                                 return {
@@ -444,13 +458,13 @@ export class EntitySpreadsheetComponent implements OnInit, OnDestroy {
                         deckId: this.attributes[0]?.deckId || this.cards[0]?.deckId || 1,
                         name: config.name,
                         type: this.mapToFieldType(config.editor),
-                        description: (config as any).description || '',
+                        description: config.description || '',
                         options: '',
                         width: config.width as number,
                         order: index
                     };
                     if (newAttr.deckId) {
-                        const createdAttr = await this.attributesService.create(newAttr as CardAttribute);
+                        await this.attributesService.create(newAttr as CardAttribute);
                         // Refresh attributes list
                         this.attributes = await this.attributesService.getAll();
                     }

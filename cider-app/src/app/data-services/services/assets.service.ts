@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Asset } from '../types/asset.type';
+import { Asset, AssetUrls, StoredAsset } from '../types/asset.type';
 import { AppDB } from '../indexed-db/db';
 import { FieldType } from '../types/field-type.type';
 import { BehaviorSubject, Observable } from 'rxjs';
@@ -12,7 +12,7 @@ import StringUtils from 'src/app/shared/utils/string-utils';
   providedIn: 'root'
 })
 export class AssetsService extends IndexedDbService<Asset, number> {
-  assetUrls: BehaviorSubject<any>;
+  assetUrls: BehaviorSubject<AssetUrls>;
   private isLoadingSubject: BehaviorSubject<boolean>;
 
   constructor(db: AppDB) {
@@ -22,7 +22,7 @@ export class AssetsService extends IndexedDbService<Asset, number> {
       { field: 'path', header: 'Path', type: FieldType.text },
       { field: 'file', header: 'File', type: FieldType.file }
     ]);
-    this.assetUrls = new BehaviorSubject<any>({});
+    this.assetUrls = new BehaviorSubject<AssetUrls>({});
     this.isLoadingSubject = new BehaviorSubject<boolean>(true);
     this.updateAssetUrls();
 
@@ -39,30 +39,31 @@ export class AssetsService extends IndexedDbService<Asset, number> {
       // release the old URLs - simple cleanup might be insufficient if we have nested structure, 
       // but revokeObjectURL works on the string url, so we just need to collect all strings.
       // For now, let's just revoke everything we tracked.
-      const revokeRecursive = (obj: any) => {
+      const revokeRecursive = (obj: AssetUrls) => {
         if (!obj) return;
-        Object.keys(obj).forEach(key => {
-          if (typeof obj[key] === 'string') {
-            URL.revokeObjectURL(obj[key]);
-          } else if (typeof obj[key] === 'object') {
-            revokeRecursive(obj[key]);
+        Object.values(obj).forEach(value => {
+          if (typeof value === 'string') {
+            URL.revokeObjectURL(value);
+          } else if (typeof value === 'object') {
+            revokeRecursive(value);
           }
         });
       };
       revokeRecursive(this.assetUrls.getValue());
 
       // generate the new URLs
-      const assetUrls = {} as any;
+      const assetUrls: AssetUrls = {};
       assets.forEach(asset => {
         let currentLevel = assetUrls;
         if (asset.path) {
           const parts = asset.path.split('/');
           parts.forEach(part => {
             const key = StringUtils.toKebabCase(part);
-            if (!currentLevel[key]) {
+            const next = currentLevel[key];
+            if (!next || typeof next === 'string') {
               currentLevel[key] = {};
             }
-            currentLevel = currentLevel[key];
+            currentLevel = currentLevel[key] as AssetUrls;
           });
         }
         currentLevel[StringUtils.toKebabCase(asset.name)] = URL.createObjectURL(asset.file);
@@ -70,7 +71,7 @@ export class AssetsService extends IndexedDbService<Asset, number> {
       // An asset moved into a folder stays reachable by its name alone
       // ({{assets.demon}}, {{index assets card.image}}), unless that name is
       // taken at the top level: tidying assets into folders does not break templates.
-      const addAliases = (level: any) => {
+      const addAliases = (level: AssetUrls) => {
         Object.keys(level).forEach(key => {
           const value = level[key];
           if (typeof value === 'string') {
@@ -83,8 +84,9 @@ export class AssetsService extends IndexedDbService<Asset, number> {
         });
       };
       Object.keys(assetUrls).forEach(key => {
-        if (assetUrls[key] && typeof assetUrls[key] === 'object') {
-          addAliases(assetUrls[key]);
+        const value = assetUrls[key];
+        if (value && typeof value === 'object') {
+          addAliases(value);
         }
       });
       return assetUrls;
@@ -99,7 +101,7 @@ export class AssetsService extends IndexedDbService<Asset, number> {
     return entity.name;
   }
 
-  getAssetUrls(): Observable<any> {
+  getAssetUrls(): Observable<AssetUrls> {
     return this.assetUrls.asObservable();
   }
 
@@ -133,9 +135,10 @@ export class AssetsService extends IndexedDbService<Asset, number> {
       return Promise.resolve(entity);
     }
     return entity.file.arrayBuffer().then(buffer => {
-      (entity as any).buffer = buffer;
-      (entity as any).type = entity.file.type;
-      (entity as any).file = undefined;
+      const stored = entity as StoredAsset;
+      stored.buffer = buffer;
+      stored.type = entity.file.type;
+      stored.file = undefined;
       return entity;
     });
   }
@@ -145,13 +148,14 @@ export class AssetsService extends IndexedDbService<Asset, number> {
    * @param entity 
    */
   private static insertFile(entity: Asset): Asset {
-    if (!entity || !(entity as any).buffer || !(entity as any).type) {
+    const stored = entity as StoredAsset;
+    if (!stored || !stored.buffer || !stored.type) {
       return entity;
     }
-    const blob: Blob = AssetsService.arrayBufferToBlob((entity as any).buffer, (entity as any).type);
-    entity.file = new File([blob], entity.name, { type: (entity as any).type });
-    (entity as any).buffer = undefined;
-    (entity as any).type = undefined;
+    const blob: Blob = AssetsService.arrayBufferToBlob(stored.buffer, stored.type);
+    entity.file = new File([blob], entity.name, { type: stored.type });
+    stored.buffer = undefined;
+    stored.type = undefined;
     return entity;
   }
 
@@ -170,16 +174,17 @@ export class AssetsService extends IndexedDbService<Asset, number> {
     return super.getAll().then(entities => entities.map(AssetsService.insertFile));
   }
 
-  public getAllMetadata(): Promise<any[]> {
-    return this.db.table(this.tableName).toArray().then(entities => entities.map(e => {
-      const copy = { ...e } as any;
+  /** The assets without their data (names, folders, types) */
+  public getAllMetadata(): Promise<StoredAsset[]> {
+    return this.db.table<StoredAsset>(this.tableName).toArray().then(entities => entities.map(e => {
+      const copy = { ...e };
       delete copy.buffer; // Free memory immediately
       return copy;
     }));
   }
 
   public onChange() {
-    return this.db.onChange().pipe(filter((change: any) =>
+    return this.db.onChange().pipe(filter(change =>
       change.tableName === AppDB.ASSETS_TABLE || change.tableName === AppDB.ASSET_FOLDERS_TABLE
     ));
   }

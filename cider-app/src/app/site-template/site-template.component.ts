@@ -1,3 +1,4 @@
+import type { SplitterResizeEndEvent, SplitterResizeStartEvent } from 'primeng/types/splitter';
 import { Component, HostListener, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Splitter } from 'primeng/splitter';
@@ -9,17 +10,16 @@ import { PrimeTemplate } from 'primeng/api';
 import { SiteSidebarComponent } from '../site-sidebar/site-sidebar.component';
 import { SiteContentComponent } from '../site-content/site-content.component';
 import { SiteFooterComponent } from '../site-footer/site-footer.component';
-import { DecksComponent } from '../decks/decks.component';
 
 @Component({
     selector: 'app-site-template',
     templateUrl: './site-template.component.html',
     styleUrls: ['./site-template.component.scss'],
-    imports: [SiteMenuComponent, SiteActivitybarComponent, Bind, Splitter, PrimeTemplate, SiteSidebarComponent, SiteContentComponent, SiteFooterComponent, DecksComponent]
+    imports: [SiteMenuComponent, SiteActivitybarComponent, Bind, Splitter, PrimeTemplate, SiteSidebarComponent, SiteContentComponent, SiteFooterComponent]
 })
 export class SiteTemplateComponent {
   private readonly destroyRef = inject(DestroyRef);
-  splitterPanels: any[] = []
+  splitterPanels: number[] = []
   selectedActivity = 'explorer';
   disablePanels = false;
   windowResizing$: Subject<boolean>;
@@ -32,16 +32,16 @@ export class SiteTemplateComponent {
   }
 
   @HostListener('window:resize', ['$event'])
-  onResize(event: any) {
+  onResize(_event: UIEvent) {
     this.disablePanels = true;
     this.windowResizing$.next(true);
   }
 
-  public onResizeStart(event: any) {
+  public onResizeStart(_event: SplitterResizeStartEvent) {
     this.disablePanels = true;
   }
 
-  public onResizeEnd(event: any) {
+  public onResizeEnd(_event: SplitterResizeEndEvent) {
     this.disablePanels = false;
   }
 }

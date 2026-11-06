@@ -1,9 +1,10 @@
+import type { FileSelectEvent } from 'primeng/types/fileupload';
 import { Component, EventEmitter, Input, OnInit, Output, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmationService, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
 import { Table, TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { EntityField } from '../data-services/types/entity-field.type';
-import { EntityService } from '../data-services/types/entity-service.type';
+import { EntityService, AnyEntityService, fieldOf, setField } from '../data-services/types/entity-service.type';
 import { FieldType } from '../data-services/types/field-type.type';
 import { SortDirection } from '../data-services/types/search-sort.type';
 import XlsxUtils from '../shared/utils/xlsx-utils';
@@ -64,7 +65,7 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
   dialogVisible = false;
   entity: Entity = {} as Entity;
   idField?: string;
-  lookups = new Map<EntityService<any, string | number>, Map<string | number, string>>();
+  lookups = new Map<AnyEntityService, Map<string | number, string>>();
   importVisible = false;
   statsVisible = false;
   stats: TableStat[] = [];
@@ -73,14 +74,14 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
   saveSubject = new Subject<Entity>();
   contextMenuItems: MenuItem[] = [];
   shortcutsVisible = false;
-  optionsCache: Map<EntityService<any, string | number>, any[]>;
+  optionsCache: Map<AnyEntityService, unknown[]>;
 
   constructor(private messageService: MessageService, 
     private confirmationService: ConfirmationService,
     private translate: TranslateService) {
       this.saveSubject.asObservable().pipe(debounceTime(1000))
         .pipe(takeUntilDestroyed(this.destroyRef)).subscribe((entity) => this.save(entity));
-      this.optionsCache = new Map<EntityService<any, string | number>, any[]>();
+      this.optionsCache = new Map<AnyEntityService, unknown[]>();
   }
 
   ngOnInit(): void {
@@ -127,15 +128,15 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
     });
   }
 
-  public filterGlobal(table: Table, event: any) {
-    table.filterGlobal(event.target.value, 'contains');
+  public filterGlobal(table: Table, event: Event) {
+    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
 
   public clear(table: Table) {
     table.clear();
   }
 
-  public uploadFile(event: any) {
+  public uploadFile(event: FileSelectEvent) {
     if (event?.currentFiles?.length) {
       this.importFile = event.files[0];
     }
@@ -175,14 +176,13 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
     if (!this.service || !this.saveToService) {
       return;
     }
-    const id = (entity as any)[this.service?.getIdField()];
+    const id = fieldOf<Identifier>(entity, this.service?.getIdField());
     this.updateExisting(id, entity);
   }
   
   public updateExisting(id: Identifier, entity: Entity) {
-    this.service?.update(id, entity).then(result => {
-    }).catch(error => {
-      console.log('error saving entity', error);
+    this.service?.update(id, entity).catch(error => {
+      console.error('error saving entity', error);
     });
   }
 
@@ -205,7 +205,7 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
     const stats = this.columns.filter(column => !column.hidden).map(column => {
       const tokenStats = new Map<string, TokenStat>();
       this.records.forEach(record => {
-        const copies = Number((record as any)['count'] || 1);
+        const copies = Number(fieldOf(record, 'count') || 1);
         const value = record[column.field];
         if (value) {
           const strValue = '' + value;
@@ -244,7 +244,7 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
       // determine entity type based on the table name in the service (remove the last 's' if it exists)
       const entityType = StringUtils.kebabToTitleCase(this.service?.getTableName().replace(/s$/, '') || 'Entity');
       // set the name field to a random value
-      (this.entity as any)[nameField.field] = `${entityType}-${Math.random().toString(36).substr(2, 9)}`;
+      setField(this.entity, nameField.field, `${entityType}-${Math.random().toString(36).substr(2, 9)}`);
     }
     this.dialogVisible = true;
   }
@@ -260,7 +260,7 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
       header: 'Delete Entity',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.service?.delete((entity as any)[this.service?.getIdField()]).then(deleted => {
+        this.service?.delete(fieldOf(entity, this.service?.getIdField())).then(deleted => {
           this.messageService.add({severity:'success', summary: 'Successful', detail: 'Entity Deleted', life: 3000});
           this.clear(table);
         });
@@ -272,7 +272,7 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
     this.shortcutsVisible = true;
   }
 
-  public onContextMenu(event: any) {
+  public onContextMenu(_event: unknown) {
     this.contextMenuItems = [
       {
         label: this.translate.instant('simulator.shortcuts'),
