@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SiteSidebarComponent } from './site-sidebar.component';
@@ -8,7 +9,8 @@ describe('SiteSidebarComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-    imports: [SiteSidebarComponent]
+    imports: [SiteSidebarComponent],
+    providers: [...appTestProviders]
 });
     fixture = TestBed.createComponent(SiteSidebarComponent);
     component = fixture.componentInstance;

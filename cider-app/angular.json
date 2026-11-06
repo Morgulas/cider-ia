@@ -31,7 +31,21 @@
             "inlineStyleLanguage": "scss",
             "assets": [
               "src/favicon.ico",
-              "src/assets",
+              {
+                "glob": "**/*",
+                "input": "src/assets",
+                "output": "assets",
+                "ignore": [
+                  "cider-logo-512.png",
+                  "cider-logo.icns",
+                  "crystal-cave.png",
+                  "github-badge.png",
+                  "image-file-tree.png",
+                  "kofi-badge.png",
+                  "mac-app-store-badge.svg",
+                  "screen-*.png"
+                ]
+              },
               {
                 "glob": "min/**/*",
                 "input": "node_modules/monaco-editor",

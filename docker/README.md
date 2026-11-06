@@ -60,6 +60,19 @@ Dans Dockhand, les variables de `.env.example` se renseignent dans les variables
 - Le **téléchargement** d'un projet ou d'une version (page Projets, historique des versions) produit un export `database.json` complet, images incluses : il peut être réimporté dans n'importe quelle instance de Cider.
 - Le conteneur `api` s'exécute sous l'utilisateur `PUID:PGID` et donne ce dossier à cet utilisateur au démarrage ; les fichiers ne sont lisibles que par lui.
 
+## Avant une mise à jour : vérifier les données
+
+La nouvelle image du serveur contient un outil qui vérifie, **sans rien modifier**, que chaque projet (et chaque version conservée) sera correctement converti et relu. Il refait la conversion en mémoire, contrôle que le projet se réassemble à l'identique et donne la taille de chaque projet, le nombre d'images et la part du journal des cartes.
+
+```bash
+docker pull ghcr.io/morgulas/cider-ia-api:latest
+docker run --rm --entrypoint node \
+  -v /chemin/vers/le/dossier/de/donnees:/data:ro \
+  ghcr.io/morgulas/cider-ia-api:latest dist/tools/check-data.js /data
+```
+
+Le dossier est monté en lecture seule (`:ro`). La dernière ligne dit si la version peut être déployée ; en cas d'échec, ne pas déployer et garder le rapport.
+
 ## Fonctionnement des projets
 
 - Chaque utilisateur ne voit que ses propres projets ; l'administrateur gère les comptes mais n'a pas accès aux projets des autres.

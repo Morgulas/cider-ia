@@ -7,7 +7,7 @@ import { Deck } from "../types/deck.type";
 import { exportDB, importInto } from "dexie-export-import";
 import { ReplaySubject, Subject } from "rxjs";
 import { Injectable } from "@angular/core";
-import { cardHistory, describeCard, IDENTIFIER_FIELDS, isInternalField } from "./card-history";
+import { cardHistory, describeCard, entriesOverBudget, IDENTIFIER_FIELDS, isInternalField, MAX_AGE_DAYS, SIZE_CHECK_INTERVAL_MS } from "./card-history";
 import { BlobRef, isBlobRef, sha256Hex } from "./project-blobs";
 
 /** User and project a local working copy belongs to */
@@ -241,13 +241,26 @@ export class AppDB extends Dexie {
         // hooks are plain functions (Dexie binds their own "this")
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const db = this;
+        let lastSizeCheck = 0;
         cardHistory.setWriter(async entries => {
             const table = db.table(AppDB.CARD_HISTORY_TABLE);
             await table.bulkAdd(entries);
+            // too old
+            const cutoff = new Date(Date.now() - MAX_AGE_DAYS * 24 * 3600 * 1000).toISOString();
+            await table.where('at').below(cutoff).delete();
+            // too many
             const count = await table.count();
             if (count > cardHistory.maxEntries * 1.1) {
                 const oldest = await table.orderBy('id').limit(count - cardHistory.maxEntries).primaryKeys();
                 await table.bulkDelete(oldest);
+            }
+            // too heavy (checked now and then: it reads the whole journal)
+            if (Date.now() - lastSizeCheck > SIZE_CHECK_INTERVAL_MS || entries.length > 50) {
+                lastSizeCheck = Date.now();
+                const over = entriesOverBudget(await table.orderBy('id').toArray());
+                if (over.length > 0) {
+                    await table.bulkDelete(over);
+                }
             }
         });
         const cards = this.table(AppDB.CARDS_TABLE);

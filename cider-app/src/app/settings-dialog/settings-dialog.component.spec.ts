@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SettingsDialogComponent } from './settings-dialog.component';
@@ -8,7 +9,8 @@ describe('SettingsDialogComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [SettingsDialogComponent]
+      imports: [SettingsDialogComponent],
+    providers: [...appTestProviders]
     })
     .compileComponents();
 

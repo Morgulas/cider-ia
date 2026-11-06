@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { TemplateGeneratorComponent } from './template-generator.component';
@@ -8,7 +9,8 @@ describe('TemplateGeneratorComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [TemplateGeneratorComponent]
+      imports: [TemplateGeneratorComponent],
+    providers: [...appTestProviders]
     })
     .compileComponents();
 

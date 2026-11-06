@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SiteMenuComponent } from './site-menu.component';
@@ -8,7 +9,8 @@ describe('SiteMenuComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-    imports: [SiteMenuComponent]
+    imports: [SiteMenuComponent],
+    providers: [...appTestProviders]
 });
     fixture = TestBed.createComponent(SiteMenuComponent);
     component = fixture.componentInstance;

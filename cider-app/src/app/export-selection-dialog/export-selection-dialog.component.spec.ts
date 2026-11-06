@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ExportSelectionDialogComponent } from './export-selection-dialog.component';
@@ -8,7 +9,8 @@ describe('ExportSelectionDialogComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [ExportSelectionDialogComponent]
+    imports: [ExportSelectionDialogComponent],
+    providers: [...appTestProviders]
 })
     .compileComponents();
   });

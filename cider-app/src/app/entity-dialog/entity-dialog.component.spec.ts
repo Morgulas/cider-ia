@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { EntityDialogComponent } from './entity-dialog.component';
@@ -8,7 +9,8 @@ describe('EntityDialogComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [EntityDialogComponent]
+    imports: [EntityDialogComponent],
+    providers: [...appTestProviders]
 })
       .compileComponents();
   });

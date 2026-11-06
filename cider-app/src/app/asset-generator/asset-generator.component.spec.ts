@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { AssetGeneratorComponent } from './asset-generator.component';
@@ -8,7 +9,8 @@ describe('AssetGeneratorComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AssetGeneratorComponent]
+      imports: [AssetGeneratorComponent],
+    providers: [...appTestProviders]
     })
     .compileComponents();
 

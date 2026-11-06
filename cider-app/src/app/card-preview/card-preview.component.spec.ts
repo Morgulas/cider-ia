@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { CardPreviewComponent } from './card-preview.component';
@@ -8,7 +9,8 @@ describe('CardPreviewComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [CardPreviewComponent]
+    imports: [CardPreviewComponent],
+    providers: [...appTestProviders]
 })
     .compileComponents();
   });

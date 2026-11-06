@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { EntityTableComponent } from './entity-table.component';
@@ -8,7 +9,8 @@ describe('EntityTableComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [EntityTableComponent]
+    imports: [EntityTableComponent],
+    providers: [...appTestProviders]
 })
       .compileComponents();
   });

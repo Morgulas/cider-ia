@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SiteActivitybarComponent } from './site-activitybar.component';
@@ -8,7 +9,8 @@ describe('SiteActivitybarComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [SiteActivitybarComponent]
+      imports: [SiteActivitybarComponent],
+    providers: [...appTestProviders]
     })
     .compileComponents();
 

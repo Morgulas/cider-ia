@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SiteContentComponent } from './site-content.component';
@@ -8,7 +9,8 @@ describe('SiteContentComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [SiteContentComponent]
+    imports: [SiteContentComponent],
+    providers: [...appTestProviders]
 })
     .compileComponents();
   });

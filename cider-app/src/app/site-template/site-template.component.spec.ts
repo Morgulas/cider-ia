@@ -1,3 +1,4 @@
+import { appTestProviders } from '../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SiteTemplateComponent } from './site-template.component';
@@ -8,7 +9,8 @@ describe('SiteTemplateComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [SiteTemplateComponent]
+    imports: [SiteTemplateComponent],
+    providers: [...appTestProviders]
 })
       .compileComponents();
   });

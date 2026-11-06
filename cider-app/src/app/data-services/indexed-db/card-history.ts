@@ -50,7 +50,37 @@ export function isInternalField(field: string): boolean {
   return field === 'id' || field.startsWith('__');
 }
 
-const MAX_ENTRIES = 5000;
+/**
+ * The journal is saved (and versioned) with the project at every save: it is
+ * kept small. Entries older than MAX_AGE_DAYS go, then the oldest ones beyond
+ * MAX_ENTRIES or beyond MAX_BYTES (creations and deletions hold a whole card).
+ */
+const MAX_ENTRIES = 2000;
+export const MAX_AGE_DAYS = 60;
+export const MAX_BYTES = 1.5 * 1024 * 1024;
+/** the size check reads the whole journal: at most once in this delay */
+export const SIZE_CHECK_INTERVAL_MS = 60 * 1000;
+
+/** Approximate stored size of an entry */
+export function entrySize(entry: CardHistoryEntry): number {
+  return JSON.stringify(entry).length;
+}
+
+/**
+ * Ids of the entries to remove so that the newest ones fit in the byte budget
+ * (entries in chronological order).
+ */
+export function entriesOverBudget(entries: CardHistoryEntry[], maxBytes = MAX_BYTES): number[] {
+  let total = 0;
+  const removed: number[] = [];
+  for (let i = entries.length - 1; i >= 0; i--) {
+    total += entrySize(entries[i]);
+    if (total > maxBytes && entries[i].id !== undefined) {
+      removed.push(entries[i].id!);
+    }
+  }
+  return removed;
+}
 
 class CardHistoryRecorder {
   user = '';

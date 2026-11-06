@@ -55,6 +55,14 @@ server {
         try_files $uri =404;
     }
 
+    # Bibliothèques livrées sans hash dans le nom (Monaco ~14 Mo, Mermaid, wasm, profils ICC) :
+    # gardées un jour par le navigateur, puis revalidées (ETag), au lieu d'un cache à durée devinée
+    location ~ ^/assets/(monaco|mermaid|wasm|icc)/ {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "public, max-age=86400";
+        try_files $uri =404;
+    }
+
     # Application monopage : toute route inconnue renvoie vers index.html.
     # Les fichiers de assets/ (Monaco, traductions, wasm) n'ont pas de hash : cache par défaut.
     location / {
