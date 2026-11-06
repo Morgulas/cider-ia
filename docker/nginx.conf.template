@@ -14,6 +14,8 @@ server {
     gzip on;
     gzip_types text/plain text/css application/javascript application/json application/wasm image/svg+xml;
     gzip_min_length 1024;
+    # compresse aussi quand la requête arrive par un reverse proxy (en-tête Via)
+    gzip_proxied any;
 
     # API : relayée vers le service "api" (comptes et projets).
     # Taille des envois : CIDER_MAX_PROJECT_MB (projets avec images), comme côté serveur.

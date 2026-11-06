@@ -136,8 +136,16 @@ export class CurrentProjectService {
           await this.saveLeftoverChanges(pending);
         }
       }
+      const owner = await this.db.getOwner();
+      if (owner?.userId === user.id && owner.projectId === projectId && owner.revision === meta.revision) {
+        // the local copy already holds this revision (page reload): no download needed
+        await this.db.reuseLocalCopy();
+        this.setOpened(meta, user.id, meta.revision);
+        this.saveState.set('saved');
+        return;
+      }
       const { data, revision } = await this.api.loadData(projectId);
-      await this.db.loadProject(data, { userId: user.id, projectId });
+      await this.db.loadProject(data, { userId: user.id, projectId, revision });
       this.setOpened(meta, user.id, revision);
       this.saveState.set('saved');
     } finally {
@@ -359,6 +367,8 @@ export class CurrentProjectService {
         this.saveState.set('pending');
         this.scheduleSave(CurrentProjectService.SAVE_DELAY_MS);
       } else {
+        // the copy now matches the server: a page reload can reuse it
+        await this.db.setOwnerRevision(saved.revision);
         this.clearPendingMarker();
         this.saveState.set('saved');
         this.lastSavedAt.set(new Date());

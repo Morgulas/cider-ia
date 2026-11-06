@@ -13,6 +13,11 @@ import { cardHistory, describeCard, IDENTIFIER_FIELDS, isInternalField } from ".
 export interface ProjectOwner {
     userId: string;
     projectId: string;
+    /**
+     * Server revision the local copy holds, when it has no unsaved changes.
+     * Lets a page reload reuse the copy instead of downloading the project again.
+     */
+    revision?: number;
 }
 
 @Injectable({
@@ -337,7 +342,26 @@ export class AppDB extends Dexie {
             await this.open();
         }
         const record = await this.table(AppDB.META_TABLE).get('owner');
-        return record ? { userId: record.userId, projectId: record.projectId } : undefined;
+        return record ? { userId: record.userId, projectId: record.projectId, revision: record.revision } : undefined;
+    }
+
+    /** Records the server revision the local copy now matches (after a save) */
+    public async setOwnerRevision(revision: number): Promise<void> {
+        await this.table(AppDB.META_TABLE).update('owner', { revision });
+    }
+
+    /**
+     * Opens the local copy as it is (already holds the project): same events as
+     * loadProject, without replacing the data.
+     */
+    public async reuseLocalCopy(): Promise<void> {
+        if (!this.isOpen()) {
+            await this.open();
+        }
+        cardHistory.discard();
+        await this.initializeData();
+        this.changeSubject.next({ tableName: 'all', type: 'reset', key: null });
+        this.loadSubject.next(null);
     }
 
     /** The whole local working copy as a Dexie export, as saved on the server */

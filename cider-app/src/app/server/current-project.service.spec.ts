@@ -22,7 +22,10 @@ describe('CurrentProjectService', () => {
   let changes: Subject<unknown>;
   /** owner recorded in the fake local copy */
   let copyOwner: ProjectOwner | undefined;
-  let db: { onChange: () => Subject<unknown>; loadProject: jasmine.Spy; exportProject: jasmine.Spy; getOwner: jasmine.Spy };
+  let db: {
+    onChange: () => Subject<unknown>; loadProject: jasmine.Spy; exportProject: jasmine.Spy; getOwner: jasmine.Spy;
+    setOwnerRevision: jasmine.Spy; reuseLocalCopy: jasmine.Spy;
+  };
   let api: jasmine.SpyObj<ProjectsApiService>;
   let user: ReturnType<typeof signal<PublicUser | null>>;
   let otherTabOpen: boolean;
@@ -48,6 +51,12 @@ describe('CurrentProjectService', () => {
       }),
       exportProject: jasmine.createSpy('exportProject').and.resolveTo(new Blob(['{}'])),
       getOwner: jasmine.createSpy('getOwner').and.callFake(async () => copyOwner),
+      setOwnerRevision: jasmine.createSpy('setOwnerRevision').and.callFake(async (revision: number) => {
+        if (copyOwner) {
+          copyOwner = { ...copyOwner, revision };
+        }
+      }),
+      reuseLocalCopy: jasmine.createSpy('reuseLocalCopy').and.resolveTo(),
     };
     api = jasmine.createSpyObj<ProjectsApiService>('ProjectsApiService', ['get', 'loadData', 'saveData']);
     api.get.and.callFake(async (id: string) => meta(id, 3));
@@ -92,10 +101,43 @@ describe('CurrentProjectService', () => {
 
   it('loads the server version and records the owner of the local copy', async () => {
     await service.open('p1');
-    expect(db.loadProject).toHaveBeenCalledWith(jasmine.any(Blob), { userId: 'ua', projectId: 'p1' });
+    expect(db.loadProject).toHaveBeenCalledWith(jasmine.any(Blob), { userId: 'ua', projectId: 'p1', revision: 3 });
     expect(service.project()?.name).toBe('Projet p1');
     expect(service.saveState()).toBe('saved');
     expect(localStorage.getItem('cider.last.ua')).toBe('p1');
+  });
+
+  it('reuses the local copy when it already holds the server revision (page reload)', async () => {
+    copyOwner = { userId: 'ua', projectId: 'p1', revision: 3 };
+    await service.open('p1');
+    expect(api.loadData).not.toHaveBeenCalled();
+    expect(db.loadProject).not.toHaveBeenCalled();
+    expect(db.reuseLocalCopy).toHaveBeenCalled();
+    expect(service.project()?.id).toBe('p1');
+    expect(service.saveState()).toBe('saved');
+    // later saves start from that revision
+    await changeAndWaitForSave();
+    expect(api.saveData).toHaveBeenCalledOnceWith('p1', jasmine.any(Blob), 3);
+  });
+
+  it('downloads the project when the local copy holds an older revision', async () => {
+    copyOwner = { userId: 'ua', projectId: 'p1', revision: 2 };
+    await service.open('p1');
+    expect(api.loadData).toHaveBeenCalled();
+    expect(db.reuseLocalCopy).not.toHaveBeenCalled();
+  });
+
+  it('does not reuse a copy of the same project left by another user', async () => {
+    copyOwner = { userId: 'ub', projectId: 'p1', revision: 3 };
+    await service.open('p1');
+    expect(api.loadData).toHaveBeenCalled();
+  });
+
+  it('records the saved revision in the local copy', async () => {
+    await service.open('p1');
+    await changeAndWaitForSave();
+    expect(db.setOwnerRevision).toHaveBeenCalledWith(4);
+    expect(copyOwner?.revision).toBe(4);
   });
 
   it('saves a change after a short delay, from the loaded revision', async () => {
@@ -188,7 +230,7 @@ describe('CurrentProjectService', () => {
     copyOwner = { userId: 'ua', projectId: 'p1' };
     await service.open('p2');
     expect(api.saveData).toHaveBeenCalledOnceWith('p1', jasmine.any(Blob), 3);
-    expect(db.loadProject).toHaveBeenCalledWith(jasmine.any(Blob), { userId: 'ua', projectId: 'p2' });
+    expect(db.loadProject).toHaveBeenCalledWith(jasmine.any(Blob), { userId: 'ua', projectId: 'p2', revision: 3 });
     expect(service.project()?.id).toBe('p2');
   });
 
