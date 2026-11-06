@@ -23,6 +23,7 @@
         flex-direction: column;
         padding: 0;
         height: 100%;
+        min-height: 0;
     }
 
     &.tabbed-card {
@@ -84,4 +85,13 @@
 
 .muted {
     color: var(--p-text-muted-color);
+}
+
+/* The sheet takes the height left under the toolbar (not 100% of the card):
+   otherwise its bottom, with the horizontal scrollbar, falls under the footer */
+:host ::ng-deep app-entity-spreadsheet {
+    display: block;
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
 }
