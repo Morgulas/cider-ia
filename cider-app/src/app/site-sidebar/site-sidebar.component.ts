@@ -73,7 +73,12 @@ export class SiteSidebarComponent implements OnInit {
 
     // Structural changes (create/delete/reset): full tree rebuild
     this.db.onChange().pipe(debounceTime(500)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((change: any) => {
-      if (!change || change.type === 'create' || change.type === 'delete' || change.type === 'reset') {
+      // only what the tree shows: a card edit (and its journal entry, written at
+      // every save) used to rebuild the whole tree
+      const treeTables = [AppDB.DECKS_TABLE, AppDB.CARD_TEMPLATES_TABLE, AppDB.DOCUMENTS_TABLE,
+        AppDB.ASSETS_TABLE, AppDB.ASSET_FOLDERS_TABLE];
+      if (!change || change.type === 'reset'
+        || ((change.type === 'create' || change.type === 'delete') && treeTables.includes(change.tableName))) {
         this.updateFiles();
       }
     });

@@ -295,9 +295,9 @@
         "view-overflow": "Débordements",
         "view-overflow-help": "Teste le modèle sur les cartes aux textes les plus longs et les plus courts",
         "inspect": "Inspecter",
-        "inspect-help": "Clique sur un élément de l'aperçu pour aller à sa ligne HTML",
+        "inspect-help": "Clique sur un élément de l'aperçu pour voir sa ligne HTML et ses règles CSS",
         "inspect-click": "clic pour aller au code",
-        "inspect-hint": "Survole l'aperçu ; dans le HTML, l'élément de la ligne du curseur est encadré en orange.",
+        "inspect-hint": "Survole l'aperçu et clique sur un élément. Dans le code, la ligne du curseur (HTML ou règle CSS) encadre ses éléments en orange.",
         "fit": "Ajuster à la zone d'aperçu",
         "overflow-found": "Texte qui dépasse sur {{count}} carte(s) sur {{total}} : zones encadrées en rouge.",
         "overflow-none": "Aucun texte ne dépasse sur les {{total}} cartes testées.",
@@ -319,7 +319,11 @@
         "settings-ask-chatbot": "Demander au chatbot de les créer",
         "settings-chatbot-request": "Regroupe les couleurs, tailles de texte et espacements principaux dans des variables CSS aux noms explicites en français (par exemple --couleur-titre, --taille-description), déclarées au début de la règle .card, et utilise-les partout dans le CSS. Ne change pas l'apparence de la carte.",
         "save-now": "Enregistrer maintenant",
-        "saved": "Enregistré"
+        "saved": "Enregistré",
+        "popout-active": "L'aperçu est dans la fenêtre séparée. Les boutons ci-dessus la pilotent (carte, vue, inspecteur).",
+        "popout-back": "Ramener l'aperçu ici",
+        "inspect-selected": "Élément cliqué :",
+        "inspect-no-css": "aucune règle CSS ne le cible directement"
     },
     "server": {
         "login": {
@@ -441,7 +445,8 @@
             "leave": "Quitter quand même",
             "close-failed": "Le projet ouvert a des modifications qui n'ont pas pu être enregistrées.",
             "pending-other": "Des modifications du projet « {{name}} » faites dans ce navigateur n'ont pas été enregistrées. Ouvrez d'abord ce projet pour les enregistrer.",
-            "copy-replaced": "Le projet a été fermé : un autre onglet de ce navigateur a ouvert un projet."
+            "copy-replaced": "Le projet a été fermé : un autre onglet de ce navigateur a ouvert un projet.",
+            "stats": "Dernier enregistrement : {{total}} ms au total\n· lecture du projet : {{export}} ms\n· images envoyées : {{files}} ({{fileKb}} Ko) en {{upload}} ms\n· données : {{dataKb}} Ko en {{send}} ms\n· page bloquée : {{blocked}} ms"
         },
         "ai": {
             "dialog-title": "Illustration de la carte",

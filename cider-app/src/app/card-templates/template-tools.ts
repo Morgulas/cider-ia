@@ -280,3 +280,102 @@ export function pickOverflowCards<C extends { id: number }>(cards: C[], fields: 
   add(maxBy(card => -total(card)), { kind: 'shortest' });
   return [...picked.values()];
 }
+
+/*********************************************************************
+ * Inspector: CSS rules of an element
+ *********************************************************************/
+
+export interface CssRule {
+  /** selector as written (a list may hold several: ".a, .b") */
+  selector: string;
+  /** 1-based lines of the selector and of the closing brace */
+  line: number;
+  endLine: number;
+}
+
+/** At-rules whose blocks hold no element selectors */
+const NON_STYLE_AT_RULES = /^@(font-face|keyframes|-webkit-keyframes|page|property|counter-style|import|charset)/i;
+
+/**
+ * The style rules of a CSS text with their lines, rules inside @media or
+ * @supports included. Comments are skipped; {{handlebars}} braces are not
+ * taken for CSS blocks.
+ */
+export function parseCssRules(css: string): CssRule[] {
+  const rules: CssRule[] = [];
+  // comments and {{ }} blanked, same length (line numbers stay right)
+  const text = css
+    .replace(/\/\*[\s\S]*?\*\//g, match => match.replace(/[^\n]/g, ' '))
+    .replace(/\{\{[\s\S]*?\}\}/g, match => match.replace(/[^\n]/g, ' '));
+  const lineAt = (index: number) => text.slice(0, index).split('\n').length;
+  const stack: { rule?: CssRule; skip: boolean }[] = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '{') {
+      const prelude = text.slice(start, i);
+      const selector = prelude.trim();
+      const parentSkips = stack.some(entry => entry.skip || entry.rule);
+      if (selector.startsWith('@')) {
+        stack.push({ skip: NON_STYLE_AT_RULES.test(selector) });
+      } else if (selector && !parentSkips) {
+        const offset = start + prelude.indexOf(selector);
+        // shown as written (a {{handlebars}} part of a selector included)
+        const written = css.slice(offset, offset + selector.length).replace(/\s+/g, ' ');
+        const rule: CssRule = { selector: written, line: lineAt(offset), endLine: lineAt(offset) };
+        rules.push(rule);
+        stack.push({ rule, skip: false });
+      } else {
+        stack.push({ skip: true });
+      }
+      start = i + 1;
+    } else if (char === '}') {
+      const entry = stack.pop();
+      if (entry?.rule) {
+        entry.rule.endLine = lineAt(i);
+      }
+      start = i + 1;
+    } else if (char === ';' && !stack.some(entry => entry.rule)) {
+      // @import ...; at the top level
+      start = i + 1;
+    }
+  }
+  return rules;
+}
+
+/** Splits "a, b:not(.c, .d)" at the top-level commas */
+export function splitSelectorList(selector: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const char of selector) {
+    if (char === '(' || char === '[') {
+      depth++;
+    } else if (char === ')' || char === ']') {
+      depth--;
+    }
+    if (char === ',' && depth === 0) {
+      parts.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  if (current.trim()) {
+    parts.push(current.trim());
+  }
+  return parts;
+}
+
+/**
+ * The selector to test against an element: pseudo-elements (::before) and
+ * state pseudo-classes (:hover...) are removed, so the rule is found even
+ * when the state is not active. Undefined if nothing is left to match.
+ */
+export function matchableSelector(selector: string): string | undefined {
+  const cleaned = selector
+    .replace(/::?(before|after|first-line|first-letter|marker|placeholder|selection|backdrop)\b/gi, '')
+    .replace(/:(hover|active|focus|focus-within|focus-visible|visited|link|target)\b/gi, '')
+    .trim();
+  return cleaned || undefined;
+}

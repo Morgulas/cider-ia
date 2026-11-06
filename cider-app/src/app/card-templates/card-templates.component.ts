@@ -27,6 +27,7 @@ import { Checkbox } from 'primeng/checkbox';
 import { InputNumber } from 'primeng/inputnumber';
 import { DecksComponent } from '../decks/decks.component';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { InputText } from 'primeng/inputtext';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
 import { AssetsService } from '../data-services/services/assets.service';
@@ -37,7 +38,7 @@ import StringUtils from '../shared/utils/string-utils';
 import { checkTemplate, TemplateIssue } from './template-check';
 import { ChatbotAnswer, TemplateVariable } from './template-chatbot';
 import { TemplateChatbotDialogComponent } from './template-chatbot-dialog.component';
-import { annotateLines, CssVariable, findCssVariables, formatColorLike, formatCss, LINE_ATTRIBUTE, OverflowCandidate, pickOverflowCards, sliderRange } from './template-tools';
+import { annotateLines, CssRule, CssVariable, findCssVariables, formatColorLike, formatCss, LINE_ATTRIBUTE, matchableSelector, OverflowCandidate, parseCssRules, pickOverflowCards, sliderRange, splitSelectorList } from './template-tools';
 import { CurrentProjectService } from '../server/current-project.service';
 
 type ViewMode = 'card' | 'pair' | 'overflow';
@@ -160,16 +161,17 @@ const templateHtmlFront =
     templateUrl: './card-templates.component.html',
     styleUrls: ['./card-templates.component.scss'],
     providers: [MessageService, ConfirmationService],
-    imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, DecksComponent, TranslatePipe, InputText, TemplateChatbotDialogComponent]
+    imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, DecksComponent, TranslatePipe, InputText, TemplateChatbotDialogComponent, NgTemplateOutlet]
 })
 export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   @ViewChild('previewSpace') previewSpace!: ElementRef;
   @ViewChild('previewContent') previewContent?: ElementRef<HTMLElement>;
+  @ViewChild('popoutInner') popoutInner?: ElementRef<HTMLElement>;
   @ViewChild('popoutHost') set popoutHost(host: ElementRef<HTMLElement> | undefined) {
     if (host) {
-      // after the preview measured itself in this page, it moves to the window
-      setTimeout(() => this.movePopoutContent(host.nativeElement), 300);
+      // rendered in this page, then moved to the window (it keeps updating there)
+      setTimeout(() => this.movePopoutContent(host.nativeElement));
     }
   }
   static readonly DEFAULT_HTML: string = templateHtmlFront;
@@ -256,6 +258,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   inspectTemplate: CardTemplate = {} as CardTemplate;
   inspecting = false;
   hovered: { label: string; line: number } | null = null;
+  /** element clicked with the inspector: its HTML line and the CSS rules that apply to it */
+  pinned: { label: string; line: number; tag: string; rules: CssRule[] } | null = null;
   private hoveredElement: HTMLElement | null = null;
   overflowCandidates: OverflowCandidate<Card>[] = [];
   overflowResults = new Map<number, number>();
@@ -610,14 +614,16 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
         run: () => this.zone.run(() => this.saveNow()),
       });
     }
-    if (kind === 'html') {
-      // inspector: the element of the line under the cursor is outlined in the preview
-      editor.onDidChangeCursorPosition((event: { position: { lineNumber: number } }) => {
-        if (this.inspecting) {
+    // inspector: the element of the HTML line, or the elements of the CSS rule, under the cursor are outlined
+    editor.onDidChangeCursorPosition((event: { position: { lineNumber: number } }) => {
+      if (this.inspecting) {
+        if (kind === 'html') {
           this.highlightLine(event.position.lineNumber);
+        } else {
+          this.highlightCssRule(event.position.lineNumber);
         }
-      });
-    }
+      }
+    });
     this.updateMarkers();
   }
 
@@ -805,6 +811,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   public setViewMode(mode: ViewMode) {
     this.viewMode = mode;
     this.clearInspectorMarks();
+    setTimeout(() => this.updatePopoutScale(), 600);
     if (mode === 'overflow') {
       this.updateOverflowCandidates();
     }
@@ -874,14 +881,20 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     this.overflowTimers = OVERFLOW_SCAN_DELAYS_MS.map(delay => setTimeout(() => this.scanOverflows(), delay));
   }
 
+  /** Where the previews are: this page, and the separate window when it is open */
+  private previewRoots(): HTMLElement[] {
+    return [this.previewContent?.nativeElement, this.popoutInner?.nativeElement]
+      .filter((root): root is HTMLElement => !!root);
+  }
+
   /** Looks for text that does not fit in the cards shown; outlined in the overflow view */
   private scanOverflows() {
-    const root = this.previewContent?.nativeElement;
-    if (!root) {
+    const roots = this.previewRoots();
+    if (roots.length === 0) {
       return;
     }
     const results = new Map<number, number>();
-    root.querySelectorAll('[data-preview-card]').forEach(item => {
+    roots.flatMap(root => Array.from(root.querySelectorAll('[data-preview-card]'))).forEach(item => {
       const cardElement = item.querySelector('.card-element');
       if (!cardElement) {
         return;
@@ -896,6 +909,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     });
     this.overflowResults = results;
     this.overflowScanned = true;
+    this.updatePopoutScale();
   }
 
   /** Zoom that shows the whole preview (one card, front and back, or the overflow test) */
@@ -925,14 +939,40 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     this.hoveredElement?.classList.remove(HOVER_CLASS);
     this.hoveredElement = null;
     this.hovered = null;
-    this.previewContent?.nativeElement.querySelectorAll('.' + SELECTED_CLASS)
-      .forEach(element => element.classList.remove(SELECTED_CLASS));
+    this.pinned = null;
+    this.clearSelectedMarks();
+  }
+
+  private clearSelectedMarks() {
+    this.previewRoots().forEach(root => root.querySelectorAll('.' + SELECTED_CLASS)
+      .forEach(element => element.classList.remove(SELECTED_CLASS)));
   }
 
   private inspectedElement(event: MouseEvent): HTMLElement | null {
     const target = event.target as HTMLElement | null;
     const element = target?.closest?.(`[${LINE_ATTRIBUTE}]`) as HTMLElement | null;
-    return element && this.previewContent?.nativeElement.contains(element) ? element : null;
+    return element && this.previewRoots().some(root => root.contains(element)) ? element : null;
+  }
+
+  private describeElement(element: HTMLElement): string {
+    const classes = Array.from(element.classList).filter(name => !name.startsWith('cider-')).slice(0, 2);
+    return element.tagName.toLowerCase() + (element.id ? '#' + element.id : '') + classes.map(name => '.' + name).join('');
+  }
+
+  /** The CSS rules of the template that apply to an element (state and pseudo-elements included) */
+  private rulesFor(element: HTMLElement): CssRule[] {
+    return parseCssRules(this.selectedTemplate.css ?? '').filter(rule => splitSelectorList(rule.selector).some(selector => {
+      const matchable = matchableSelector(selector);
+      if (!matchable) {
+        return false;
+      }
+      try {
+        return element.matches(matchable);
+      } catch {
+        // {{handlebars}} in the selector, or a selector the browser does not know
+        return false;
+      }
+    }));
   }
 
   public onInspectMove(event: MouseEvent) {
@@ -950,11 +990,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       return;
     }
     element.classList.add(HOVER_CLASS);
-    const classes = Array.from(element.classList).filter(name => !name.startsWith('cider-')).slice(0, 2);
-    this.hovered = {
-      label: element.tagName.toLowerCase() + (element.id ? '#' + element.id : '') + classes.map(name => '.' + name).join(''),
-      line: Number(element.getAttribute(LINE_ATTRIBUTE)),
-    };
+    this.hovered = { label: this.describeElement(element), line: Number(element.getAttribute(LINE_ATTRIBUTE)) };
   }
 
   public onInspectClick(event: MouseEvent) {
@@ -967,11 +1003,38 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     }
     event.preventDefault();
     event.stopPropagation();
-    this.goToTag(Number(element.getAttribute(LINE_ATTRIBUTE)), element.tagName.toLowerCase());
+    const line = Number(element.getAttribute(LINE_ATTRIBUTE));
+    const tag = element.tagName.toLowerCase();
+    this.pinned = { label: this.describeElement(element), line, tag, rules: this.rulesFor(element) };
+    this.clearSelectedMarks();
+    element.classList.add(SELECTED_CLASS);
+    this.goToTag(line, tag);
+  }
+
+  /** Shows a CSS rule, its selector selected */
+  public goToCssLine(line: number) {
+    if (this.layout === 'tabs') {
+      this.activeTab = 'css';
+    }
+    this.lastFocused = 'css';
+    setTimeout(() => {
+      const editor = this.editors.css;
+      const model = editor?.getModel();
+      if (!model || line < 1 || line > model.getLineCount()) {
+        return;
+      }
+      const text = model.getLineContent(line);
+      const start = text.length - text.trimStart().length + 1;
+      const brace = text.indexOf('{');
+      editor.setSelection({ startLineNumber: line, startColumn: start, endLineNumber: line,
+        endColumn: brace > 0 ? brace + 1 : text.length + 1 });
+      editor.revealLineInCenter(line);
+      editor.focus();
+    });
   }
 
   /** Shows a line of the HTML, the tag selected */
-  private goToTag(line: number, tag: string) {
+  public goToTag(line: number, tag: string) {
     if (this.layout === 'tabs') {
       this.activeTab = 'html';
     }
@@ -992,18 +1055,44 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
 
   /** Outlines in the preview the element written on (or opened before) this line */
   private highlightLine(line: number) {
-    const root = this.previewContent?.nativeElement;
-    if (!root) {
+    const roots = this.previewRoots();
+    if (roots.length === 0) {
       return;
     }
-    root.querySelectorAll('.' + SELECTED_CLASS).forEach(element => element.classList.remove(SELECTED_CLASS));
-    const elements = Array.from(root.querySelectorAll<HTMLElement>(`[${LINE_ATTRIBUTE}]`));
+    this.clearSelectedMarks();
+    const elements = roots.flatMap(root => Array.from(root.querySelectorAll<HTMLElement>(`[${LINE_ATTRIBUTE}]`)));
     const best = elements.reduce((found, element) => {
       const elementLine = Number(element.getAttribute(LINE_ATTRIBUTE));
       return elementLine <= line && elementLine > found ? elementLine : found;
     }, 0);
     elements.filter(element => Number(element.getAttribute(LINE_ATTRIBUTE)) === best)
       .forEach(element => element.classList.add(SELECTED_CLASS));
+  }
+
+  /** Outlines in the preview the elements styled by the CSS rule under the cursor */
+  private highlightCssRule(line: number) {
+    this.clearSelectedMarks();
+    const rule = parseCssRules(this.selectedTemplate.css ?? '').find(candidate => candidate.line <= line && line <= candidate.endLine);
+    if (!rule) {
+      return;
+    }
+    for (const selector of splitSelectorList(rule.selector)) {
+      const matchable = matchableSelector(selector);
+      if (!matchable) {
+        continue;
+      }
+      for (const root of this.previewRoots()) {
+        root.querySelectorAll<HTMLElement>('.card-element *').forEach(element => {
+          try {
+            if (element.matches(matchable)) {
+              element.classList.add(SELECTED_CLASS);
+            }
+          } catch {
+            // selector the browser cannot read
+          }
+        });
+      }
+    }
   }
 
   /*********************************************************************
@@ -1106,6 +1195,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     popup.addEventListener('resize', () => this.zone.run(() => this.updatePopoutScale()));
     popup.addEventListener('pagehide', () => this.zone.run(() => this.closePopout(false)));
     this.popoutOpen = true;
+    this.scheduleOverflowScan();
   }
 
   private movePopoutContent(host: HTMLElement) {
@@ -1117,14 +1207,23 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     this.updatePopoutScale();
   }
 
+  /** Zoom of the separate window: the whole view fits in it */
   private updatePopoutScale() {
-    if (!this.popup || this.popup.closed) {
+    const inner = this.popoutInner?.nativeElement;
+    if (!this.popup || this.popup.closed || !inner) {
       return;
     }
-    const card = this.previewContent?.nativeElement.querySelector('.card-element')?.firstElementChild as HTMLElement | null;
-    const width = card?.offsetWidth || 825;
-    const height = card?.offsetHeight || 1125;
-    this.popoutScale = parseFloat((Math.min(this.popup.innerWidth / width, this.popup.innerHeight / height) * 0.95).toFixed(3));
+    // size on screen divided by the zoom in force: the size of the view itself
+    const rect = inner.getBoundingClientRect();
+    const width = rect.width / this.popoutScale;
+    const height = rect.height / this.popoutScale;
+    if (!width || !height) {
+      return;
+    }
+    const scale = parseFloat((Math.min(this.popup.innerWidth / width, this.popup.innerHeight / height) * 0.95).toFixed(3));
+    if (Math.abs(scale - this.popoutScale) > 0.002) {
+      this.popoutScale = scale;
+    }
   }
 
   public closePopout(closeWindow = true) {
@@ -1134,6 +1233,9 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     if (closeWindow && popup && !popup.closed) {
       popup.close();
     }
+    // the preview comes back in this page
+    setTimeout(() => this.fitZoom(), 300);
+    this.scheduleOverflowScan();
   }
 
   /*********************************************************************

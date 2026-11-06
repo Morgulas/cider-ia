@@ -333,9 +333,9 @@
         "view-overflow": "Overflow",
         "view-overflow-help": "Tests the template on the cards with the longest and shortest texts",
         "inspect": "Inspect",
-        "inspect-help": "Click an element of the preview to go to its HTML line",
+        "inspect-help": "Click an element of the preview to see its HTML line and its CSS rules",
         "inspect-click": "click to go to the code",
-        "inspect-hint": "Hover the preview; in the HTML, the element of the cursor's line is outlined in orange.",
+        "inspect-hint": "Hover the preview and click an element. In the code, the cursor's line (HTML or CSS rule) outlines its elements in orange.",
         "fit": "Fit to the preview area",
         "overflow-found": "Text overflows on {{count}} card(s) out of {{total}}: areas outlined in red.",
         "overflow-none": "No text overflows on the {{total}} cards tested.",
@@ -357,7 +357,11 @@
         "settings-ask-chatbot": "Ask the chatbot to create them",
         "settings-chatbot-request": "Gather the main colors, text sizes and spacings into CSS variables with clear names (e.g. --title-color, --description-size), declared at the start of the .card rule, and use them everywhere in the CSS. Do not change how the card looks.",
         "save-now": "Save now",
-        "saved": "Saved"
+        "saved": "Saved",
+        "popout-active": "The preview is in the separate window. The buttons above drive it (card, view, inspector).",
+        "popout-back": "Bring the preview back here",
+        "inspect-selected": "Clicked element:",
+        "inspect-no-css": "no CSS rule targets it directly"
     },
     "server": {
         "login": {
@@ -479,7 +483,8 @@
             "leave": "Leave anyway",
             "close-failed": "The open project has changes that could not be saved.",
             "pending-other": "Changes to the project \"{{name}}\" made in this browser were not saved. Open that project first to save them.",
-            "copy-replaced": "The project was closed: another tab of this browser opened a project."
+            "copy-replaced": "The project was closed: another tab of this browser opened a project.",
+            "stats": "Last save: {{total}} ms in total\n· reading the project: {{export}} ms\n· images sent: {{files}} ({{fileKb}} KB) in {{upload}} ms\n· data: {{dataKb}} KB in {{send}} ms\n· page blocked: {{blocked}} ms"
         },
         "ai": {
             "dialog-title": "Card illustration",

@@ -44,7 +44,35 @@ const refProject = (marker: string, images: Buffer[]) => JSON.stringify({
   },
 });
 
+/** Assets as the application stores them: an ArrayBuffer "buffer" next to their "type" */
+const bufferProject = (images: Buffer[]) => JSON.stringify({
+  formatName: 'dexie', formatVersion: 1,
+  data: {
+    databaseName: 'cider-db', databaseVersion: 12,
+    tables: [{ name: 'assets', schema: '++id,name,path', rowCount: images.length }],
+    data: [{
+      tableName: 'assets', inbound: true,
+      rows: images.map((image, i) => ({
+        id: i + 1, name: `image-${i}`, path: '', type: 'image/png', buffer: image.toString('base64'),
+        $types: { buffer: 'arraybuffer' },
+      })),
+    }],
+  },
+});
+
 describe('project blobs conversion', () => {
+  it('moves ArrayBuffer assets out and puts them back identically', async () => {
+    const big = Buffer.alloc(8000, 3);
+    const original = Buffer.from(bufferProject([big, image1]));
+    const { data, blobs } = extractBlobs(original);
+    assert.equal(blobs.size, 2);
+    const dump = JSON.parse(data.toString());
+    assert.deepEqual(dump.data.data[0].rows[0].buffer, { $ciderBlob: sha(big), type: 'image/png', size: big.length, encoding: 'arraybuffer' });
+    assert.equal(dump.data.data[0].rows[0].$types, undefined);
+    const restored = await inlineBlobs(data, async hash => blobs.get(hash)!);
+    assert.deepEqual(JSON.parse(restored.toString()), JSON.parse(original.toString()));
+  });
+
   it('moves inline blobs out and puts them back identically', async () => {
     const big = Buffer.alloc(5000, 7);
     const original = Buffer.from(inlineProject('a', [image1, big]));

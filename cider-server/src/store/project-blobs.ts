@@ -5,8 +5,11 @@ import { createHash } from 'node:crypto';
  * kept inside the project data: each one is stored once, under the SHA-256 of
  * its content (see BlobStore), and the project only holds a reference to it:
  *
- *   inline (Dexie export):  "file": { "type": "image/png", "data": "<base64>" }  + "$types": { "file": "blob2" }
- *   reference (stored):     "file": { "$ciderBlob": "<sha256>", "type": "image/png", "size": 1234 }
+ *   inline Blob:          "file": { "type": "image/png", "data": "<base64>" }  + "$types": { "file": "blob2" }
+ *   inline ArrayBuffer:   "buffer": "<base64>"                                + "$types": { "buffer": "arraybuffer" }
+ *   reference (stored):   "file": { "$ciderBlob": "<sha256>", "type": "image/png", "size": 1234 }
+ *                         "buffer": { "$ciderBlob": "<sha256>", "type": "image/png", "size": 1234, "encoding": "arraybuffer" }
+ * (the application stores asset images as an ArrayBuffer "buffer" next to their "type")
  *
  * The project data stays small: opening and saving a project no longer moves
  * every image, and each kept version costs a few kilobytes.
@@ -15,13 +18,16 @@ export interface BlobRef {
   $ciderBlob: string;
   type: string;
   size: number;
+  /** the value was an ArrayBuffer (a Blob otherwise) */
+  encoding?: 'arraybuffer';
 }
 
 export const BLOB_HASH_PATTERN = /^[a-f0-9]{64}$/;
 const BLOB_REF_KEY = '"$ciderBlob"';
 const REF_PATTERN = /"\$ciderBlob"\s*:\s*"([a-f0-9]{64})"/g;
-/** typeson type name of a Blob in dexie-export-import */
+/** typeson type names of a Blob and of an ArrayBuffer in dexie-export-import */
 const INLINE_BLOB_TYPE = 'blob2';
+const INLINE_BUFFER_TYPE = 'arraybuffer';
 
 export function sha256(data: Buffer): string {
   return createHash('sha256').update(data).digest('hex');
@@ -29,7 +35,7 @@ export function sha256(data: Buffer): string {
 
 /** true if the data may hold inline blobs (cheap test, no parsing) */
 export function hasInlineBlobs(data: Buffer): boolean {
-  return data.includes(`"${INLINE_BLOB_TYPE}"`);
+  return data.includes(`"${INLINE_BLOB_TYPE}"`) || data.includes(`"${INLINE_BUFFER_TYPE}"`);
 }
 
 /** Hashes of the blobs referenced by project data (no parsing) */
@@ -102,7 +108,7 @@ export function extractBlobs(data: Buffer): { data: Buffer; blobs: Map<string, B
     }
     const typeMap = types as Record<string, unknown>;
     for (const [keyPath, type] of Object.entries(typeMap)) {
-      if (type !== INLINE_BLOB_TYPE) {
+      if (type !== INLINE_BLOB_TYPE && type !== INLINE_BUFFER_TYPE) {
         continue;
       }
       const parts = pathParts(keyPath);
@@ -110,14 +116,31 @@ export function extractBlobs(data: Buffer): { data: Buffer; blobs: Map<string, B
         // nested blobs stay inline (none in Cider projects): inlineBlobs only restores top-level fields
         continue;
       }
-      const inline = getAt(row, parts) as { type?: unknown; data?: unknown } | undefined;
-      if (!inline || typeof inline.data !== 'string') {
-        continue;
+      let base64: string;
+      let mime: string;
+      if (type === INLINE_BLOB_TYPE) {
+        const inline = getAt(row, parts) as { type?: unknown; data?: unknown } | undefined;
+        if (!inline || typeof inline.data !== 'string') {
+          continue;
+        }
+        base64 = inline.data;
+        mime = typeof inline.type === 'string' ? inline.type : '';
+      } else {
+        // a repeated buffer is written { index: n }: left inline
+        const inline = getAt(row, parts);
+        if (typeof inline !== 'string') {
+          continue;
+        }
+        base64 = inline;
+        mime = typeof row['type'] === 'string' ? row['type'] as string : '';
       }
-      const bytes = Buffer.from(inline.data, 'base64');
+      const bytes = Buffer.from(base64, 'base64');
       const hash = sha256(bytes);
       blobs.set(hash, bytes);
-      const ref: BlobRef = { $ciderBlob: hash, type: typeof inline.type === 'string' ? inline.type : '', size: bytes.length };
+      const ref: BlobRef = { $ciderBlob: hash, type: mime, size: bytes.length };
+      if (type === INLINE_BUFFER_TYPE) {
+        ref.encoding = 'arraybuffer';
+      }
       setAt(row, parts, ref);
       delete typeMap[keyPath];
       changed = true;
@@ -144,11 +167,12 @@ export async function inlineBlobs(data: Buffer, read: (hash: string) => Promise<
         continue;
       }
       const bytes = await read(value.$ciderBlob);
-      row[field] = { type: value.type, data: bytes.toString('base64') };
+      const arrayBuffer = value.encoding === 'arraybuffer';
+      row[field] = arrayBuffer ? bytes.toString('base64') : { type: value.type, data: bytes.toString('base64') };
       const types = (row.$types && typeof row.$types === 'object' && !Array.isArray(row.$types))
         ? row.$types as Record<string, unknown>
         : {};
-      types[field.replace(/~/g, '~0').replace(/\./g, '~1')] = INLINE_BLOB_TYPE;
+      types[field.replace(/~/g, '~0').replace(/\./g, '~1')] = arrayBuffer ? INLINE_BUFFER_TYPE : INLINE_BLOB_TYPE;
       row.$types = types;
     }
   }

@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject } from '@angular/core';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Dialog } from 'primeng/dialog';
 import PackageUtils from '../shared/utils/package-utils';
 import { Bind } from 'primeng/bind';
@@ -19,6 +19,20 @@ export class SiteFooterComponent implements OnInit {
   protected readonly currentProject = inject(CurrentProjectService);
   /** the conflict dialog stays open until the user picks a version */
   protected readonly conflict = computed(() => this.currentProject.saveState() === 'conflict');
+  private readonly translate = inject(TranslateService);
+
+  /** Cost of the last save, on hover of the save status */
+  protected saveStatsText(): string {
+    const stats = this.currentProject.lastSaveStats();
+    if (!stats) {
+      return '';
+    }
+    const kb = (bytes: number) => Math.max(1, Math.round(bytes / 1024));
+    return this.translate.instant('server.save.stats', {
+      total: stats.totalMs, export: stats.exportMs, files: stats.files, fileKb: kb(stats.fileBytes),
+      upload: stats.uploadMs, dataKb: kb(stats.dataBytes), send: stats.sendMs, blocked: stats.blockedMs,
+    });
+  }
   protected resolving = false;
 
   constructor() {

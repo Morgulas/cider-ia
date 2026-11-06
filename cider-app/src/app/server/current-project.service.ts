@@ -20,6 +20,25 @@ import { TabCoordinatorService } from './tab-coordinator.service';
  */
 export type SaveState = 'idle' | 'saved' | 'pending' | 'saving' | 'error' | 'conflict';
 
+/** What the last save cost, shown on the save status (finding what slows the page down) */
+export interface SaveStats {
+  /** reading the local copy and writing the project data */
+  exportMs: number;
+  /** files (images...) the server did not have, and their size */
+  files: number;
+  fileBytes: number;
+  uploadMs: number;
+  /** size of the project data sent */
+  dataBytes: number;
+  sendMs: number;
+  totalMs: number;
+  /** page blocked for more than LONG_TASK_MS during the save */
+  blockedMs: number;
+}
+
+/** A task that blocks the page longer than this is reported in the console */
+const LONG_TASK_MS = 200;
+
 interface PendingMarker {
   projectId: string;
   /** revision the local working copy started from */
@@ -57,6 +76,9 @@ export class CurrentProjectService {
   readonly saveState = signal<SaveState>('idle');
   readonly lastSavedAt = signal<Date | null>(null);
   readonly lastError = signal<string | null>(null);
+  readonly lastSaveStats = signal<SaveStats | null>(null);
+  /** time the page was blocked by long tasks since the save started */
+  private blockedDuringSave = 0;
 
   /** user the open project belongs to */
   private ownerUserId: string | null = null;
@@ -80,6 +102,7 @@ export class CurrentProjectService {
         }
       });
     });
+    this.watchLongTasks();
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', event => {
         if (this.hasUnsavedChanges()) {
@@ -87,6 +110,33 @@ export class CurrentProjectService {
           event.preventDefault();
         }
       });
+    }
+  }
+
+  /**
+   * Reports in the console every moment the page stays blocked (frozen) for
+   * more than LONG_TASK_MS, saying whether a save was running.
+   */
+  private watchLongTasks(): void {
+    if (typeof PerformanceObserver === 'undefined' || !PerformanceObserver.supportedEntryTypes?.includes('longtask')) {
+      return;
+    }
+    try {
+      new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) {
+          if (entry.duration < LONG_TASK_MS) {
+            continue;
+          }
+          const saving = this.saving !== null;
+          if (saving) {
+            this.blockedDuringSave += entry.duration;
+          }
+          console.warn(`[cider] page blocked ${Math.round(entry.duration)} ms${saving ? ' during a save' : ''}`
+            + ` (state: ${this.saveState()})`);
+        }
+      }).observe({ type: 'longtask', buffered: false });
+    } catch {
+      // not supported by this browser
     }
   }
 
@@ -411,10 +461,11 @@ export class CurrentProjectService {
   }
 
   /** Sends those of these files that the server does not have yet */
-  private async uploadBlobs(blobs: Map<string, Blob>, hashes?: string[]): Promise<void> {
-    const missing = hashes ?? await this.api.missingBlobs([...blobs.keys()]);
-    await runLimited(missing.filter(hash => blobs.has(hash)), CurrentProjectService.BLOB_CONCURRENCY,
-      hash => this.api.uploadBlob(hash, blobs.get(hash)!));
+  private async uploadBlobs(blobs: Map<string, Blob | ArrayBuffer>, hashes?: string[]): Promise<{ files: number; bytes: number }> {
+    const missing = (hashes ?? await this.api.missingBlobs([...blobs.keys()])).filter(hash => blobs.has(hash));
+    await runLimited(missing, CurrentProjectService.BLOB_CONCURRENCY, hash => this.api.uploadBlob(hash, blobs.get(hash)!));
+    const size = (data: Blob | ArrayBuffer | undefined) => data instanceof Blob ? data.size : data?.byteLength ?? 0;
+    return { files: missing.length, bytes: missing.reduce((sum, hash) => sum + size(blobs.get(hash)), 0) };
   }
 
   /**
@@ -423,13 +474,18 @@ export class CurrentProjectService {
    */
   private async sendProject(projectId: string, baseRevision: number,
     change?: { label: string; important: boolean }): Promise<ProjectMeta> {
+    const started = performance.now();
+    this.blockedDuringSave = 0;
     const { data, blobs } = await this.db.exportProjectForServer();
-    await this.uploadBlobs(blobs);
+    const exported = performance.now();
+    const uploaded = await this.uploadBlobs(blobs);
+    const uploadEnd = performance.now();
     const send = () => change
       ? this.api.saveData(projectId, data, baseRevision, false, change)
       : this.api.saveData(projectId, data, baseRevision);
+    let saved: ProjectMeta;
     try {
-      return await send();
+      saved = await send();
     } catch (error) {
       // files removed from the server meanwhile: send them, then try once more
       const missing = error instanceof HttpErrorResponse && error.status === 422
@@ -438,8 +494,19 @@ export class CurrentProjectService {
         throw error;
       }
       await this.uploadBlobs(blobs, missing as string[]);
-      return send();
+      saved = await send();
     }
+    const end = performance.now();
+    const stats: SaveStats = {
+      exportMs: Math.round(exported - started), files: uploaded.files, fileBytes: uploaded.bytes,
+      uploadMs: Math.round(uploadEnd - exported), dataBytes: data.size, sendMs: Math.round(end - uploadEnd),
+      totalMs: Math.round(end - started), blockedMs: Math.round(this.blockedDuringSave),
+    };
+    this.lastSaveStats.set(stats);
+    console.info(`[cider] save: ${stats.totalMs} ms (reading ${stats.exportMs} ms, ${stats.files} file(s) `
+      + `${Math.round(stats.fileBytes / 1024)} KB in ${stats.uploadMs} ms, data ${Math.round(stats.dataBytes / 1024)} KB `
+      + `in ${stats.sendMs} ms, page blocked ${stats.blockedMs} ms)`);
+    return saved;
   }
 
   /**

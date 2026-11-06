@@ -1,7 +1,7 @@
 import { registerHandlebarsHelpers } from '../shared/utils/handlebars-helpers';
 import { checkTemplate } from './template-check';
 import { buildTemplatePrompt, ChatbotPromptTexts, parseChatbotAnswer } from './template-chatbot';
-import { annotateLines, findCssVariables, formatColorLike, formatCss, pickOverflowCards } from './template-tools';
+import { annotateLines, findCssVariables, formatColorLike, formatCss, matchableSelector, parseCssRules, pickOverflowCards, splitSelectorList } from './template-tools';
 
 describe('template check', () => {
   beforeAll(() => registerHandlebarsHelpers());
@@ -121,5 +121,34 @@ describe('template tools', () => {
     expect(picked[1].reasons).toContain({ kind: 'longest', field: 'Nom' });
     expect(picked[2].reasons).toContain({ kind: 'longest', field: 'Description' });
     expect(picked[2].reasons).toContain({ kind: 'total' });
+  });
+});
+
+describe('CSS rules for the inspector', () => {
+  it('lists style rules with their lines, inside @media too', () => {
+    const css = [
+      '@import url("https://fonts.googleapis.com/css2?family=Cinzel");',
+      '/* .ignored { } */',
+      '.card {',
+      '  background: url("{{assets.fond}}");',
+      '}',
+      '@media print {',
+      '  .card .title, .card h1 { color: black; }',
+      '}',
+      '@font-face { font-family: X; src: url(x.woff); }',
+      '{{#if card.rare}}.card .title::after { content: "★"; }{{/if}}',
+    ].join('\n');
+    expect(parseCssRules(css).map(rule => [rule.selector, rule.line, rule.endLine])).toEqual([
+      ['.card', 3, 5],
+      ['.card .title, .card h1', 7, 7],
+      ['.card .title::after', 10, 10],
+    ]);
+  });
+
+  it('prepares selectors for matching', () => {
+    expect(splitSelectorList('.a, .b:not(.c, .d)')).toEqual(['.a', '.b:not(.c, .d)']);
+    expect(matchableSelector('.card .title::after')).toBe('.card .title');
+    expect(matchableSelector('a:hover')).toBe('a');
+    expect(matchableSelector('::selection')).toBeUndefined();
   });
 });

@@ -70,7 +70,7 @@ export class ProjectsApiService {
   }
 
   /** Sends a project file, identified by the SHA-256 of its content */
-  async uploadBlob(hash: string, blob: Blob): Promise<void> {
+  async uploadBlob(hash: string, blob: Blob | ArrayBuffer): Promise<void> {
     await firstValueFrom(this.http.put(`/api/blobs/${hash}`, blob,
       { headers: new HttpHeaders({ 'Content-Type': BLOB_CONTENT_TYPE }) }));
   }

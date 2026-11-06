@@ -1,6 +1,6 @@
 <p-toast></p-toast>
 <div class="template-editor">
-  <p-splitter class="template-panel" [panelSizes]="[40, 60]" [minSizes]="[25, 25]"
+  <p-splitter class="template-panel" [class.popout-open]="popoutOpen" [panelSizes]="[40, 60]" [minSizes]="[25, 25]"
     (onResizeStart)="onResizeStart($event)" (onResizeEnd)="onResizeEnd($event)">
     <ng-template pTemplate>
       <div class="left-panel p-col p-flex p-align-items-center p-justify-content-center">
@@ -54,12 +54,27 @@
           }
           @if (inspecting) {
           <div class="inspect-bar">
-            <i class="pi pi-eye"></i>
-            @if (hovered) {
-            <code>{{ hovered.label }}</code> · {{ 'template-editor.issue.line' | translate: { line: hovered.line } }} —
-            {{ 'template-editor.inspect-click' | translate }}
-            } @else {
-            {{ 'template-editor.inspect-hint' | translate }}
+            <div>
+              <i class="pi pi-eye"></i>
+              @if (hovered) {
+              <code>{{ hovered.label }}</code> · {{ 'template-editor.issue.line' | translate: { line: hovered.line } }} —
+              {{ 'template-editor.inspect-click' | translate }}
+              } @else {
+              {{ 'template-editor.inspect-hint' | translate }}
+              }
+            </div>
+            @if (pinned) {
+            <div class="inspect-pinned">
+              <span class="muted">{{ 'template-editor.inspect-selected' | translate }}</span>
+              <button type="button" class="rule-chip html" (click)="goToTag(pinned.line, pinned.tag)">
+                HTML <code>{{ pinned.label }}</code> l. {{ pinned.line }}</button>
+              @for (rule of pinned.rules; track rule.line + rule.selector) {
+              <button type="button" class="rule-chip" (click)="goToCssLine(rule.line)" [title]="rule.selector">
+                CSS <code>{{ rule.selector }}</code> l. {{ rule.line }}</button>
+              } @empty {
+              <span class="muted">{{ 'template-editor.inspect-no-css' | translate }}</span>
+              }
+            </div>
             }
           </div>
           }
@@ -72,7 +87,15 @@
             }
           </div>
           }
-          @if (!disablePanels) {
+          @if (popoutOpen) {
+          <div class="popout-placeholder">
+            <i class="pi pi-external-link"></i>
+            <p>{{ 'template-editor.popout-active' | translate }}</p>
+            <button pButton type="button" class="p-button-outlined p-button-sm" icon="pi pi-arrow-down-left"
+              [label]="'template-editor.popout-back' | translate" (click)="closePopout()"></button>
+          </div>
+          }
+          @if (!disablePanels && !popoutOpen) {
           <div #previewSpace class="preview-space" [class.panning]="isPanning" [class.inspecting]="inspecting"
             (mousedown)="onMouseDown($event, previewSpace)" (mousemove)="onMouseMove($event, previewSpace)"
             (mouseup)="onMouseUp($event)" (mouseleave)="onMouseLeave($event)" (wheel)="onWheel($event)">
@@ -85,64 +108,21 @@
                 </div>
                 <div #previewContent class="preview-content" [class.multi]="viewMode !== 'card'" [style.--cols]="pairColumns()"
                   (mousemove)="onInspectMove($event)" (click)="onInspectClick($event)">
-                  @switch (viewMode) {
-                  @case ('pair') {
-                  @if (pair && selectedCard) {
-                  @for (side of pairSides; track side) {
-                  <figure class="preview-item" [attr.data-preview-card]="selectedCard.id">
-                    <app-card-preview [card]="selectedCard"
-                      [template]="pair[side].id === selectedTemplate.id ? inspectTemplate : pair[side]" [scale]="1.0"
-                      [cache]="false" [version]="templateVersion"></app-card-preview>
-                    <figcaption>{{ 'template-editor.side-' + side | translate }} — {{ pair[side].name }}</figcaption>
-                  </figure>
-                  }
-                  }
-                  }
-                  @case ('overflow') {
-                  @for (candidate of overflowCandidates; track candidate.card.id) {
-                  <figure class="preview-item" [attr.data-preview-card]="candidate.card.id"
-                    [class.bad]="(overflowResults.get(candidate.card.id) ?? 0) > 0">
-                    <app-card-preview [card]="candidate.card" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
-                      [version]="templateVersion"></app-card-preview>
-                    <figcaption>
-                      <b>{{ candidate.card.name }}</b>
-                      <span>{{ reasonsText(candidate) }}</span>
-                      @if (overflowScanned) {
-                      <span class="status">
-                        @if ((overflowResults.get(candidate.card.id) ?? 0) > 0) {
-                        <i class="pi pi-times-circle"></i> {{ 'template-editor.overflow-bad' | translate }}
-                        } @else {
-                        <i class="pi pi-check-circle"></i> {{ 'template-editor.overflow-ok' | translate }}
-                        }
-                      </span>
-                      }
-                    </figcaption>
-                  </figure>
-                  } @empty {
-                  <p class="muted">{{ 'template-editor.overflow-no-cards' | translate }}</p>
-                  }
-                  }
-                  @default {
-                  @if (selectedCard) {
-                  <div class="preview-item" [attr.data-preview-card]="selectedCard.id">
-                    <app-card-preview [card]="selectedCard" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
-                      [tiltable]="previewSettings.tiltEnabled && !inspecting" [showTrimLines]="previewSettings.trimLinesEnabled"
-                      [trimOffsetPx]="getTrimOffsetPx()" [showSafeLines]="previewSettings.safeLinesEnabled"
-                      [safeOffsetPx]="getSafeOffsetPx()" [version]="templateVersion"></app-card-preview>
-                  </div>
-                  }
-                  }
-                  }
+                  <ng-container *ngTemplateOutlet="previewBody"></ng-container>
                 </div>
               </div>
             </div>
           </div>
           }
-          @if (popoutOpen && selectedCard) {
+          @if (popoutOpen) {
           <div #popoutHost class="popout-host">
             <div class="popout-content">
-              <app-card-preview [card]="selectedCard" [template]="previewTemplate" [scale]="popoutScale" [cache]="false"
-                [tiltable]="previewSettings.tiltEnabled" [version]="templateVersion"></app-card-preview>
+              <div class="popout-zoom" [style.zoom]="popoutScale">
+                <div #popoutInner class="preview-content" [class.multi]="viewMode !== 'card'" [class.inspecting]="inspecting"
+                  [style.--cols]="pairColumns()" (mousemove)="onInspectMove($event)" (click)="onInspectClick($event)">
+                  <ng-container *ngTemplateOutlet="previewBody"></ng-container>
+                </div>
+              </div>
             </div>
           </div>
           }
@@ -360,3 +340,53 @@
     <button pButton icon="pi pi-check" (click)="settingsVisible = false" [label]="'controls.done' | translate" class="p-button-text"></button>
   </ng-template>
 </p-dialog>
+<ng-template #previewBody>
+                  @switch (viewMode) {
+                  @case ('pair') {
+                  @if (pair && selectedCard) {
+                  @for (side of pairSides; track side) {
+                  <figure class="preview-item" [attr.data-preview-card]="selectedCard.id">
+                    <app-card-preview [card]="selectedCard"
+                      [template]="pair[side].id === selectedTemplate.id ? inspectTemplate : pair[side]" [scale]="1.0"
+                      [cache]="false" [version]="templateVersion"></app-card-preview>
+                    <figcaption>{{ 'template-editor.side-' + side | translate }} — {{ pair[side].name }}</figcaption>
+                  </figure>
+                  }
+                  }
+                  }
+                  @case ('overflow') {
+                  @for (candidate of overflowCandidates; track candidate.card.id) {
+                  <figure class="preview-item" [attr.data-preview-card]="candidate.card.id"
+                    [class.bad]="(overflowResults.get(candidate.card.id) ?? 0) > 0">
+                    <app-card-preview [card]="candidate.card" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
+                      [version]="templateVersion"></app-card-preview>
+                    <figcaption>
+                      <b>{{ candidate.card.name }}</b>
+                      <span>{{ reasonsText(candidate) }}</span>
+                      @if (overflowScanned) {
+                      <span class="status">
+                        @if ((overflowResults.get(candidate.card.id) ?? 0) > 0) {
+                        <i class="pi pi-times-circle"></i> {{ 'template-editor.overflow-bad' | translate }}
+                        } @else {
+                        <i class="pi pi-check-circle"></i> {{ 'template-editor.overflow-ok' | translate }}
+                        }
+                      </span>
+                      }
+                    </figcaption>
+                  </figure>
+                  } @empty {
+                  <p class="muted">{{ 'template-editor.overflow-no-cards' | translate }}</p>
+                  }
+                  }
+                  @default {
+                  @if (selectedCard) {
+                  <div class="preview-item" [attr.data-preview-card]="selectedCard.id">
+                    <app-card-preview [card]="selectedCard" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
+                      [tiltable]="previewSettings.tiltEnabled && !inspecting" [showTrimLines]="previewSettings.trimLinesEnabled"
+                      [trimOffsetPx]="getTrimOffsetPx()" [showSafeLines]="previewSettings.safeLinesEnabled"
+                      [safeOffsetPx]="getSafeOffsetPx()" [version]="templateVersion"></app-card-preview>
+                  </div>
+                  }
+                  }
+                  }
+</ng-template>

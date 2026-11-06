@@ -42,11 +42,31 @@ describe('project files', () => {
       expect([...blobs.keys()]).toEqual([hash]);
 
       await db.loadProject(null);
-      await db.loadProject(data, undefined, blobs);
+      await db.loadProject(data, undefined, blobs as Map<string, Blob>);
       const asset = await db.table(AppDB.ASSETS_TABLE).get(id);
       expect(asset.file instanceof Blob).toBeTrue();
       expect(asset.file.type).toBe('image/png');
       expect(await asset.file.text()).toBe('png bytes');
+    });
+
+    it('handles assets stored as ArrayBuffer, as AssetsService stores them', async () => {
+      const bytes = new TextEncoder().encode('image bytes').buffer;
+      const id = await db.table(AppDB.ASSETS_TABLE).add({ name: 'fond', path: '', type: 'image/png', buffer: bytes });
+      const { data, blobs } = await db.exportProjectForServer();
+      const json = await data.text();
+      expect(json).not.toContain('"buffer":"');
+      expect(json).toContain('"encoding":"arraybuffer"');
+      const hash = await sha256Hex(bytes);
+      expect(findBlobRefs(json)).toEqual([hash]);
+      // the data itself, sent only if the server lacks it
+      expect(blobs.get(hash) instanceof ArrayBuffer).toBeTrue();
+
+      await db.loadProject(null);
+      await db.loadProject(data, undefined, new Map([[hash, new Blob([bytes])]]));
+      const asset = await db.table(AppDB.ASSETS_TABLE).get(id);
+      expect(asset.buffer instanceof ArrayBuffer).toBeTrue();
+      expect(new TextDecoder().decode(asset.buffer)).toBe('image bytes');
+      expect(asset.type).toBe('image/png');
     });
 
     it('hashes a changed file again', async () => {

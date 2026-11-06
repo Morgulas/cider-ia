@@ -659,3 +659,74 @@ textarea {
         color: var(--p-text-muted-color);
     }
 }
+
+/* Separate window open: the preview panel becomes a narrow remote control */
+:host ::ng-deep .template-panel.popout-open .p-splitter > .p-splitterpanel:first-child {
+    flex: 0 0 340px !important;
+}
+
+:host ::ng-deep .template-panel.popout-open .p-splitter > .p-splitterpanel:last-child {
+    flex: 1 1 auto !important;
+}
+
+.popout-placeholder {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    color: var(--p-text-muted-color);
+
+    .pi {
+        font-size: 2rem;
+    }
+}
+
+.popout-zoom {
+    display: inline-block;
+}
+
+.preview-content.inspecting {
+    cursor: crosshair;
+}
+
+.inspect-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.inspect-pinned {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+
+    .muted {
+        color: var(--p-text-muted-color);
+    }
+}
+
+.rule-chip {
+    max-width: 100%;
+    padding: 2px 8px;
+    border: 1px solid var(--p-content-border-color);
+    border-radius: 12px;
+    background: var(--p-content-background);
+    color: var(--p-text-color);
+    font-size: 0.8rem;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.html {
+        border-color: var(--p-primary-color);
+    }
+
+    &:hover {
+        background: var(--p-content-hover-background);
+    }
+}

@@ -1,15 +1,20 @@
 /**
  * Files of a project (images, fonts...) are saved on the server apart from the
  * project data, once each, under the SHA-256 of their content. In the data sent
- * to the server, each Blob is replaced by a reference (same format as the
- * server, see cider-server/src/store/project-blobs.ts):
+ * to the server, each binary value is replaced by a reference (same format as
+ * the server, see cider-server/src/store/project-blobs.ts):
  *
- *   "file": { "$ciderBlob": "<sha256>", "type": "image/png", "size": 1234 }
+ *   "file":   { "$ciderBlob": "<sha256>", "type": "image/png", "size": 1234 }                          (a Blob)
+ *   "buffer": { "$ciderBlob": "<sha256>", "type": "image/png", "size": 1234, "encoding": "arraybuffer" } (an ArrayBuffer)
+ *
+ * Assets are stored as { buffer: ArrayBuffer, type } by AssetsService.
  */
 export interface BlobRef {
     $ciderBlob: string;
     type: string;
     size: number;
+    /** the value was an ArrayBuffer (a Blob otherwise) */
+    encoding?: 'arraybuffer';
 }
 
 const HASH_PATTERN = /^[a-f0-9]{64}$/;
@@ -29,9 +34,9 @@ export function findBlobRefs(json: string): string[] {
     return [...hashes];
 }
 
-/** SHA-256 of a file, in hexadecimal */
-export async function sha256Hex(blob: Blob): Promise<string> {
-    const bytes = new Uint8Array(await blob.arrayBuffer());
+/** SHA-256 of a file or of binary data, in hexadecimal */
+export async function sha256Hex(data: Blob | ArrayBuffer): Promise<string> {
+    const bytes = new Uint8Array(data instanceof Blob ? await data.arrayBuffer() : data);
     // crypto.subtle only exists in secure contexts (https, localhost): the site
     // may be opened over plain http on a home network
     const subtle = typeof crypto !== 'undefined' ? crypto.subtle : undefined;

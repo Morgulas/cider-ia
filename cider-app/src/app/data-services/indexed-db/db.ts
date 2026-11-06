@@ -330,6 +330,11 @@ export class AppDB extends Dexie {
             await this.transaction('rw', this.tables, async () => {
                 await Promise.all(this.tables.map(table => table.clear()));
             });
+            // files stored as ArrayBuffer (assets): read once before the import (transforms are synchronous)
+            const buffers = new Map<string, ArrayBuffer>();
+            for (const [hash, blob] of blobs ?? []) {
+                buffers.set(hash, await blob.arrayBuffer());
+            }
             if (data) {
                 await importInto(this, data, {
                     clearTablesBeforeImport: true,
@@ -337,11 +342,12 @@ export class AppDB extends Dexie {
                     overwriteValues: true,
                     skipTables: [AppDB.META_TABLE],
                     // files saved apart on the server: references replaced by the downloaded files
-                    transform: (table, value, key) => ({ value: this.resolveBlobRefs(table, value, blobs), key }),
+                    transform: (table, value, key) => ({ value: this.resolveBlobRefs(table, value, blobs, buffers), key }),
                 });
             }
             if (owner) {
-                await this.table(AppDB.META_TABLE).put({ key: 'owner', ...owner });
+                // the file references read during the import describe this copy exactly
+                await this.table(AppDB.META_TABLE).put({ key: 'owner', ...owner, assetRefs: Array.from(this.assetRefs.entries()) });
             }
         } finally {
             this.isPopulating = false;
@@ -360,9 +366,9 @@ export class AppDB extends Dexie {
         return record ? { userId: record.userId, projectId: record.projectId, revision: record.revision } : undefined;
     }
 
-    /** Replaces the file references of a row by the files themselves */
+    /** Replaces the file references of a row by the files themselves (Blob or ArrayBuffer) */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private resolveBlobRefs(table: string, value: any, blobs?: Map<string, Blob>): any {
+    private resolveBlobRefs(table: string, value: any, blobs?: Map<string, Blob>, buffers?: Map<string, ArrayBuffer>): any {
         if (!value || typeof value !== 'object') {
             return value;
         }
@@ -371,12 +377,19 @@ export class AppDB extends Dexie {
             if (!isBlobRef(fieldValue)) {
                 continue;
             }
-            const blob = blobs?.get(fieldValue.$ciderBlob);
-            if (!blob) {
-                throw new Error(`missing project file ${fieldValue.$ciderBlob}`);
+            const hash = fieldValue.$ciderBlob;
+            let resolved: Blob | ArrayBuffer | undefined;
+            if (fieldValue.encoding === 'arraybuffer') {
+                resolved = buffers?.get(hash);
+            } else {
+                const blob = blobs?.get(hash);
+                resolved = blob && blob.type !== fieldValue.type ? blob.slice(0, blob.size, fieldValue.type) : blob;
             }
-            row = { ...row, [field]: blob.type === fieldValue.type ? blob : blob.slice(0, blob.size, fieldValue.type) };
-            if (table === AppDB.ASSETS_TABLE && field === 'file' && typeof value.id === 'number') {
+            if (!resolved) {
+                throw new Error(`missing project file ${hash}`);
+            }
+            row = { ...row, [field]: resolved };
+            if (table === AppDB.ASSETS_TABLE && typeof value.id === 'number') {
                 this.assetRefs.set(value.id, fieldValue);
             }
         }
@@ -388,35 +401,41 @@ export class AppDB extends Dexie {
      * are replaced by references, and returned apart (by hash) to be sent only
      * if the server does not have them yet.
      */
-    public async exportProjectForServer(): Promise<{ data: Blob; blobs: Map<string, Blob> }> {
+    public async exportProjectForServer(): Promise<{ data: Blob; blobs: Map<string, Blob | ArrayBuffer> }> {
         if (!this.isOpen()) {
             await this.open();
         }
         for (let attempt = 0; ; attempt++) {
             const changesBefore = this.assetChanges;
-            const refs = new Map<number, BlobRef>();
-            const blobs = new Map<string, Blob>();
+            /** asset id → field holding the binary data and its reference */
+            const refs = new Map<number, { field: 'file' | 'buffer'; ref: BlobRef }>();
+            // the data itself, not a copy: only the files the server lacks are sent
+            const blobs = new Map<string, Blob | ArrayBuffer>();
             for (const asset of await this.table(AppDB.ASSETS_TABLE).toArray()) {
-                const file = asset.file;
-                if (!(file instanceof Blob) || typeof asset.id !== 'number') {
+                const binary = AppDB.assetBinary(asset);
+                if (!binary || typeof asset.id !== 'number') {
                     continue;
                 }
                 let ref = this.assetRefs.get(asset.id);
-                if (!ref || ref.size !== file.size || ref.type !== file.type) {
-                    ref = { $ciderBlob: await sha256Hex(file), type: file.type, size: file.size };
+                if (!ref || !AppDB.refMatches(ref, binary)) {
+                    ref = { $ciderBlob: await sha256Hex(binary.data), type: binary.type, size: binary.size };
+                    if (binary.field === 'buffer') {
+                        ref.encoding = 'arraybuffer';
+                    }
                     this.assetRefs.set(asset.id, ref);
                 }
-                refs.set(asset.id, ref);
-                blobs.set(ref.$ciderBlob, file);
+                refs.set(asset.id, { field: binary.field, ref });
+                blobs.set(ref.$ciderBlob, binary.data);
             }
             const data = await exportDB(this, {
                 prettyJson: false,
                 skipTables: [AppDB.META_TABLE],
                 transform: (table, value, key) => {
-                    const ref = table === AppDB.ASSETS_TABLE ? refs.get(value?.id) : undefined;
-                    // a file not hashed above (added meanwhile) stays inline: the server takes it out
-                    if (ref && value.file instanceof Blob && value.file.size === ref.size && value.file.type === ref.type) {
-                        return { value: { ...value, file: ref }, key };
+                    const entry = table === AppDB.ASSETS_TABLE ? refs.get(value?.id) : undefined;
+                    const binary = entry ? AppDB.assetBinary(value) : undefined;
+                    // data not hashed above (added meanwhile) stays inline: the server takes it out
+                    if (entry && binary && binary.field === entry.field && AppDB.refMatches(entry.ref, binary)) {
+                        return { value: { ...value, [entry.field]: entry.ref }, key };
                     }
                     return { value, key };
                 },
@@ -432,9 +451,29 @@ export class AppDB extends Dexie {
         }
     }
 
-    /** Records the server revision the local copy now matches (after a save) */
+    /** The binary data of an asset: an ArrayBuffer in "buffer" (with "type"), or a Blob in "file" */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private static assetBinary(asset: any): { field: 'file' | 'buffer'; data: Blob | ArrayBuffer; size: number; type: string } | undefined {
+        if (asset?.buffer instanceof ArrayBuffer) {
+            return { field: 'buffer', data: asset.buffer, size: asset.buffer.byteLength, type: typeof asset.type === 'string' ? asset.type : '' };
+        }
+        if (asset?.file instanceof Blob) {
+            return { field: 'file', data: asset.file, size: asset.file.size, type: asset.file.type };
+        }
+        return undefined;
+    }
+
+    private static refMatches(ref: BlobRef, binary: { field: 'file' | 'buffer'; size: number; type: string }): boolean {
+        return ref.size === binary.size && ref.type === binary.type && (ref.encoding === 'arraybuffer') === (binary.field === 'buffer');
+    }
+
+    /**
+     * Records the server revision the local copy now matches (after a save),
+     * with the file references known now: a page reload that reuses the copy
+     * then does not hash every image again before its first save.
+     */
     public async setOwnerRevision(revision: number): Promise<void> {
-        await this.table(AppDB.META_TABLE).update('owner', { revision });
+        await this.table(AppDB.META_TABLE).update('owner', { revision, assetRefs: Array.from(this.assetRefs.entries()) });
     }
 
     /**
@@ -447,6 +486,15 @@ export class AppDB extends Dexie {
         }
         cardHistory.discard();
         this.assetRefs.clear();
+        // only called when the copy matches the recorded revision: its references are still right
+        const owner = await this.table(AppDB.META_TABLE).get('owner');
+        if (Array.isArray(owner?.assetRefs)) {
+            for (const [id, ref] of owner.assetRefs) {
+                if (typeof id === 'number' && isBlobRef(ref)) {
+                    this.assetRefs.set(id, ref);
+                }
+            }
+        }
         await this.initializeData();
         this.changeSubject.next({ tableName: 'all', type: 'reset', key: null });
         this.loadSubject.next(null);

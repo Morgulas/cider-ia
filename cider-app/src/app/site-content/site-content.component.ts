@@ -5,7 +5,7 @@ import { Document } from '../data-services/types/document.type';
 import { AssetsService } from '../data-services/services/assets.service';
 import { HandlebarsPipe } from '../shared/pipes/handlebars.pipe';
 import { AppDB } from '../data-services/indexed-db/db';
-import { debounceTime } from 'rxjs';
+import { debounceTime, filter } from 'rxjs';
 
 @Component({
     selector: 'app-site-content',
@@ -30,7 +30,12 @@ export class SiteContentComponent implements OnInit {
   ngOnInit(): void {
     // make sure to listen for global styles document updates
     // db on change event may be too frequent, consider optimizing
-    this.db.onChange().pipe(debounceTime(2000)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+    // only a change of the documents can change the global styles
+    this.db.onChange().pipe(
+      filter((change: { tableName?: string } | undefined) => !change || change.tableName === AppDB.DOCUMENTS_TABLE || change.tableName === 'all'),
+      debounceTime(2000),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
       this.refreshGlobalStyles();
     });
   }

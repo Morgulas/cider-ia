@@ -1,6 +1,7 @@
 <div class="footer">
     <span>CIDEr IA {{appVersion}} · modified fork of Oatear Cider (AGPL-3.0)</span>
-    <span class="fill save-state" [class]="'save-state state-' + currentProject.saveState()" aria-live="polite">
+    <span class="fill save-state" [class]="'save-state state-' + currentProject.saveState()" aria-live="polite"
+        [title]="saveStatsText()">
         @switch (currentProject.saveState()) {
             @case ('saved') {
                 <i class="pi pi-cloud"></i>
