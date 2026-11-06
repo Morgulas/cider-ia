@@ -56,6 +56,10 @@
       (onClick)="next()" [ariaLabel]="'binder.next' | translate" [pTooltip]="'binder.next' | translate" />
     <p-button icon="pi pi-angle-double-right" [text]="true" [rounded]="true" [disabled]="!canNext"
       (onClick)="last()" [ariaLabel]="'binder.last' | translate" [pTooltip]="'binder.last' | translate" />
+    <p-button class="fullscreen-toggle" [icon]="fullscreen ? 'pi pi-window-minimize' : 'pi pi-window-maximize'"
+      [text]="true" [rounded]="true" (onClick)="toggleFullscreen()"
+      [ariaLabel]="(fullscreen ? 'binder.exit-fullscreen' : 'binder.fullscreen') | translate"
+      [pTooltip]="(fullscreen ? 'binder.exit-fullscreen' : 'binder.fullscreen') | translate" />
   </div>
 </div>
 
@@ -97,7 +101,7 @@
             [template]="zoomTemplateId('front') | entity: templatesService | async" />
         </div>
         <div class="zoom-face zoom-back">
-          @if (zoomBack) {
+          @if (zoomBack || zoomBackShown) {
           <app-card-fit [card]="item.card" [maxScale]="4"
             [template]="zoomTemplateId('back') | entity: templatesService | async" />
           }
@@ -111,7 +115,7 @@
       <p-button icon="pi pi-sync" [rounded]="true" severity="secondary" (onClick)="turnZoomed()"
         [ariaLabel]="'binder.turn-over' | translate" [pTooltip]="'binder.turn-over' | translate" />
       @if (aiEnabled) {
-      <p-button icon="pi pi-sparkles" [rounded]="true" severity="secondary" (onClick)="illustrate.emit(item.card)"
+      <p-button icon="pi pi-sparkles" [rounded]="true" severity="secondary" (onClick)="illustrateZoomed(item.card)"
         [ariaLabel]="('server.ai.dialog-title' | translate) + ' : ' + item.card.name" [pTooltip]="'server.ai.dialog-title' | translate" />
       }
       <p-button icon="pi pi-chevron-right" [rounded]="true" severity="secondary" [disabled]="zoomIndex >= items.length - 1"

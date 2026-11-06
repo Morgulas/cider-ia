@@ -21,6 +21,17 @@ $folio: 26px;
   --binder-ink: rgba(255, 255, 255, 0.45);
 }
 
+:host:fullscreen {
+  // le classeur seul, sur tout l'écran
+  height: 100vh;
+  padding: 16px 16px 8px;
+  background: radial-gradient(ellipse at center, #2b2b2e 0%, #121214 100%);
+  color: #eee;
+  --p-text-color: #eee;
+  --p-button-text-secondary-color: #eee;
+  --p-button-text-primary-color: #eee;
+}
+
 .binder-wrap {
   display: flex;
   flex-direction: column;
@@ -399,6 +410,9 @@ $folio: 26px;
 .zoom-face {
   position: absolute;
   inset: 0;
+  // chaque face dans son propre plan 3D : sans cela, Chrome fait clignoter
+  // le contenu redimensionné de la carte pendant le retournement
+  transform: rotateY(0deg);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }

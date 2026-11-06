@@ -774,6 +774,8 @@
         "previous-card": "Previous card",
         "next-card": "Next card",
         "turn-over": "Turn card over",
-        "close": "Close"
+        "close": "Close",
+        "fullscreen": "Full screen (F)",
+        "exit-fullscreen": "Exit full screen (Esc)"
     }
 }

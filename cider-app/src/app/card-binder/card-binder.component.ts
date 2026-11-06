@@ -68,6 +68,10 @@ export class CardBinderComponent implements OnChanges, AfterViewInit, OnDestroy 
 
   zoomIndex = -1;
   zoomBack = false;
+  /** Le verso de la carte agrandie reste affiché une fois montré : le retirer pendant
+   *  qu'elle se retourne vers le recto faisait clignoter la carte. */
+  zoomBackShown = false;
+  fullscreen = false;
   zoomW = 0;
   zoomH = 0;
 
@@ -343,13 +347,10 @@ export class CardBinderComponent implements OnChanges, AfterViewInit, OnDestroy 
     this.zoomOrigin = pocket.getBoundingClientRect();
     this.zoomIndex = this.indexOf(item);
     this.zoomBack = false;
+    this.zoomBackShown = false;
     this.sizeZoom();
     this.cdr.detectChanges();
-    // la couche d'agrandissement va dans <body> : aucun parent transformé ne la décale
-    const layer = this.zoomLayer?.nativeElement;
-    if (layer && layer.parentElement !== document.body) {
-      document.body.appendChild(layer);
-    }
+    this.placeZoomLayer();
     this.animateZoom(true);
   }
 
@@ -387,6 +388,7 @@ export class CardBinderComponent implements OnChanges, AfterViewInit, OnDestroy 
     if (this.zoomIndex > 0) {
       this.zoomIndex--;
       this.zoomBack = false;
+      this.zoomBackShown = false;
     }
   }
 
@@ -394,11 +396,48 @@ export class CardBinderComponent implements OnChanges, AfterViewInit, OnDestroy 
     if (this.zoomIndex < this.items.length - 1) {
       this.zoomIndex++;
       this.zoomBack = false;
+      this.zoomBackShown = false;
     }
   }
 
   turnZoomed(): void {
     this.zoomBack = !this.zoomBack;
+    this.zoomBackShown = true;
+  }
+
+  /** Illustration IA : la fenêtre s'ouvre hors du classeur, donc hors du plein écran */
+  illustrateZoomed(card: Card): void {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => undefined);
+    }
+    this.illustrate.emit(card);
+  }
+
+  toggleFullscreen(): void {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => undefined);
+    } else {
+      this.host.nativeElement.requestFullscreen?.().catch(() => undefined);
+    }
+  }
+
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange(): void {
+    this.fullscreen = document.fullscreenElement === this.host.nativeElement;
+    this.placeZoomLayer();
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * La couche d'agrandissement va dans <body> (aucun parent transformé ne la décale),
+   * ou dans l'élément en plein écran : hors de lui, rien n'est affiché.
+   */
+  private placeZoomLayer(): void {
+    const layer = this.zoomLayer?.nativeElement;
+    const parent = document.fullscreenElement ?? document.body;
+    if (layer && layer.parentElement !== parent) {
+      parent.appendChild(layer);
+    }
   }
 
   private sizeZoom(): void {
@@ -453,7 +492,8 @@ export class CardBinderComponent implements OnChanges, AfterViewInit, OnDestroy 
     if (document.querySelector('.p-dialog-mask')) {
       return;
     }
-    if (!this.host.nativeElement.offsetParent && this.zoomIndex < 0) {
+    // offsetParent est nul pour un classeur caché, mais aussi pour un classeur en plein écran
+    if (!this.host.nativeElement.offsetParent && !this.fullscreen && this.zoomIndex < 0) {
       return;
     }
     if (this.zoomIndex >= 0) {
@@ -470,6 +510,7 @@ export class CardBinderComponent implements OnChanges, AfterViewInit, OnDestroy 
         case 'ArrowRight': case 'PageDown': this.next(); break;
         case 'Home': this.first(); break;
         case 'End': this.last(); break;
+        case 'f': case 'F': this.toggleFullscreen(); break;
         default: return;
       }
     }

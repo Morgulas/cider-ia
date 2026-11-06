@@ -777,6 +777,8 @@
         "previous-card": "Carte précédente",
         "next-card": "Carte suivante",
         "turn-over": "Retourner la carte",
-        "close": "Fermer"
+        "close": "Fermer",
+        "fullscreen": "Plein écran (F)",
+        "exit-fullscreen": "Quitter le plein écran (Échap)"
     }
 }
