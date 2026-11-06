@@ -66,3 +66,18 @@ html {
         background: rgba(0, 0, 0, 0);
     }
 }
+/* Template editor marks, put on elements inside the rendered card (outlines do not change the layout) */
+.cider-overflow {
+    outline: 8px dashed #ef4444 !important;
+    outline-offset: -4px !important;
+}
+
+.cider-inspect-hover {
+    outline: 6px solid #3b82f6 !important;
+    outline-offset: -3px !important;
+}
+
+.cider-inspect-selected {
+    outline: 6px solid #f59e0b !important;
+    outline-offset: -3px !important;
+}

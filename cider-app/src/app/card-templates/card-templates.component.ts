@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ViewChild, ElementRef, AfterViewInit, OnDestroy, DestroyRef, inject } from '@angular/core';
+import { Component, OnInit, HostListener, ViewChild, ElementRef, AfterViewInit, OnDestroy, DestroyRef, NgZone, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ConfirmationService, MessageService, PrimeTemplate } from 'primeng/api';
@@ -37,6 +37,40 @@ import StringUtils from '../shared/utils/string-utils';
 import { checkTemplate, TemplateIssue } from './template-check';
 import { ChatbotAnswer, TemplateVariable } from './template-chatbot';
 import { TemplateChatbotDialogComponent } from './template-chatbot-dialog.component';
+import { annotateLines, CssVariable, findCssVariables, formatColorLike, formatCss, LINE_ATTRIBUTE, OverflowCandidate, pickOverflowCards, sliderRange } from './template-tools';
+import { CurrentProjectService } from '../server/current-project.service';
+
+type ViewMode = 'card' | 'pair' | 'overflow';
+type Side = 'front' | 'back';
+/** classes put on preview elements (global styles: they live inside the card's HTML) */
+const OVERFLOW_CLASS = 'cider-overflow';
+const HOVER_CLASS = 'cider-inspect-hover';
+const SELECTED_CLASS = 'cider-inspect-selected';
+/** the layout of a card changes as its images and fonts load: checked a few times */
+const OVERFLOW_SCAN_DELAYS_MS = [400, 1500, 3500];
+
+/** Elements of a rendered card whose text does not fit: innermost ones only */
+function findOverflowing(root: Element): HTMLElement[] {
+  const view = root.ownerDocument.defaultView ?? window;
+  const flagged: HTMLElement[] = [];
+  root.querySelectorAll('*').forEach(node => {
+    const element = node as HTMLElement;
+    if (['STYLE', 'SCRIPT', 'IMG', 'svg', 'BR'].includes(element.tagName) || element.closest('svg')) {
+      return;
+    }
+    if (element.clientHeight === 0 || element.clientWidth === 0 || !element.textContent?.trim()) {
+      return;
+    }
+    const style = view.getComputedStyle(element);
+    if (['auto', 'scroll'].includes(style.overflowY) || ['auto', 'scroll'].includes(style.overflowX)) {
+      return;
+    }
+    if (element.scrollHeight - element.clientHeight > 2 || element.scrollWidth - element.clientWidth > 2) {
+      flagged.push(element);
+    }
+  });
+  return flagged.filter(element => !flagged.some(other => other !== element && element.contains(other)));
+}
 
 type EditorKind = 'html' | 'css';
 type EditorLayout = 'tabs' | 'split';
@@ -131,6 +165,13 @@ const templateHtmlFront =
 export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   @ViewChild('previewSpace') previewSpace!: ElementRef;
+  @ViewChild('previewContent') previewContent?: ElementRef<HTMLElement>;
+  @ViewChild('popoutHost') set popoutHost(host: ElementRef<HTMLElement> | undefined) {
+    if (host) {
+      // after the preview measured itself in this page, it moves to the window
+      setTimeout(() => this.movePopoutContent(host.nativeElement), 300);
+    }
+  }
   static readonly DEFAULT_HTML: string = templateHtmlFront;
   static readonly DEFAULT_CSS: string = templateCssFront;
   // have to be non-static
@@ -204,6 +245,30 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   private readonly assetsService = inject(AssetsService);
   private readonly decksService = inject(DecksService);
   private readonly translate = inject(TranslateService);
+  private readonly zone = inject(NgZone);
+  private readonly currentProject = inject(CurrentProjectService);
+
+  viewMode: ViewMode = 'card';
+  /** front and back templates of the preview card, when this template is one of them */
+  pair: Record<Side, CardTemplate> | null = null;
+  readonly pairSides: Side[] = ['front', 'back'];
+  /** previewTemplate with the source line of each tag (inspector) */
+  inspectTemplate: CardTemplate = {} as CardTemplate;
+  inspecting = false;
+  hovered: { label: string; line: number } | null = null;
+  private hoveredElement: HTMLElement | null = null;
+  overflowCandidates: OverflowCandidate<Card>[] = [];
+  overflowResults = new Map<number, number>();
+  overflowScanned = false;
+  private overflowTimers: ReturnType<typeof setTimeout>[] = [];
+  sideTab: 'insert' | 'settings' = 'insert';
+  cssVariables: CssVariable[] = [];
+  chatbotRequest = '';
+  popoutOpen = false;
+  popoutScale = 0.5;
+  private popup: Window | null = null;
+  private colorContext: CanvasRenderingContext2D | null = null;
+  private static cssFormatterRegistered = false;
 
 
   constructor(private domSanitizer: DomSanitizer, 
@@ -220,8 +285,11 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
           this.service.get(templateId).then((template) => {
             this.selectedTemplate = template;
             this.previewTemplate = { ...template };
+            this.inspectTemplate = { ...template, html: annotateLines(template.html) };
             this.restorePreviewCard();
             this.runCheck();
+            this.updatePair();
+            this.updateOverflowCandidates();
           }).catch(error => {
             console.error(`Error fetching template with ID ${templateId}:`, error);
           });
@@ -259,6 +327,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       this.restorePreviewCard();
       this.updateVariables();
       this.runCheck();
+      this.updatePair();
+      this.updateOverflowCandidates();
     });
     this.templateChanges.asObservable().pipe(debounceTime(1000))
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.save(this.selectedTemplate));
@@ -269,6 +339,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     this.cardAttributesService.getAll().then(attributes => {
       this.attributes = attributes;
       this.updateVariables();
+      this.updateOverflowCandidates();
     });
     this.loadAssets();
     this.assetsService.onChange().pipe(debounceTime(500), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadAssets());
@@ -300,7 +371,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngAfterViewInit(): void {
-    setTimeout(() => this.centerPreview(), 500);
+    setTimeout(() => this.fitZoom(), 700);
 
     if (this.previewSpace) {
       this.resizeObserver = new ResizeObserver(() => {
@@ -317,6 +388,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       this.resizeObserver.disconnect();
     }
     MonacoLanguages.completionContext = { variables: [], assets: [], helperDocs: {} };
+    this.overflowTimers.forEach(timer => clearTimeout(timer));
+    this.closePopout();
   }
 
   @HostListener('window:resize', ['$event'])
@@ -345,6 +418,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
 
   public onMouseDown(event: MouseEvent, container: HTMLElement) {
     if (event.button !== 0 && event.button !== 1) return;
+    // the inspector uses the left button: middle button still pans
+    if (this.inspecting && event.button === 0) return;
     event.preventDefault();
     this.isPanning = true;
     this.panStartX = event.clientX;
@@ -419,6 +494,9 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     }
     this.updateVariables();
     this.runCheck();
+    this.updatePair();
+    this.updateOverflowCandidates();
+    this.scheduleOverflowScan();
   }
 
   /** The card last shown with this template */
@@ -426,8 +504,11 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     if (!this.selectedTemplate?.id || this.cards.length === 0) {
       return;
     }
-    const saved = Number(localStorage.getItem(PREVIEW_CARD_KEY + this.selectedTemplate.id));
-    const card = this.cards.find(candidate => candidate.id === saved);
+    const templateId = this.selectedTemplate.id;
+    const saved = Number(localStorage.getItem(PREVIEW_CARD_KEY + templateId));
+    // the card last shown with this template, otherwise the first card that uses it
+    const card = this.cards.find(candidate => candidate.id === saved)
+      ?? this.cards.find(candidate => candidate.frontCardTemplateId === templateId || candidate.backCardTemplateId === templateId);
     if (card) {
       this.selectedCard = card;
     }
@@ -451,10 +532,13 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       css: checkTemplate(this.selectedTemplate.css, card, this.assetUrls),
     };
     this.updateMarkers();
+    this.cssVariables = findCssVariables(this.selectedTemplate.css ?? '');
     if (!this.hasIssue() && (this.previewTemplate.html !== this.selectedTemplate.html
       || this.previewTemplate.css !== this.selectedTemplate.css || this.previewTemplate.id !== this.selectedTemplate.id)) {
       this.previewTemplate = { ...this.selectedTemplate };
+      this.inspectTemplate = { ...this.selectedTemplate, html: annotateLines(this.selectedTemplate.html) };
       this.templateVersion++;
+      this.scheduleOverflowScan();
     }
   }
 
@@ -515,7 +599,63 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   public onEditorInit(kind: EditorKind, editor: any) {
     this.editors[kind] = editor;
     editor.onDidFocusEditorText(() => this.lastFocused = kind);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const monaco = (window as any).monaco;
+    if (monaco) {
+      CardTemplatesComponent.registerCssFormatter(monaco);
+      editor.addAction({
+        id: 'cider.save-now',
+        label: this.translate.instant('template-editor.save-now'),
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+        run: () => this.zone.run(() => this.saveNow()),
+      });
+    }
+    if (kind === 'html') {
+      // inspector: the element of the line under the cursor is outlined in the preview
+      editor.onDidChangeCursorPosition((event: { position: { lineNumber: number } }) => {
+        if (this.inspecting) {
+          this.highlightLine(event.position.lineNumber);
+        }
+      });
+    }
     this.updateMarkers();
+  }
+
+  /** CSS formatting for the CSS + Handlebars language (Shift+Alt+F, context menu) */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static registerCssFormatter(monaco: any) {
+    if (CardTemplatesComponent.cssFormatterRegistered) {
+      return;
+    }
+    CardTemplatesComponent.cssFormatterRegistered = true;
+    monaco.languages.registerDocumentFormattingEditProvider('css-handlebars', {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      provideDocumentFormattingEdits: (model: any) => [{ range: model.getFullModelRange(), text: formatCss(model.getValue()) }],
+    });
+  }
+
+  /** Re-indents the code of the visible editor */
+  public formatCode() {
+    const editor = this.editors[this.targetKind()];
+    editor?.getAction('editor.action.formatDocument')?.run();
+  }
+
+  /** Ctrl+S: saves the template and sends the project to the server now */
+  public async saveNow() {
+    if (!this.selectedTemplate?.id) {
+      return;
+    }
+    await this.service.update(this.selectedTemplate.id, this.selectedTemplate, true);
+    await this.currentProject.flush();
+    this.messageService.add({ severity: 'success', life: 2000, summary: this.translate.instant('template-editor.saved') });
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && !event.defaultPrevented) {
+      event.preventDefault();
+      void this.saveNow();
+    }
   }
 
   public selectTab(kind: EditorKind) {
@@ -656,6 +796,344 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       assets: this.assetEntries.map(asset => ({ path: `assets.${asset.path}`, label: asset.label })),
       helperDocs: helperDocs && typeof helperDocs === 'object' ? helperDocs : {},
     };
+  }
+
+  /*********************************************************************
+   * Views: card, front and back, overflow test
+   *********************************************************************/
+
+  public setViewMode(mode: ViewMode) {
+    this.viewMode = mode;
+    this.clearInspectorMarks();
+    if (mode === 'overflow') {
+      this.updateOverflowCandidates();
+    }
+    this.overflowResults = new Map();
+    this.overflowScanned = false;
+    this.scheduleOverflowScan();
+    setTimeout(() => this.fitZoom(), 400);
+  }
+
+  /** Front and back of the preview card, when this template is one of them */
+  private async updatePair() {
+    const card = this.selectedCard;
+    const template = this.selectedTemplate;
+    let pair: Record<Side, CardTemplate> | null = null;
+    if (card?.id !== undefined && template?.id) {
+      const isFront = card.frontCardTemplateId === template.id;
+      const isBack = card.backCardTemplateId === template.id;
+      const otherId = isFront ? card.backCardTemplateId : isBack ? card.frontCardTemplateId : undefined;
+      if (otherId && otherId !== template.id) {
+        const other = this.templates.find(candidate => candidate.id === otherId)
+          ?? await this.service.get(otherId).catch(() => undefined);
+        if (other) {
+          pair = isFront ? { front: template, back: other } : { front: other, back: template };
+        }
+      }
+    }
+    this.pair = pair;
+    if (!pair && this.viewMode === 'pair') {
+      this.setViewMode('card');
+    }
+  }
+
+  public pairColumns(): number {
+    return this.viewMode === 'pair' ? 2 : this.viewMode === 'overflow' ? Math.min(3, Math.max(1, this.overflowCandidates.length)) : 1;
+  }
+
+  /** The cards of the deck most likely to overflow with this template */
+  private updateOverflowCandidates() {
+    const template = this.selectedTemplate;
+    if (!template?.id) {
+      return;
+    }
+    const using = this.cards.filter(card => card.frontCardTemplateId === template.id || card.backCardTemplateId === template.id);
+    const textFields = [...this.attributes]
+      .filter(attribute => !attribute.isSystem && String(attribute.type) === 'text')
+      .map(attribute => ({ key: StringUtils.toKebabCase(attribute.name), label: attribute.name }));
+    const fields = [{ key: 'name', label: this.variables[0]?.label ?? 'Name' }, ...textFields];
+    this.overflowCandidates = pickOverflowCards(using.length > 0 ? using : this.cards, fields,
+      this.selectedCard?.id !== undefined ? this.selectedCard : undefined);
+  }
+
+  public reasonsText(candidate: OverflowCandidate<Card>): string {
+    return candidate.reasons
+      .map(reason => this.translate.instant('template-editor.reason.' + reason.kind, { field: reason.field }))
+      .join(' · ');
+  }
+
+  /** Cards whose text overflows, among those shown */
+  public overflowCount(): number {
+    let count = 0;
+    this.overflowResults.forEach(found => count += found > 0 ? 1 : 0);
+    return count;
+  }
+
+  private scheduleOverflowScan() {
+    this.overflowTimers.forEach(timer => clearTimeout(timer));
+    this.overflowTimers = OVERFLOW_SCAN_DELAYS_MS.map(delay => setTimeout(() => this.scanOverflows(), delay));
+  }
+
+  /** Looks for text that does not fit in the cards shown; outlined in the overflow view */
+  private scanOverflows() {
+    const root = this.previewContent?.nativeElement;
+    if (!root) {
+      return;
+    }
+    const results = new Map<number, number>();
+    root.querySelectorAll('[data-preview-card]').forEach(item => {
+      const cardElement = item.querySelector('.card-element');
+      if (!cardElement) {
+        return;
+      }
+      cardElement.querySelectorAll('.' + OVERFLOW_CLASS).forEach(element => element.classList.remove(OVERFLOW_CLASS));
+      const overflowing = findOverflowing(cardElement);
+      if (this.viewMode === 'overflow') {
+        overflowing.forEach(element => element.classList.add(OVERFLOW_CLASS));
+      }
+      const id = Number(item.getAttribute('data-preview-card'));
+      results.set(id, Math.max(results.get(id) ?? 0, overflowing.length));
+    });
+    this.overflowResults = results;
+    this.overflowScanned = true;
+  }
+
+  /** Zoom that shows the whole preview (one card, front and back, or the overflow test) */
+  public fitZoom() {
+    const space = this.previewSpace?.nativeElement as HTMLElement | undefined;
+    const content = this.previewContent?.nativeElement;
+    if (!space || !content || !content.offsetWidth || !content.offsetHeight) {
+      return;
+    }
+    this.zoom = Math.min(space.clientWidth / content.offsetWidth, space.clientHeight / content.offsetHeight) * 0.92;
+    this.clampZoom();
+    setTimeout(() => this.centerPreview(), 50);
+  }
+
+  /*********************************************************************
+   * Inspector: preview element <-> HTML line
+   *********************************************************************/
+
+  public toggleInspector() {
+    this.inspecting = !this.inspecting;
+    if (!this.inspecting) {
+      this.clearInspectorMarks();
+    }
+  }
+
+  private clearInspectorMarks() {
+    this.hoveredElement?.classList.remove(HOVER_CLASS);
+    this.hoveredElement = null;
+    this.hovered = null;
+    this.previewContent?.nativeElement.querySelectorAll('.' + SELECTED_CLASS)
+      .forEach(element => element.classList.remove(SELECTED_CLASS));
+  }
+
+  private inspectedElement(event: MouseEvent): HTMLElement | null {
+    const target = event.target as HTMLElement | null;
+    const element = target?.closest?.(`[${LINE_ATTRIBUTE}]`) as HTMLElement | null;
+    return element && this.previewContent?.nativeElement.contains(element) ? element : null;
+  }
+
+  public onInspectMove(event: MouseEvent) {
+    if (!this.inspecting) {
+      return;
+    }
+    const element = this.inspectedElement(event);
+    if (element === this.hoveredElement) {
+      return;
+    }
+    this.hoveredElement?.classList.remove(HOVER_CLASS);
+    this.hoveredElement = element;
+    if (!element) {
+      this.hovered = null;
+      return;
+    }
+    element.classList.add(HOVER_CLASS);
+    const classes = Array.from(element.classList).filter(name => !name.startsWith('cider-')).slice(0, 2);
+    this.hovered = {
+      label: element.tagName.toLowerCase() + (element.id ? '#' + element.id : '') + classes.map(name => '.' + name).join(''),
+      line: Number(element.getAttribute(LINE_ATTRIBUTE)),
+    };
+  }
+
+  public onInspectClick(event: MouseEvent) {
+    if (!this.inspecting) {
+      return;
+    }
+    const element = this.inspectedElement(event);
+    if (!element) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.goToTag(Number(element.getAttribute(LINE_ATTRIBUTE)), element.tagName.toLowerCase());
+  }
+
+  /** Shows a line of the HTML, the tag selected */
+  private goToTag(line: number, tag: string) {
+    if (this.layout === 'tabs') {
+      this.activeTab = 'html';
+    }
+    this.lastFocused = 'html';
+    setTimeout(() => {
+      const editor = this.editors.html;
+      const model = editor?.getModel();
+      if (!model || line < 1 || line > model.getLineCount()) {
+        return;
+      }
+      const index = model.getLineContent(line).toLowerCase().indexOf('<' + tag);
+      const column = index >= 0 ? index + 2 : 1;
+      editor.setSelection({ startLineNumber: line, startColumn: column, endLineNumber: line, endColumn: column + (index >= 0 ? tag.length : 0) });
+      editor.revealLineInCenter(line);
+      editor.focus();
+    });
+  }
+
+  /** Outlines in the preview the element written on (or opened before) this line */
+  private highlightLine(line: number) {
+    const root = this.previewContent?.nativeElement;
+    if (!root) {
+      return;
+    }
+    root.querySelectorAll('.' + SELECTED_CLASS).forEach(element => element.classList.remove(SELECTED_CLASS));
+    const elements = Array.from(root.querySelectorAll<HTMLElement>(`[${LINE_ATTRIBUTE}]`));
+    const best = elements.reduce((found, element) => {
+      const elementLine = Number(element.getAttribute(LINE_ATTRIBUTE));
+      return elementLine <= line && elementLine > found ? elementLine : found;
+    }, 0);
+    elements.filter(element => Number(element.getAttribute(LINE_ATTRIBUTE)) === best)
+      .forEach(element => element.classList.add(SELECTED_CLASS));
+  }
+
+  /*********************************************************************
+   * Visual settings: CSS variables
+   *********************************************************************/
+
+  public range(variable: CssVariable) {
+    return sliderRange(variable);
+  }
+
+  /** "--couleur-titre" → "Couleur titre" */
+  public variableLabel(name: string): string {
+    const words = name.replace(/^--/, '').replace(/[-_]+/g, ' ').trim();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  }
+
+  /** Any CSS color as #rrggbb, for the color picker */
+  public colorHex(value: string): string {
+    this.colorContext ??= document.createElement('canvas').getContext('2d');
+    const context = this.colorContext;
+    if (!context) {
+      return '#000000';
+    }
+    context.fillStyle = '#000000';
+    context.fillStyle = value;
+    const color = String(context.fillStyle);
+    if (color.startsWith('#')) {
+      return color;
+    }
+    const parts = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/.exec(color);
+    return parts ? '#' + parts.slice(1, 4).map(part => Math.round(Number(part)).toString(16).padStart(2, '0')).join('') : '#000000';
+  }
+
+  public setColor(variable: CssVariable, hex: string) {
+    this.setVariable(variable.name, formatColorLike(variable.value, hex));
+  }
+
+  /** Changes a variable in the CSS editor (one undo step per change, or per slider drag) */
+  public setVariable(name: string, value: string, commit = false) {
+    const editor = this.editors.css;
+    const model = editor?.getModel();
+    const variable = findCssVariables(model ? model.getValue() : this.selectedTemplate.css ?? '').find(v => v.name === name);
+    if (!variable || variable.value === value.trim() || !value.trim()) {
+      return;
+    }
+    if (model) {
+      const start = model.getPositionAt(variable.start);
+      const end = model.getPositionAt(variable.end);
+      editor.executeEdits('cider-settings', [{
+        range: { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column },
+        text: value.trim(),
+      }]);
+      if (commit) {
+        editor.pushUndoStop();
+      }
+    } else {
+      const css = this.selectedTemplate.css ?? '';
+      this.selectedTemplate.css = css.slice(0, variable.start) + value.trim() + css.slice(variable.end);
+      this.debounceSave();
+    }
+    // immediate preview while dragging
+    this.runCheck();
+  }
+
+  public endVariableEdit() {
+    this.editors.css?.pushUndoStop();
+  }
+
+  public askChatbotForVariables() {
+    this.chatbotRequest = this.translate.instant('template-editor.settings-chatbot-request');
+    this.chatbotVisible = true;
+  }
+
+  /*********************************************************************
+   * Preview in a separate window (second screen)
+   *********************************************************************/
+
+  public openPopout() {
+    if (this.popup && !this.popup.closed) {
+      this.popup.focus();
+      return;
+    }
+    const popup = window.open('', 'cider-template-preview', 'width=560,height=780');
+    if (!popup) {
+      this.messageService.add({ severity: 'warn', life: 5000, summary: this.translate.instant('template-editor.popout-blocked') });
+      return;
+    }
+    this.popup = popup;
+    const doc = popup.document;
+    doc.title = this.translate.instant('template-editor.popout-title', { name: this.selectedTemplate.name ?? '' });
+    doc.head.replaceChildren();
+    doc.body.replaceChildren();
+    // same styles as the application (theme, card preview component)
+    document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => doc.head.appendChild(node.cloneNode(true)));
+    doc.documentElement.className = document.documentElement.className;
+    Object.assign(doc.body.style, {
+      margin: '0', height: '100vh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: getComputedStyle(document.body).backgroundColor || '#18181b',
+    });
+    popup.addEventListener('resize', () => this.zone.run(() => this.updatePopoutScale()));
+    popup.addEventListener('pagehide', () => this.zone.run(() => this.closePopout(false)));
+    this.popoutOpen = true;
+  }
+
+  private movePopoutContent(host: HTMLElement) {
+    const content = host.querySelector('.popout-content');
+    if (!content || !this.popup || this.popup.closed) {
+      return;
+    }
+    this.popup.document.body.appendChild(content);
+    this.updatePopoutScale();
+  }
+
+  private updatePopoutScale() {
+    if (!this.popup || this.popup.closed) {
+      return;
+    }
+    const card = this.previewContent?.nativeElement.querySelector('.card-element')?.firstElementChild as HTMLElement | null;
+    const width = card?.offsetWidth || 825;
+    const height = card?.offsetHeight || 1125;
+    this.popoutScale = parseFloat((Math.min(this.popup.innerWidth / width, this.popup.innerHeight / height) * 0.95).toFixed(3));
+  }
+
+  public closePopout(closeWindow = true) {
+    const popup = this.popup;
+    this.popup = null;
+    this.popoutOpen = false;
+    if (closeWindow && popup && !popup.closed) {
+      popup.close();
+    }
   }
 
   /*********************************************************************

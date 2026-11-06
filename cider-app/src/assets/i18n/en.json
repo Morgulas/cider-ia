@@ -322,7 +322,42 @@
                     "{{compile card.description width=40}}: text where {{image-name}} becomes an icon"
                 ]
             }
-        }
+        },
+        "popout": "Open the preview in a window (second screen)",
+        "popout-title": "Preview — {{name}}",
+        "popout-blocked": "The browser blocked the window: allow pop-ups for this site.",
+        "view-card": "Card",
+        "view-pair": "Front/back",
+        "view-pair-help": "Front and back of the card side by side",
+        "view-pair-none": "This card does not use this template as front or back",
+        "view-overflow": "Overflow",
+        "view-overflow-help": "Tests the template on the cards with the longest and shortest texts",
+        "inspect": "Inspect",
+        "inspect-help": "Click an element of the preview to go to its HTML line",
+        "inspect-click": "click to go to the code",
+        "inspect-hint": "Hover the preview; in the HTML, the element of the cursor's line is outlined in orange.",
+        "fit": "Fit to the preview area",
+        "overflow-found": "Text overflows on {{count}} card(s) out of {{total}}: areas outlined in red.",
+        "overflow-none": "No text overflows on the {{total}} cards tested.",
+        "overflow-scanning": "Checking…",
+        "overflow-bad": "Overflows",
+        "overflow-ok": "OK",
+        "overflow-no-cards": "No card in this deck.",
+        "side-front": "Front",
+        "side-back": "Back",
+        "reason": {
+            "current": "preview card",
+            "longest": "longest {{field}}",
+            "total": "longest text",
+            "shortest": "shortest text"
+        },
+        "format": "Format the code (Shift+Alt+F)",
+        "settings": "Settings",
+        "settings-empty": "No CSS variable in this template. Variables declared in the CSS (e.g. --title-color: #b8860b;) show here with a color picker or a slider.",
+        "settings-ask-chatbot": "Ask the chatbot to create them",
+        "settings-chatbot-request": "Gather the main colors, text sizes and spacings into CSS variables with clear names (e.g. --title-color, --description-size), declared at the start of the .card rule, and use them everywhere in the CSS. Do not change how the card looks.",
+        "save-now": "Save now",
+        "saved": "Saved"
     },
     "server": {
         "login": {

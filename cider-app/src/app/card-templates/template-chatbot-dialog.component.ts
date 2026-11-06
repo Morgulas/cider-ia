@@ -37,6 +37,8 @@ export class TemplateChatbotDialogComponent {
   readonly variables = input<TemplateVariable[]>([]);
   readonly assets = input<string[]>([]);
   readonly helpers = input<string[]>([]);
+  /** request typed in advance (e.g. "put the colors in CSS variables") */
+  readonly initialRequest = input<string>('');
   /** the new code, only the parts the answer contained */
   readonly apply = output<ChatbotAnswer>();
 
@@ -77,6 +79,9 @@ export class TemplateChatbotDialogComponent {
   }
 
   protected onShow(): void {
+    if (this.initialRequest()) {
+      this.request = this.initialRequest();
+    }
     this.copied.set(false);
     this.copyError.set(false);
   }

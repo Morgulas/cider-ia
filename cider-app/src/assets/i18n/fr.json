@@ -284,7 +284,42 @@
                     "{{compile card.description width=40}} : texte où {{nom-image}} devient une icône"
                 ]
             }
-        }
+        },
+        "popout": "Ouvrir l'aperçu dans une fenêtre (second écran)",
+        "popout-title": "Aperçu — {{name}}",
+        "popout-blocked": "Le navigateur a bloqué la fenêtre : autorise les fenêtres pop-up pour ce site.",
+        "view-card": "Carte",
+        "view-pair": "Recto/verso",
+        "view-pair-help": "Recto et verso de la carte côte à côte",
+        "view-pair-none": "Cette carte n'utilise pas ce modèle comme recto ou verso",
+        "view-overflow": "Débordements",
+        "view-overflow-help": "Teste le modèle sur les cartes aux textes les plus longs et les plus courts",
+        "inspect": "Inspecter",
+        "inspect-help": "Clique sur un élément de l'aperçu pour aller à sa ligne HTML",
+        "inspect-click": "clic pour aller au code",
+        "inspect-hint": "Survole l'aperçu ; dans le HTML, l'élément de la ligne du curseur est encadré en orange.",
+        "fit": "Ajuster à la zone d'aperçu",
+        "overflow-found": "Texte qui dépasse sur {{count}} carte(s) sur {{total}} : zones encadrées en rouge.",
+        "overflow-none": "Aucun texte ne dépasse sur les {{total}} cartes testées.",
+        "overflow-scanning": "Vérification en cours…",
+        "overflow-bad": "Déborde",
+        "overflow-ok": "OK",
+        "overflow-no-cards": "Aucune carte dans ce deck.",
+        "side-front": "Recto",
+        "side-back": "Verso",
+        "reason": {
+            "current": "carte d'aperçu",
+            "longest": "{{field}} le plus long",
+            "total": "texte le plus long",
+            "shortest": "texte le plus court"
+        },
+        "format": "Mettre le code en forme (Maj+Alt+F)",
+        "settings": "Réglages",
+        "settings-empty": "Aucune variable CSS dans ce modèle. Les variables déclarées dans le CSS (par exemple --couleur-titre: #b8860b;) apparaissent ici avec un sélecteur de couleur ou un curseur.",
+        "settings-ask-chatbot": "Demander au chatbot de les créer",
+        "settings-chatbot-request": "Regroupe les couleurs, tailles de texte et espacements principaux dans des variables CSS aux noms explicites en français (par exemple --couleur-titre, --taille-description), déclarées au début de la règle .card, et utilise-les partout dans le CSS. Ne change pas l'apparence de la carte.",
+        "save-now": "Enregistrer maintenant",
+        "saved": "Enregistré"
     },
     "server": {
         "login": {

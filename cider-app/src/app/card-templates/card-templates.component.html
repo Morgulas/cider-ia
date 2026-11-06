@@ -15,16 +15,36 @@
             </p-buttongroup>
             <p-select [options]="cards" [(ngModel)]="selectedCard" (ngModelChange)="onCardChange()" [filter]="true"
               filterBy="name" optionLabel="name" class="card-dropdown"></p-select>
+            <button pButton type="button" icon="pi pi-external-link" class="p-button-outlined"
+              (click)="openPopout()" [pTooltip]="'template-editor.popout' | translate"></button>
+            <button pButton type="button" icon="pi pi-cog" class="p-button-outlined"
+              (click)="settingsVisible = true" [pTooltip]="'controls.preview-settings' | translate"></button>
+          </div>
+          <div class="preview-controls">
+            <p-buttongroup class="view-modes">
+              <button pButton type="button" icon="pi pi-id-card" [class.p-button-outlined]="viewMode !== 'card'"
+                [label]="'template-editor.view-card' | translate" (click)="setViewMode('card')"></button>
+              <button pButton type="button" icon="pi pi-clone" [class.p-button-outlined]="viewMode !== 'pair'"
+                [label]="'template-editor.view-pair' | translate" [disabled]="!pair"
+                [pTooltip]="(pair ? 'template-editor.view-pair-help' : 'template-editor.view-pair-none') | translate"
+                (click)="setViewMode('pair')"></button>
+              <button pButton type="button" icon="pi pi-exclamation-circle" [class.p-button-outlined]="viewMode !== 'overflow'"
+                [label]="('template-editor.view-overflow' | translate) + (overflowCount() ? ' (' + overflowCount() + ')' : '')"
+                [class.p-button-danger]="overflowCount() > 0" [pTooltip]="'template-editor.view-overflow-help' | translate"
+                (click)="setViewMode('overflow')"></button>
+            </p-buttongroup>
+            <button pButton type="button" icon="pi pi-eye" [class.p-button-outlined]="!inspecting"
+              [label]="'template-editor.inspect' | translate" [pTooltip]="'template-editor.inspect-help' | translate"
+              (click)="toggleInspector()"></button>
+            <span class="spacer"></span>
             <p-buttongroup>
               <button pButton type="button" icon="pi pi-search-minus" (click)="changeZoom(ZOOM_DOWN)"
                 [pTooltip]="'controls.zoom-out' | translate"></button>
-              <button pButton type="button" class="zoom-level-button" (click)="resetZoomAndPan()"
-                [pTooltip]="'controls.reset-view' | translate">{{(zoom * 100).toFixed(0)}}%</button>
+              <button pButton type="button" class="zoom-level-button" (click)="fitZoom()"
+                [pTooltip]="'template-editor.fit' | translate">{{(zoom * 100).toFixed(0)}}%</button>
               <button pButton type="button" icon="pi pi-search-plus" (click)="changeZoom(ZOOM_UP)"
                 [pTooltip]="'controls.zoom-in' | translate"></button>
             </p-buttongroup>
-            <button pButton type="button" icon="pi pi-cog" class="settings-button p-ml-2"
-              (click)="settingsVisible = true" [pTooltip]="'controls.preview-settings' | translate"></button>
           </div>
           }
           @if (hasIssue()) {
@@ -32,8 +52,28 @@
             <i class="pi pi-exclamation-triangle"></i> {{ 'template-editor.preview-frozen' | translate }}
           </div>
           }
+          @if (inspecting) {
+          <div class="inspect-bar">
+            <i class="pi pi-eye"></i>
+            @if (hovered) {
+            <code>{{ hovered.label }}</code> · {{ 'template-editor.issue.line' | translate: { line: hovered.line } }} —
+            {{ 'template-editor.inspect-click' | translate }}
+            } @else {
+            {{ 'template-editor.inspect-hint' | translate }}
+            }
+          </div>
+          }
+          @if (viewMode === 'overflow' && !disablePanels) {
+          <div class="overflow-summary" [class.bad]="overflowCount() > 0">
+            @if (overflowScanned) {
+            {{ (overflowCount() > 0 ? 'template-editor.overflow-found' : 'template-editor.overflow-none') | translate: { count: overflowCount(), total: overflowCandidates.length } }}
+            } @else {
+            {{ 'template-editor.overflow-scanning' | translate }}
+            }
+          </div>
+          }
           @if (!disablePanels) {
-          <div #previewSpace class="preview-space" [class.panning]="isPanning"
+          <div #previewSpace class="preview-space" [class.panning]="isPanning" [class.inspecting]="inspecting"
             (mousedown)="onMouseDown($event, previewSpace)" (mousemove)="onMouseMove($event, previewSpace)"
             (mouseup)="onMouseUp($event)" (mouseleave)="onMouseLeave($event)" (wheel)="onWheel($event)">
             <div class="zoom-container" [style.transform]="'scale(' + zoom + ')'">
@@ -43,13 +83,66 @@
                   <div class="grid-axis-x"></div>
                   <div class="grid-axis-y"></div>
                 </div>
-                @if (selectedCard) {
-                <app-card-preview [card]="selectedCard" [template]="previewTemplate" [scale]="1.0" [cache]="false"
-                  [tiltable]="previewSettings.tiltEnabled" [showTrimLines]="previewSettings.trimLinesEnabled"
-                  [trimOffsetPx]="getTrimOffsetPx()" [showSafeLines]="previewSettings.safeLinesEnabled"
-                  [safeOffsetPx]="getSafeOffsetPx()" [version]="templateVersion"></app-card-preview>
-                }
+                <div #previewContent class="preview-content" [class.multi]="viewMode !== 'card'" [style.--cols]="pairColumns()"
+                  (mousemove)="onInspectMove($event)" (click)="onInspectClick($event)">
+                  @switch (viewMode) {
+                  @case ('pair') {
+                  @if (pair && selectedCard) {
+                  @for (side of pairSides; track side) {
+                  <figure class="preview-item" [attr.data-preview-card]="selectedCard.id">
+                    <app-card-preview [card]="selectedCard"
+                      [template]="pair[side].id === selectedTemplate.id ? inspectTemplate : pair[side]" [scale]="1.0"
+                      [cache]="false" [version]="templateVersion"></app-card-preview>
+                    <figcaption>{{ 'template-editor.side-' + side | translate }} — {{ pair[side].name }}</figcaption>
+                  </figure>
+                  }
+                  }
+                  }
+                  @case ('overflow') {
+                  @for (candidate of overflowCandidates; track candidate.card.id) {
+                  <figure class="preview-item" [attr.data-preview-card]="candidate.card.id"
+                    [class.bad]="(overflowResults.get(candidate.card.id) ?? 0) > 0">
+                    <app-card-preview [card]="candidate.card" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
+                      [version]="templateVersion"></app-card-preview>
+                    <figcaption>
+                      <b>{{ candidate.card.name }}</b>
+                      <span>{{ reasonsText(candidate) }}</span>
+                      @if (overflowScanned) {
+                      <span class="status">
+                        @if ((overflowResults.get(candidate.card.id) ?? 0) > 0) {
+                        <i class="pi pi-times-circle"></i> {{ 'template-editor.overflow-bad' | translate }}
+                        } @else {
+                        <i class="pi pi-check-circle"></i> {{ 'template-editor.overflow-ok' | translate }}
+                        }
+                      </span>
+                      }
+                    </figcaption>
+                  </figure>
+                  } @empty {
+                  <p class="muted">{{ 'template-editor.overflow-no-cards' | translate }}</p>
+                  }
+                  }
+                  @default {
+                  @if (selectedCard) {
+                  <div class="preview-item" [attr.data-preview-card]="selectedCard.id">
+                    <app-card-preview [card]="selectedCard" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
+                      [tiltable]="previewSettings.tiltEnabled && !inspecting" [showTrimLines]="previewSettings.trimLinesEnabled"
+                      [trimOffsetPx]="getTrimOffsetPx()" [showSafeLines]="previewSettings.safeLinesEnabled"
+                      [safeOffsetPx]="getSafeOffsetPx()" [version]="templateVersion"></app-card-preview>
+                  </div>
+                  }
+                  }
+                  }
+                </div>
               </div>
+            </div>
+          </div>
+          }
+          @if (popoutOpen && selectedCard) {
+          <div #popoutHost class="popout-host">
+            <div class="popout-content">
+              <app-card-preview [card]="selectedCard" [template]="previewTemplate" [scale]="popoutScale" [cache]="false"
+                [tiltable]="previewSettings.tiltEnabled" [version]="templateVersion"></app-card-preview>
             </div>
           </div>
           }
@@ -77,12 +170,14 @@
               [icon]="layout === 'tabs' ? 'pi pi-objects-column' : 'pi pi-clone'"
               [pTooltip]="(layout === 'tabs' ? 'template-editor.layout-split' : 'template-editor.layout-tabs') | translate"
               (click)="toggleLayout()"></button>
+            <button pButton type="button" class="p-button-text p-button-sm" icon="pi pi-align-left"
+              [pTooltip]="'template-editor.format' | translate" (click)="formatCode()"></button>
             <span class="spacer"></span>
             <button pButton type="button" class="p-button-sm" [class.p-button-outlined]="!insertPanelVisible"
               icon="pi pi-plus-circle" [label]="'template-editor.insert' | translate" (click)="toggleInsertPanel()"></button>
             <button pButton type="button" class="p-button-sm p-button-outlined" icon="pi pi-comments"
               [label]="'template-editor.chatbot.button' | translate" [disabled]="!selectedTemplate.id"
-              (click)="chatbotVisible = true"></button>
+              (click)="chatbotRequest = ''; chatbotVisible = true"></button>
           </div>
 
           @for (kind of editorKinds; track kind) {
@@ -117,6 +212,14 @@
 
             @if (insertPanelVisible) {
             <aside class="insert-panel">
+              <div class="side-tabs" role="tablist">
+                <button type="button" role="tab" class="side-tab" [class.active]="sideTab === 'insert'"
+                  (click)="sideTab = 'insert'">{{ 'template-editor.insert' | translate }}</button>
+                <button type="button" role="tab" class="side-tab" [class.active]="sideTab === 'settings'"
+                  (click)="sideTab = 'settings'">{{ 'template-editor.settings' | translate }}
+                  @if (cssVariables.length) {<span class="count">{{ cssVariables.length }}</span>}</button>
+              </div>
+              @if (sideTab === 'insert') {
               <p class="insert-help">{{ 'template-editor.insert-help' | translate: { target: insertTargetLabel() } }}</p>
 
               <h5>{{ 'template-editor.insert-fields' | translate }}</h5>
@@ -154,6 +257,42 @@
                 <span class="muted">{{ 'template-editor.no-images' | translate }}</span>
                 }
               </div>
+              } @else {
+              @for (variable of cssVariables; track variable.name) {
+              <div class="css-variable">
+                <label [for]="'var-' + variable.name">{{ variableLabel(variable.name) }}</label>
+                @switch (variable.kind) {
+                @case ('color') {
+                <div class="control-row">
+                  <input type="color" [id]="'var-' + variable.name" [value]="colorHex(variable.value)"
+                    (input)="setColor(variable, $any($event.target).value)" (change)="endVariableEdit()" />
+                  <input pInputText type="text" class="value-input" [value]="variable.value"
+                    (change)="setVariable(variable.name, $any($event.target).value, true)" />
+                </div>
+                }
+                @case ('length') {
+                <div class="control-row">
+                  <input type="range" [id]="'var-' + variable.name" [min]="range(variable).min" [max]="range(variable).max"
+                    [step]="range(variable).step" [value]="variable.number"
+                    (input)="setVariable(variable.name, $any($event.target).value + (variable.unit ?? ''))"
+                    (change)="endVariableEdit()" />
+                  <input pInputText type="text" class="value-input short" [value]="variable.value"
+                    (change)="setVariable(variable.name, $any($event.target).value, true)" />
+                </div>
+                }
+                @default {
+                <input pInputText type="text" class="value-input wide" [id]="'var-' + variable.name" [value]="variable.value"
+                  (change)="setVariable(variable.name, $any($event.target).value, true)" />
+                }
+                }
+                <code class="var-name">{{ variable.name }}</code>
+              </div>
+              } @empty {
+              <p class="insert-help">{{ 'template-editor.settings-empty' | translate }}</p>
+              <button pButton type="button" class="p-button-sm p-button-outlined" icon="pi pi-comments"
+                [label]="'template-editor.settings-ask-chatbot' | translate" (click)="askChatbotForVariables()"></button>
+              }
+              }
             </aside>
             }
           </div>
@@ -166,6 +305,7 @@
   (created)="updateTemplatesList()"></app-entity-dialog>
 <p-confirmDialog [style]="{width: '450px'}"></p-confirmDialog>
 <app-template-chatbot-dialog [(visible)]="chatbotVisible" [template]="selectedTemplate" [card]="selectedCard"
+  [initialRequest]="chatbotRequest"
   [deckName]="deckName" [variables]="variables" [assets]="promptAssets()" [helpers]="promptHelpers()"
   (apply)="applyChatbotAnswer($event)"></app-template-chatbot-dialog>
 <p-dialog header="Information" [style]="{width: '450px'}" [(visible)]="infoVisible">{{infoText}}</p-dialog>
