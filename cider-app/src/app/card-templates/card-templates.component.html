@@ -7,8 +7,14 @@
         <p-card styleClass="page-card">
           @if (!disablePanels) {
           <div class="preview-controls">
-            <p-select [options]="cards" [(ngModel)]="selectedCard" [filter]="true" filterBy="name" optionLabel="name"
-              class="card-dropdown"></p-select>
+            <p-buttongroup class="card-stepper">
+              <button pButton type="button" icon="pi pi-chevron-left" (click)="stepCard(-1)" [disabled]="cards.length < 2"
+                [pTooltip]="'template-editor.previous-card' | translate"></button>
+              <button pButton type="button" icon="pi pi-chevron-right" (click)="stepCard(1)" [disabled]="cards.length < 2"
+                [pTooltip]="'template-editor.next-card' | translate"></button>
+            </p-buttongroup>
+            <p-select [options]="cards" [(ngModel)]="selectedCard" (ngModelChange)="onCardChange()" [filter]="true"
+              filterBy="name" optionLabel="name" class="card-dropdown"></p-select>
             <p-buttongroup>
               <button pButton type="button" icon="pi pi-search-minus" (click)="changeZoom(ZOOM_DOWN)"
                 [pTooltip]="'controls.zoom-out' | translate"></button>
@@ -19,6 +25,11 @@
             </p-buttongroup>
             <button pButton type="button" icon="pi pi-cog" class="settings-button p-ml-2"
               (click)="settingsVisible = true" [pTooltip]="'controls.preview-settings' | translate"></button>
+          </div>
+          }
+          @if (hasIssue()) {
+          <div class="preview-frozen" role="button" tabindex="0" (click)="goToIssue()" (keydown.enter)="goToIssue()">
+            <i class="pi pi-exclamation-triangle"></i> {{ 'template-editor.preview-frozen' | translate }}
           </div>
           }
           @if (!disablePanels) {
@@ -33,7 +44,7 @@
                   <div class="grid-axis-y"></div>
                 </div>
                 @if (selectedCard) {
-                <app-card-preview [card]="selectedCard" [template]="selectedTemplate" [scale]="1.0" [cache]="false"
+                <app-card-preview [card]="selectedCard" [template]="previewTemplate" [scale]="1.0" [cache]="false"
                   [tiltable]="previewSettings.tiltEnabled" [showTrimLines]="previewSettings.trimLinesEnabled"
                   [trimOffsetPx]="getTrimOffsetPx()" [showSafeLines]="previewSettings.safeLinesEnabled"
                   [safeOffsetPx]="getSafeOffsetPx()" [version]="templateVersion"></app-card-preview>
@@ -46,30 +57,107 @@
       </div>
     </ng-template>
     <ng-template pTemplate>
-      <div class="right-panel p-col p-flex p-align-items-center p-justify-content-center">
-        <p-splitter class="code-editor-panel" [panelSizes]="[50, 50]" [minSizes]="[25, 25]"
-          (onResizeStart)="onResizeStart($event)" (onResizeEnd)="onResizeEnd($event)" layout="vertical">
-          <ng-template pTemplate>
-            <div class="css-editor-panel p-col p-flex p-align-items-center p-justify-content-center">
-              <p-card styleClass="css-editor" header="CSS + Handlebars">
-                @if (selectedTemplate && !disablePanels) {
-                <ngx-monaco-editor class="code-editor" [options]="cssEditorOptions" [(ngModel)]="selectedTemplate.css"
-                  (ngModelChange)="debounceSave()"></ngx-monaco-editor>
-                }
-              </p-card>
+      <div class="right-panel">
+        <div class="code-panel">
+          <div class="code-toolbar">
+            @if (layout === 'tabs') {
+            <div class="code-tabs" role="tablist">
+              @for (kind of editorKinds; track kind) {
+              <button type="button" role="tab" class="code-tab" [class.active]="activeTab === kind"
+                [attr.aria-selected]="activeTab === kind" (click)="selectTab(kind)">
+                {{ kind === 'html' ? 'HTML' : 'CSS' }}
+                @if (issues[kind]) {<span class="issue-dot"></span>}
+              </button>
+              }
             </div>
-          </ng-template>
-          <ng-template pTemplate>
-            <div class="html-editor-panel p-col p-flex p-align-items-center p-justify-content-center">
-              <p-card styleClass="html-editor" header="HTML + Handlebars">
+            } @else {
+            <span class="code-title">HTML + CSS</span>
+            }
+            <button pButton type="button" class="p-button-text p-button-sm"
+              [icon]="layout === 'tabs' ? 'pi pi-objects-column' : 'pi pi-clone'"
+              [pTooltip]="(layout === 'tabs' ? 'template-editor.layout-split' : 'template-editor.layout-tabs') | translate"
+              (click)="toggleLayout()"></button>
+            <span class="spacer"></span>
+            <button pButton type="button" class="p-button-sm" [class.p-button-outlined]="!insertPanelVisible"
+              icon="pi pi-plus-circle" [label]="'template-editor.insert' | translate" (click)="toggleInsertPanel()"></button>
+            <button pButton type="button" class="p-button-sm p-button-outlined" icon="pi pi-comments"
+              [label]="'template-editor.chatbot.button' | translate" [disabled]="!selectedTemplate.id"
+              (click)="chatbotVisible = true"></button>
+          </div>
+
+          @for (kind of editorKinds; track kind) {
+          @if (issues[kind]; as issue) {
+          <div class="issue-banner" role="button" tabindex="0" (click)="goToIssue(kind)" (keydown.enter)="goToIssue(kind)">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span><b>{{ kind === 'html' ? 'HTML' : 'CSS' }}</b> — {{ issueMessage(issue) }}</span>
+            @if (issue.line) {
+            <a class="issue-line">{{ 'template-editor.issue.line' | translate: { line: issue.line } }}</a>
+            }
+          </div>
+          }
+          }
+
+          <div class="code-body">
+            <div class="editors" [class.split]="layout === 'split'">
+              <div class="editor-pane" [class.hidden]="layout === 'tabs' && activeTab !== 'html'">
+                @if (layout === 'split') {<div class="pane-title">HTML + Handlebars</div>}
                 @if (selectedTemplate && !disablePanels) {
                 <ngx-monaco-editor class="code-editor" [options]="htmlEditorOptions" [(ngModel)]="selectedTemplate.html"
-                  (ngModelChange)="debounceSave()"></ngx-monaco-editor>
+                  (ngModelChange)="debounceSave()" (onInit)="onEditorInit('html', $event)"></ngx-monaco-editor>
                 }
-              </p-card>
+              </div>
+              <div class="editor-pane" [class.hidden]="layout === 'tabs' && activeTab !== 'css'">
+                @if (layout === 'split') {<div class="pane-title">CSS + Handlebars</div>}
+                @if (selectedTemplate && !disablePanels) {
+                <ngx-monaco-editor class="code-editor" [options]="cssEditorOptions" [(ngModel)]="selectedTemplate.css"
+                  (ngModelChange)="debounceSave()" (onInit)="onEditorInit('css', $event)"></ngx-monaco-editor>
+                }
+              </div>
             </div>
-          </ng-template>
-        </p-splitter>
+
+            @if (insertPanelVisible) {
+            <aside class="insert-panel">
+              <p class="insert-help">{{ 'template-editor.insert-help' | translate: { target: insertTargetLabel() } }}</p>
+
+              <h5>{{ 'template-editor.insert-fields' | translate }}</h5>
+              <div class="insert-list">
+                @for (variable of variables; track variable.token) {
+                <button type="button" class="insert-item" (click)="insertVariable(variable.token)"
+                  [title]="variable.example ? variable.token + '\n' + variable.example : variable.token">
+                  <span class="item-label">{{ variable.label }}</span>
+                  <span class="item-token">{{ variable.token }}</span>
+                </button>
+                }
+              </div>
+
+              <h5>{{ 'template-editor.insert-blocks' | translate }}</h5>
+              <div class="insert-list">
+                @for (block of blocks; track block.key) {
+                <button type="button" class="insert-item" (click)="insertBlock(block.snippet)" [title]="block.preview">
+                  <span class="item-label">{{ 'template-editor.blocks.' + block.key | translate }}</span>
+                  <span class="item-token">{{ block.preview }}</span>
+                </button>
+                }
+              </div>
+
+              <h5>{{ 'template-editor.insert-images' | translate }} ({{ assetEntries.length }})</h5>
+              @if (assetEntries.length > 8) {
+              <input pInputText type="text" class="asset-filter" [(ngModel)]="assetFilter"
+                [placeholder]="'template-editor.filter-images' | translate" />
+              }
+              <div class="insert-list">
+                @for (asset of filteredAssets(); track asset.path) {
+                <button type="button" class="insert-item" (click)="insertAsset(asset.path)" [title]="assetToken(asset.path)">
+                  <span class="item-label">{{ asset.label }}</span>
+                </button>
+                } @empty {
+                <span class="muted">{{ 'template-editor.no-images' | translate }}</span>
+                }
+              </div>
+            </aside>
+            }
+          </div>
+        </div>
       </div>
     </ng-template>
   </p-splitter>
@@ -77,6 +165,9 @@
 <app-entity-dialog [service]="service" [(visible)]="dialogVisible" [entity]="editTemplate"
   (created)="updateTemplatesList()"></app-entity-dialog>
 <p-confirmDialog [style]="{width: '450px'}"></p-confirmDialog>
+<app-template-chatbot-dialog [(visible)]="chatbotVisible" [template]="selectedTemplate" [card]="selectedCard"
+  [deckName]="deckName" [variables]="variables" [assets]="promptAssets()" [helpers]="promptHelpers()"
+  (apply)="applyChatbotAnswer($event)"></app-template-chatbot-dialog>
 <p-dialog header="Information" [style]="{width: '450px'}" [(visible)]="infoVisible">{{infoText}}</p-dialog>
 
 <p-dialog [header]="'template-editor.preview-settings-title' | translate" [(visible)]="settingsVisible" [modal]="true" [style]="{width: '400px'}"

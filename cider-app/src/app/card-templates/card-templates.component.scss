@@ -274,25 +274,214 @@ textarea {
         .right-panel {
             display: flex;
             flex-direction: column;
+            height: 100%;
             margin-right: 10px;
             margin-left: 10px;
-
-            p-card {
-                height: 100%;
-
-                .p-card-body {
-                    height: 100%;
-
-                    .p-card-content {
-                        height: 100%;
-                    }
-                }
-            }
-
-            .p-splitter-gutter {
-                margin-right: 10px;
-                margin-left: 10px;
-            }
+            min-width: 0;
         }
+    }
+}
+/* Card stepper next to the preview card selector */
+.card-stepper {
+    margin-right: 8px !important;
+}
+
+.preview-frozen {
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--p-orange-500) 18%, transparent);
+    color: var(--p-orange-400);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+/* Code side: toolbar, error banner, editors and insert panel */
+.code-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--p-card-background);
+    border-radius: var(--p-card-border-radius, 12px);
+    padding: 10px;
+    gap: 8px;
+}
+
+.code-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .spacer {
+        flex: 1;
+    }
+
+    .code-title {
+        font-weight: 600;
+        padding: 0 8px;
+    }
+}
+
+.code-tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--p-content-border-color);
+}
+
+.code-tab {
+    position: relative;
+    padding: 8px 18px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--p-text-muted-color);
+    font-weight: 600;
+    cursor: pointer;
+
+    &.active {
+        color: var(--p-primary-color);
+        border-bottom-color: var(--p-primary-color);
+    }
+
+    .issue-dot {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--p-red-500);
+    }
+}
+
+.issue-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--p-red-500) 15%, transparent);
+    color: var(--p-red-400);
+    font-size: 0.9rem;
+    cursor: pointer;
+
+    span {
+        flex: 1;
+    }
+
+    .issue-line {
+        text-decoration: underline;
+        white-space: nowrap;
+    }
+}
+
+.code-body {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+    min-height: 0;
+}
+
+.editors {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    gap: 8px;
+
+    .editor-pane {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+
+        &.hidden {
+            display: none;
+        }
+
+        .pane-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--p-text-muted-color);
+            margin-bottom: 4px;
+        }
+
+        .code-editor {
+            flex: 1 1 0;
+            min-height: 0;
+            height: auto !important;
+        }
+    }
+}
+
+.insert-panel {
+    width: 240px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    padding-left: 8px;
+    border-left: 1px solid var(--p-content-border-color);
+
+    h5 {
+        margin: 12px 0 6px;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--p-text-muted-color);
+    }
+
+    .insert-help {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--p-text-muted-color);
+    }
+
+    .asset-filter {
+        width: 100%;
+        margin-bottom: 6px;
+    }
+
+    .muted {
+        font-size: 0.85rem;
+        color: var(--p-text-muted-color);
+    }
+}
+
+.insert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.insert-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    padding: 5px 8px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--p-text-color);
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--p-content-hover-background);
+    }
+
+    .item-label {
+        font-size: 0.9rem;
+    }
+
+    .item-token {
+        font-family: monospace;
+        font-size: 0.75rem;
+        color: var(--p-text-muted-color);
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }

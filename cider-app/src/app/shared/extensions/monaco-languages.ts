@@ -1,5 +1,25 @@
 import * as Handlebars from 'handlebars';
 
+/** A value offered after {{ : card.niveau, @root.card.name... */
+export interface CompletionVariable {
+    /** inserted text, e.g. card.niveau */
+    path: string;
+    /** attribute name, shown next to the path */
+    label: string;
+    /** e.g. "numeric" */
+    detail?: string;
+    /** e.g. the preview card's value */
+    documentation?: string;
+}
+
+export interface HandlebarsCompletionContext {
+    variables: CompletionVariable[];
+    /** e.g. { path: 'assets.dossier.parchemin', label: 'dossier/parchemin' } */
+    assets: CompletionVariable[];
+    /** helper name → short explanation with an example */
+    helperDocs: Record<string, string>;
+}
+
 export default class MonacoLanguages {
 
     static createCssWorker(monaco: any): any {
@@ -22,65 +42,97 @@ export default class MonacoLanguages {
             .then((worker: any) => client));
     }
 
+    /**
+     * What the editor currently knows about the open template: the deck's card
+     * attributes (with the preview card's value), the project images, and a
+     * description of each helper. Filled by the template editor.
+     */
+    static completionContext: HandlebarsCompletionContext = { variables: [], assets: [], helperDocs: {} };
+
     static createHandlebarsCompletionProvider(monaco: any): any {
         return {
-            triggerCharacters: ['{'],
+            triggerCharacters: ['{', '.'],
             provideCompletionItems: (model: any, position: any) => {
                 if (!MonacoLanguages.isInsideHandlebars(model, position)) {
                     return { suggestions: [] };
                 }
-                const wordInfo = model.getWordUntilPosition(position);
+                // the whole path before the cursor (card.cl, assets.dossier.im...) is replaced
+                const before = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+                const typed = /[\w.@#-]*$/.exec(before)?.[0] ?? '';
                 const wordRange: any = {
                     startLineNumber: position.lineNumber,
-                    startColumn: wordInfo.startColumn,
+                    startColumn: position.column - typed.length,
                     endLineNumber: position.lineNumber,
-                    endColumn: wordInfo.endColumn
+                    endColumn: position.column
                 };
+                const context = MonacoLanguages.completionContext;
 
-                // setup card attributes suggestions
-                const variables = ['card.name', 'card.description', 'card.count', 'assets'];
-                const variableSuggestions = variables.map(variable => {
-                    return {
-                        label: variable,
-                        kind: monaco.languages.CompletionItemKind.Variable,
-                        insertText: variable,
-                        documentation: variable,
+                // card attributes of the deck (default ones until the editor gives them)
+                const variables: CompletionVariable[] = context.variables.length > 0 ? context.variables
+                    : ['card.name', 'card.description', 'card.count'].map(path => ({ path, label: path }));
+                const variableSuggestions = variables.map((variable, i) => ({
+                    label: { label: variable.path, description: variable.label },
+                    kind: monaco.languages.CompletionItemKind.Field,
+                    insertText: variable.path,
+                    filterText: variable.path,
+                    sortText: 'a' + String(i).padStart(4, '0'),
+                    detail: variable.detail,
+                    documentation: variable.documentation,
+                    range: wordRange
+                }));
+
+                // project images
+                const assetSuggestions = (context.assets.length > 0 ? context.assets : [{ path: 'assets', label: 'assets' }])
+                    .map(asset => ({
+                        label: { label: asset.path, description: asset.label },
+                        kind: monaco.languages.CompletionItemKind.File,
+                        insertText: asset.path,
+                        filterText: asset.path,
+                        sortText: 'b' + asset.path,
                         range: wordRange
-                    };
-                });
+                    }));
 
-                const snippetKeys = ['if', 'repeat', 'each', 'with', 'unless', 'else'];
+                const snippetKeys = ['if', 'unless', 'each', 'with', 'repeat'];
                 const snippetSuggestions = snippetKeys.map(snippet => {
                     return {
                         label: '#' + snippet,
                         kind: monaco.languages.CompletionItemKind.Snippet,
-                        insertText: snippet + ' }}\n\t$0\n{{/' + snippet,
+                        insertText: '#' + snippet + ' $1}}\n\t$0\n{{/' + snippet,
                         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                        documentation: snippet,
+                        documentation: context.helperDocs[snippet] ?? snippet,
+                        sortText: 'c' + snippet,
                         range: wordRange
                     };
                 });
+                snippetSuggestions.push({
+                    label: 'else',
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: 'else',
+                    insertTextRules: undefined as any,
+                    documentation: context.helperDocs['else'] ?? 'else',
+                    sortText: 'celse',
+                    range: wordRange
+                });
 
                 // setup handlebars helpers suggestions
-                const helpers = Handlebars.helpers;
-                const helperExclusions = ['helperMissing', 'blockHelperMissing', 'compileImages', ...snippetKeys];
+                const helperExclusions = ['helperMissing', 'blockHelperMissing', 'compileImages', 'kebab-case', ...snippetKeys, 'else'];
                 const helperKeys = Object.keys(Handlebars.helpers).filter(key => helperExclusions.indexOf(key) === -1);
                 const helperSuggestions = helperKeys.map(key => {
-                    const helper = helpers[key];
                     return {
                         label: key,
                         kind: monaco.languages.CompletionItemKind.Function,
                         insertText: key + ' ',
-                        documentation: key,
+                        documentation: context.helperDocs[key] ?? key,
+                        sortText: 'd' + key,
                         range: wordRange
                     };
                 });
-            
+
                 const suggestions: any[] = [
-                    ...snippetSuggestions,
                     ...variableSuggestions,
+                    ...assetSuggestions,
+                    ...snippetSuggestions,
                     ...helperSuggestions,
-                    // … add more suggestions as needed
                 ];
                 return { suggestions: suggestions };
             }
@@ -157,10 +209,10 @@ export default class MonacoLanguages {
 
     // Utility function to detect if the current position is inside a Handlebars block.
     static isInsideHandlebars(model: any, position: any): boolean {
-        // Scan backwards for '{{'
-        const lineContent = model.getLineContent(position.lineNumber);
-        const lastIndexOfOpen = lineContent.lastIndexOf('{{');
-        return lastIndexOfOpen > -1 && position.column > lastIndexOfOpen;
+        // a {{ before the cursor, not closed yet by }}
+        const before = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+        const lastIndexOfOpen = before.lastIndexOf('{{');
+        return lastIndexOfOpen > -1 && before.lastIndexOf('}}') < lastIndexOfOpen;
     }
 
     static fromPosition(position: any): any {

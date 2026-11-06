@@ -1,0 +1,70 @@
+<p-dialog [header]="'template-editor.chatbot.title' | translate" [(visible)]="visible" [modal]="true"
+  [style]="{ width: '960px', maxWidth: '96vw' }" [draggable]="false" [dismissableMask]="false" (onShow)="onShow()">
+  <div class="chatbot">
+    <section class="step">
+      <h4><span class="step-number">1</span>{{ 'template-editor.chatbot.step-request' | translate }}</h4>
+      <textarea pTextarea rows="3" [(ngModel)]="request" class="full"
+        [placeholder]="'template-editor.chatbot.request-placeholder' | translate"></textarea>
+      <div class="row">
+        <button pButton type="button" icon="pi pi-copy" [label]="'template-editor.chatbot.copy-prompt' | translate"
+          [disabled]="!request.trim()" (click)="copyPrompt()"></button>
+        @if (copied()) {
+          <span class="ok"><i class="pi pi-check"></i> {{ 'template-editor.chatbot.copied' | translate }}</span>
+        }
+        @if (copyError()) {
+          <span class="ko">{{ 'template-editor.chatbot.copy-failed' | translate }}</span>
+        }
+      </div>
+      <small class="muted">{{ 'template-editor.chatbot.request-help' | translate }}</small>
+    </section>
+
+    <section class="step">
+      <h4><span class="step-number">2</span>{{ 'template-editor.chatbot.step-answer' | translate }}</h4>
+      <textarea pTextarea rows="6" [(ngModel)]="answerText" (ngModelChange)="readAnswer()" class="full code"
+        [placeholder]="'template-editor.chatbot.answer-placeholder' | translate"></textarea>
+      @if (answerRead()) {
+        @if (!found()) {
+          <p-message severity="warn" [text]="'template-editor.chatbot.nothing-found' | translate" />
+        } @else {
+          <div class="found">
+            <span [class.ok]="answer().html !== undefined" [class.muted]="answer().html === undefined">
+              <i class="pi" [class.pi-check]="answer().html !== undefined" [class.pi-minus]="answer().html === undefined"></i>
+              HTML {{ (answer().html !== undefined ? 'template-editor.chatbot.replaced' : 'template-editor.chatbot.unchanged') | translate }}
+            </span>
+            <span [class.ok]="answer().css !== undefined" [class.muted]="answer().css === undefined">
+              <i class="pi" [class.pi-check]="answer().css !== undefined" [class.pi-minus]="answer().css === undefined"></i>
+              CSS {{ (answer().css !== undefined ? 'template-editor.chatbot.replaced' : 'template-editor.chatbot.unchanged') | translate }}
+            </span>
+          </div>
+          @if (issue()) {
+            <p-message severity="error" [text]="issueText()" />
+          }
+        }
+      }
+    </section>
+
+    @if (found() && !issue() && card()) {
+      <section class="compare">
+        <figure>
+          <figcaption>{{ 'template-editor.chatbot.before' | translate }}</figcaption>
+          <div class="preview-box">
+            <app-card-preview [card]="card()!" [template]="template()" [scale]="previewScale()"></app-card-preview>
+          </div>
+        </figure>
+        <i class="pi pi-arrow-right arrow"></i>
+        <figure>
+          <figcaption>{{ 'template-editor.chatbot.after' | translate }}</figcaption>
+          <div class="preview-box">
+            <app-card-preview [card]="card()!" [template]="proposed()" [scale]="previewScale()"></app-card-preview>
+          </div>
+        </figure>
+      </section>
+    }
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" class="p-button-text" [label]="'controls.cancel' | translate" (click)="close()"></button>
+    <button pButton type="button" icon="pi pi-check" [label]="'template-editor.chatbot.apply' | translate"
+      [disabled]="!found() || !!issue()" (click)="applyAnswer()"></button>
+  </ng-template>
+</p-dialog>
