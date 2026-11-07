@@ -195,7 +195,7 @@
           <!-- </ng-container> -->
         </div>
         }
-        @if (exportType === 'singular-export') {
+        @if (singularPreview) {
         <div class="preview-individuals">
           @for (card of singularSheet; track card; let i = $index) {
           <div class="card-scale-wrapper" [style.width.px]="frontCards.initialWidth * scale"
@@ -221,7 +221,7 @@
       @if (exportType === 'sheet-export') {
         <p-paginator styleClass="transparent-paginator" [rows]="1" [totalRecords]="slicedCards.length" [first]="currentPageIndex" (onPageChange)="onPageChange($event)"></p-paginator>
       }
-      @if (exportType === 'singular-export') {
+      @if (singularPreview) {
         <p-paginator styleClass="transparent-paginator" [rows]="1" [totalRecords]="slicedSingularCards.length" [first]="currentSingularPageIndex" (onPageChange)="onSingularPageChange($event)"></p-paginator>
       }
     </p-card>
@@ -375,6 +375,60 @@
           <div class="p-field">
             <p-message severity="error" class="p-ml-1">{{'export.missing-templates-warning' |
               translate}}</p-message>
+          </div>
+          }
+          }
+
+          @if (exportType === 'collector-set') {
+          <div class="p-field">
+            <p-message severity="info">{{'export.collector-info' | translate}}</p-message>
+          </div>
+          <div class="p-field">
+            <label for="collectorCode">{{'export.collector-code' | translate}}</label>
+            <input pInputText id="collectorCode" [(ngModel)]="collector.code" (change)="saveCollectorSettings()" />
+          </div>
+          <div class="p-field">
+            <label for="collectorNom">{{'export.collector-name' | translate}}</label>
+            <input pInputText id="collectorNom" [(ngModel)]="collector.nom" (change)="saveCollectorSettings()" />
+          </div>
+          <div class="p-field">
+            <label for="collectorUnivers">{{'export.collector-universe' | translate}}</label>
+            <input pInputText id="collectorUnivers" [(ngModel)]="collector.univers" (change)="saveCollectorSettings()"
+              placeholder="Terre de Fangh" />
+          </div>
+          <div class="p-field">
+            <label for="collectorPublication">{{'export.collector-publication' | translate}}</label>
+            <input type="number" min="1" pInputText id="collectorPublication" [(ngModel)]="collector.publication"
+              (change)="saveCollectorSettings()" />
+          </div>
+          <div class="p-field">
+            <label for="collectorScale">{{'export.scale' | translate}}</label>
+            <input type="number" pInputText id="collectorScale" [(ngModel)]="individualExportPixelRatio"
+              (ngModelChange)="saveSettings()" />
+          </div>
+          <div class="p-field p-d-flex p-flex-row">
+            <p-checkbox name="excludeCardBacks" class="p-mr-2" [binary]="true" [(ngModel)]="excludeCardBacks"
+              (onChange)="syncShowBack()" inputId="excludeCardBacksCollector"></p-checkbox>
+            <label for="excludeCardBacksCollector" class="ml-2">{{'export.exclude-card-backs' | translate}}</label>
+          </div>
+          @if (collectorErrors.length) {
+          <div class="p-field">
+            <p-message severity="error">
+              <div>{{'export.collector-errors' | translate}}</div>
+              <ul class="collector-errors">
+                @for (error of collectorErrors.slice(0, 15); track $index) {
+                <li>{{error}}</li>
+                }
+              </ul>
+              @if (collectorErrors.length > 15) {
+              <div>… +{{collectorErrors.length - 15}}</div>
+              }
+            </p-message>
+          </div>
+          }
+          @if (collectorDone) {
+          <div class="p-field">
+            <p-message severity="success">{{'export.collector-done' | translate}} {{collectorDone}}</p-message>
           </div>
           }
           }

@@ -97,3 +97,20 @@ Dans la page **Cartes** d'un deck :
 - **Exporter en JSON** produit le format `cartes-fangh`, avec `champs` rempli d'après les attributs du deck.
 
 Les deux fichiers se réimportent tels quels. C'est le point de départ conseillé pour faire compléter un deck par un autre outil : il voit les valeurs actuelles et les identifiants.
+
+## Publier pour l'appli de collection
+
+Page **Exporter les cartes** d'un deck > **Set pour l'appli de collection**. Le bouton Exporter produit `<code>_p<publication>.zip`, à importer dans l'appli de collection ([card-collector](https://github.com/Morgulas/card-collector), Admin > Importer un set) :
+
+```
+set.json                  ce format, avec un bloc "set" : code, nom, univers, publication
+cards/<CardID>_front.png  recto rendu de chaque carte
+cards/<CardID>_back.png   verso (sauf si « Exclure les versos » est coché)
+```
+
+- Le deck doit avoir un attribut **CardID** (ou « Card ID ») unique par carte, fait de lettres, chiffres, `-` et `_`, et un attribut **Rareté**. Les valeurs de la liste de Rareté donnent l'ordre des raretés, de la plus commune à la plus rare : elles doivent correspondre aux règles de booster de l'appli (Commune, Peu commune, Rare, Légendaire par défaut).
+- Les erreurs (CardID vide ou en double, rareté vide ou hors liste) s'affichent avant tout rendu.
+- **Code du set** : ne plus le changer une fois le set importé, sinon l'appli le voit comme un nouveau set.
+- **Numéro de publication** : il augmente tout seul après chaque publication. L'appli refuse un numéro déjà importé.
+- Les réglages (code, nom, univers, publication) sont enregistrés dans le deck.
+- Pour publier seulement une partie du deck : bouton **Sélectionner les cartes** de la page, ou sélection dans la liste des cartes puis Exporter.

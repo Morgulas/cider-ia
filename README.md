@@ -31,7 +31,7 @@ Concevez de belles cartes de jeu avec la puissance et la simplicité de `HTML`, 
 | **Effets foil** | Attribut « Foil » des cartes (holo, galaxie, or, argent, prisme, paillettes, cadre) dans le classeur, avec un sélecteur pour essayer les effets ; carte agrandie qui s'incline et classeur en plein écran. | [docs/boosters.md](docs/boosters.md) |
 | **Simulateur de boosters** | Pool de cartes avec un poids par carte ou par valeur d'attribut, chance de foil, design du sachet (réglages ou modèle HTML/CSS), ouverture animée carte par carte, statistiques simulées. | [docs/boosters.md](docs/boosters.md) |
 | **Simulateur de jeu étoffé** | Zones de dépôt personnalisées, joueurs et compteurs, mains, tours, boosters ouverts sur la table, journal des actions, parties enregistrées dans le projet. | [docs/simulateur.md](docs/simulateur.md) |
-| **Import / export CSV et JSON** | Les cartes d'un deck s'importent et s'exportent en CSV ou en JSON. | [docs/format-cartes-fangh.md](docs/format-cartes-fangh.md) |
+| **Import / export CSV et JSON** | Les cartes d'un deck s'importent et s'exportent en CSV ou en JSON ; « Publier le set » produit le ZIP de l'appli de collection. | [docs/format-cartes-fangh.md](docs/format-cartes-fangh.md) |
 | **Sauvegarde** | Procédure, script `backup.sh` et restauration du dossier de données ; outil `check-data` pour vérifier les données avant une mise à jour ou après une restauration. | [docs/sauvegarde.md](docs/sauvegarde.md) |
 
 ---

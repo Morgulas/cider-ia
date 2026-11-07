@@ -39,6 +39,10 @@ import { Dialog } from 'primeng/dialog';
 import { AsyncPipe } from '@angular/common';
 import { EntityPipe } from '../data-services/pipes/entity.pipe';
 import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
+import { CardTransferService } from '../cards-transfer/card-transfer.service';
+import { DecksService } from '../data-services/services/decks.service';
+import { DeckCollectorSettings } from '../data-services/types/deck.type';
+import { buildCollectorSet, suggestSetCode } from './collector-set';
 
 @Component({
     selector: 'app-export-cards',
@@ -51,10 +55,12 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   private readonly destroyRef = inject(DestroyRef);
   private static readonly SINGULAR_EXPORT = 'singular-export';
   private static readonly SHEET_EXPORT = 'sheet-export';
+  public static readonly COLLECTOR_EXPORT = 'collector-set';
   public static readonly PDF_DPI = 72;
   private static readonly EXPORT_OPTIONS: RadioOption[] = [
     { name: 'Card Sheet', value: ExportCardsComponent.SHEET_EXPORT },
-    { name: 'Individual Images', value: ExportCardsComponent.SINGULAR_EXPORT }
+    { name: 'Individual Images', value: ExportCardsComponent.SINGULAR_EXPORT },
+    { name: 'Collector set', value: ExportCardsComponent.COLLECTOR_EXPORT }
   ];
   private static readonly PAPER_OPTIONS: PaperType[] = [
     { name: 'US Letter (Landscape)', width: 8.5, height: 11, orientation: 'landscape', mirrorBacksX: false, mirrorBacksY: true },
@@ -151,6 +157,21 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   ];
 
   private readonly route = inject(ActivatedRoute);
+  private readonly cardTransfer = inject(CardTransferService);
+  private readonly decks = inject(DecksService);
+  private readonly deckId = Number(this.route.snapshot.paramMap.get('deckId'));
+  private deckName = '';
+
+  /** réglages de « Publier le set », gardés dans le deck */
+  public collector: DeckCollectorSettings = { code: '', nom: '', univers: '', publication: 1 };
+  public collectorErrors: string[] = [];
+  public collectorDone = '';
+
+  /** aperçu carte par carte : images individuelles et publication du set */
+  get singularPreview(): boolean {
+    return this.exportType === ExportCardsComponent.SINGULAR_EXPORT
+      || this.exportType === ExportCardsComponent.COLLECTOR_EXPORT;
+  }
 
   constructor(cardsService: CardsService,
     public templatesService: CardTemplatesService,
@@ -165,12 +186,21 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       this.someCardsMissingTemplates = cards.length != cardsWithTemplatesDefined.length;
       this.originalCards = cardsWithTemplatesDefined;
       // opened from the card list with a selection: only those cards (?ids=1,2,3)
-      const ids = (this.route.snapshot.queryParamMap.get('ids') ?? '').split(',').map(Number).filter(Number.isInteger);
+      // (sans ce paramètre, ''.split(',') donnerait [''] puis l'id 0 : aucune carte)
+      const ids = (this.route.snapshot.queryParamMap.get('ids') ?? '').split(',')
+        .filter(id => id.trim() !== '').map(Number).filter(Number.isInteger);
       this.cards = ids.length > 0
         ? cardsWithTemplatesDefined.filter(card => ids.includes(card.id))
         : cardsWithTemplatesDefined;
       this.updateExpandedCards();
       this.updateSlices();
+    });
+
+    this.decks.get(this.deckId).then(deck => {
+      this.deckName = deck?.name ?? '';
+      this.collector = deck?.collectorSet ? { ...deck.collectorSet } : {
+        code: suggestSetCode(this.deckName), nom: this.deckName, univers: '', publication: 1
+      };
     });
 
     this.exportOptions = ExportCardsComponent.EXPORT_OPTIONS;
@@ -586,6 +616,10 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       this.exportCardSheetsAsImages().catch(err => {
         this.displayErrorDialog(err);
       });;
+    } else if (this.exportType === ExportCardsComponent.COLLECTOR_EXPORT) {
+      this.exportCollectorSet().catch(err => {
+        this.displayErrorDialog(typeof err === 'string' ? err : String(err?.message ?? err));
+      });
     } else if (this.exportType === ExportCardsComponent.SHEET_EXPORT) {
       this.exportCardSheets().catch(err => {
         this.displayErrorDialog(err);
@@ -764,82 +798,126 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     });
   }
 
+  /**
+   * Rend chaque carte (recto, et verso sauf « Exclure les versos ») en PNG, page par page.
+   * `fileName` donne le nom de chaque image ; une erreur de rendu est rejetée.
+   */
+  private async renderSingularImages(fileName: (card: Card, side: 'front' | 'back') => string,
+    pixelRatio: number): Promise<File[]> {
+    const limit = pLimit(3);
+    let allExportedFiles: File[] = [];
+    const totalCards = this.cards.length * (this.excludeCardBacks ? 1 : 2);
+    const failed = (cardPreview: CardPreviewComponent) =>
+      Promise.reject('Failed to render card "' + cardPreview.card.name + '" with template "' + cardPreview.template.name + '".');
+
+    for (let chunkIndex = 0; chunkIndex < this.slicedSingularCards.length; chunkIndex++) {
+      const chunk = this.slicedSingularCards[chunkIndex];
+      this.singularSheet = chunk;
+      this.loadingInfo = 'Rendering cards chunk ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
+      await GeneralUtils.delay(1000);
+
+      // Wait for fronts (and backs) to load
+      await Promise.all(this.frontCards.map(cardPreview => lastValueFrom(cardPreview.isCacheLoaded()).catch(() => failed(cardPreview))));
+      if (!this.excludeCardBacks) {
+        await Promise.all(this.backCards.map(cardPreview => lastValueFrom(cardPreview.isCacheLoaded()).catch(() => failed(cardPreview))));
+      }
+
+      this.loadingInfo = 'Generating PNGs for chunk ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
+      const render = (cardPreview: CardPreviewComponent, side: 'front' | 'back') => limit(async () => {
+        const imgUri = await this.imageRendererService.toPng(cardPreview.element.nativeElement, { pixelRatio });
+        return this.dataUrlToFile(imgUri, fileName(cardPreview.card, side));
+      });
+      const chunkFiles$ = this.frontCards.map(cardPreview => render(cardPreview, 'front'))
+        .concat(this.excludeCardBacks ? [] : this.backCards.map(cardPreview => render(cardPreview, 'back')));
+      const chunkFiles = await Promise.all(this.promisesProgress(chunkFiles$, () => this.loadingPercent += 100.0 / totalCards));
+      allExportedFiles = allExportedFiles.concat(chunkFiles);
+    }
+    return allExportedFiles;
+  }
+
   private async exportIndividualImages() {
     this.displayLoading = true;
     this.loadingPercent = 0;
     this.renderCache = true;
-    const limit = pLimit(3);
-    let allExportedFiles: File[] = [];
-
-    const totalCards = this.cards.length * (this.excludeCardBacks ? 1 : 2);
-
     try {
-      for (let chunkIndex = 0; chunkIndex < this.slicedSingularCards.length; chunkIndex++) {
-        const chunk = this.slicedSingularCards[chunkIndex];
-        this.singularSheet = chunk;
-        this.loadingInfo = 'Rendering cards chunk ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
-        await GeneralUtils.delay(1000);
-
-        // Wait for fronts to load
-        const promisedFrontCards$ = this.frontCards.map(cardPreview => lastValueFrom(cardPreview.isCacheLoaded()).catch(() => {
-          return Promise.reject('Failed to render card "' + cardPreview.card.name + '" with template "' + cardPreview.template.name + '".');
-        }));
-        await Promise.all(promisedFrontCards$);
-
-        // Wait for backs to load
-        if (!this.excludeCardBacks) {
-          const promisedBackCards$ = this.backCards.map(cardPreview => lastValueFrom(cardPreview.isCacheLoaded()).catch(() => {
-            return Promise.reject('Failed to render card "' + cardPreview.card.name + '" with template "' + cardPreview.template.name + '".');
-          }));
-          await Promise.all(promisedBackCards$);
-        }
-
-        this.loadingInfo = 'Generating PNGs for chunk ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
-
-        const frontCards$ = this.frontCards.map(async cardPreview => {
-          const imgUri = await limit(() => this.imageRendererService.toPng(cardPreview.element.nativeElement,
-            { pixelRatio: this.individualExportPixelRatio }));
-          const imgIdentifier = this.individualExportUseCardName
-            ? StringUtils.toKebabCase(cardPreview.card?.name)
-            : cardPreview.card?.id;
-          const imgName = 'front-' + imgIdentifier + '.png';
-          return this.dataUrlToFile(imgUri, imgName);
-        });
-
-        let backCards$: Promise<File>[] = [];
-        if (!this.excludeCardBacks) {
-          backCards$ = this.backCards.map(async cardPreview => {
-            const imgUri = await limit(() => this.imageRendererService.toPng(cardPreview.element.nativeElement,
-              { pixelRatio: this.individualExportPixelRatio }));
-            const imgIdentifier = this.individualExportUseCardName
-              ? StringUtils.toKebabCase(cardPreview.card?.name)
-              : cardPreview.card?.id;
-            const imgName = 'back-' + imgIdentifier + '.png';
-            return this.dataUrlToFile(imgUri, imgName);
-          });
-        }
-
-        const chunkFiles$ = frontCards$.concat(backCards$);
-        const chunkFiles = await Promise.all(this.promisesProgress(chunkFiles$, () => this.loadingPercent += 100.0 / totalCards));
-        allExportedFiles = allExportedFiles.concat(chunkFiles);
-      }
-
+      const files = await this.renderSingularImages((card, side) => {
+        const imgIdentifier = this.individualExportUseCardName ? StringUtils.toKebabCase(card?.name) : card?.id;
+        return side + '-' + imgIdentifier + '.png';
+      }, this.individualExportPixelRatio);
       this.loadingInfo = 'Zipping up files...';
-      const blob = await this.zipFiles(allExportedFiles);
+      const blob = await this.zipFiles(files);
       this.loadingInfo = 'Saving file...';
       FileUtils.saveAs(blob, 'cards.zip');
-
     } catch (err) {
       this.loadingInfo = 'Failed to load card cache.';
-      this.loadingPercent = 0;
-      this.displayLoading = false;
-      this.renderCache = false;
       this.displayErrorDialog(typeof err === 'string' ? err : 'An error occurred during export.');
     } finally {
       this.loadingPercent = 100;
       this.displayLoading = false;
       this.renderCache = false;
       this.singularSheet = this.slicedSingularCards ? this.slicedSingularCards[this.currentSingularPageIndex] : [];
+    }
+  }
+
+  /**
+   * « Publier le set » : ZIP pour l'appli de collection (set.json + images nommées par CardID).
+   * Le numéro de publication du deck augmente après chaque publication.
+   */
+  public async exportCollectorSet() {
+    this.collectorErrors = [];
+    this.collectorDone = '';
+    const settings: DeckCollectorSettings = {
+      code: (this.collector.code ?? '').trim(),
+      nom: (this.collector.nom ?? '').trim(),
+      univers: (this.collector.univers ?? '').trim(),
+      publication: Number(this.collector.publication),
+    };
+    const ids = this.cards.map(card => card.id);
+    const exported = await this.cardTransfer.export(this.deckId, this.deckName, 'json', ids);
+    const plan = buildCollectorSet(await exported.text(), settings);
+    if (plan.errors.length) {
+      this.collectorErrors = plan.errors;
+      return;
+    }
+    const cardIdOf = new Map(ids.map((id, index) => [id, plan.cardIds[index]]));
+
+    this.displayLoading = true;
+    this.loadingPercent = 0;
+    this.renderCache = true;
+    try {
+      const files = await this.renderSingularImages(
+        (card, side) => `${cardIdOf.get(card.id)}_${side}.png`, this.individualExportPixelRatio);
+      this.loadingInfo = 'Zipping up files...';
+      const zip = new JSZip();
+      zip.file('set.json', plan.setJson);
+      files.forEach(file => zip.file('cards/' + file.name, file));
+      const blob = await zip.generateAsync({ type: 'blob' });
+      this.loadingInfo = 'Saving file...';
+      FileUtils.saveAs(blob, `${settings.code}_p${settings.publication}.zip`);
+
+      // la prochaine publication aura le numéro suivant
+      const deck = await this.decks.get(this.deckId);
+      this.collector = { ...settings, publication: settings.publication + 1 };
+      if (deck) {
+        await this.decks.update(this.deckId, { ...deck, collectorSet: this.collector });
+      }
+      this.collectorDone = `${settings.code}, publication ${settings.publication} : ${ids.length} cartes.`;
+    } catch (err) {
+      this.loadingInfo = 'Failed to load card cache.';
+      this.displayErrorDialog(typeof err === 'string' ? err : 'An error occurred during export.');
+    } finally {
+      this.loadingPercent = 100;
+      this.displayLoading = false;
+      this.renderCache = false;
+      this.singularSheet = this.slicedSingularCards ? this.slicedSingularCards[this.currentSingularPageIndex] : [];
+    }
+  }
+
+  /** Enregistre les réglages de publication dans le deck */
+  public async saveCollectorSettings() {
+    const deck = await this.decks.get(this.deckId);
+    if (deck) {
+      await this.decks.update(this.deckId, { ...deck, collectorSet: { ...this.collector, publication: Number(this.collector.publication) } });
     }
   }
 

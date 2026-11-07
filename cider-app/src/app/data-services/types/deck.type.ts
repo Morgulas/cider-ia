@@ -5,6 +5,16 @@ export interface Deck {
     illustrationPrompt?: string;
     /** choices remembered for the import of card rows */
     importSettings?: DeckImportSettings;
+    /** réglages de « Publier le set » (appli de collection) */
+    collectorSet?: DeckCollectorSettings;
+}
+
+export interface DeckCollectorSettings {
+    code: string;
+    nom: string;
+    univers: string;
+    /** numéro de la prochaine publication */
+    publication: number;
 }
 
 export interface DeckImportSettings {
