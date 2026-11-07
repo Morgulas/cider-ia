@@ -112,5 +112,8 @@ cards/<CardID>_back.png   verso (sauf si « Exclure les versos » est coché)
 - Les erreurs (CardID vide ou en double, rareté vide ou hors liste) s'affichent avant tout rendu.
 - **Code du set** : ne plus le changer une fois le set importé, sinon l'appli le voit comme un nouveau set.
 - **Numéro de publication** : il augmente tout seul après chaque publication. L'appli refuse un numéro déjà importé.
-- Les réglages (code, nom, univers, publication) sont enregistrés dans le deck.
+- **Sachet du booster** : choisis un booster du simulateur de boosters. Son design est rendu en image (`pack.png`, 500 × 800 px) ; sa finition (mat, brillant ou effet foil) et ses bords dentelés sont transmis à l'appli, qui les affiche en relief.
+- **Reprendre les tirages du booster** (option) : le nombre de cartes par booster et le poids de chaque carte remplacent les règles de l'appli (un seul emplacement, comme dans le simulateur).
+- L'attribut **Foil** des cartes est transmis sous sa forme canonique (holo, galaxie, or…), comme dans le classeur.
+- Les réglages (code, nom, univers, publication, booster) sont enregistrés dans le deck.
 - Pour publier seulement une partie du deck : bouton **Sélectionner les cartes** de la page, ou sélection dans la liste des cartes puis Exporter.

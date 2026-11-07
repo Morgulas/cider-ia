@@ -15,6 +15,10 @@ export interface DeckCollectorSettings {
     univers: string;
     /** numéro de la prochaine publication */
     publication: number;
+    /** booster du projet dont le sachet (et éventuellement les poids) accompagne le set */
+    boosterId?: number;
+    /** reprendre les poids et le nombre de cartes du booster pour les tirages de l'appli */
+    boosterWeights?: boolean;
 }
 
 export interface DeckImportSettings {

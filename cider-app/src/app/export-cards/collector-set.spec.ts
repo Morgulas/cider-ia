@@ -51,6 +51,26 @@ describe('collector set', () => {
     expect(plan.errors.length).toBe(2);
   });
 
+  it('carries the pack, the foil effects and the booster draws', () => {
+    const foilColumns: DeckColumn[] = [...columns, { field: 'foil', header: 'Foil', type: FieldType.text }];
+    const text = exportJson('Livres', foilColumns, [
+      { name: 'A', cardid: 'A1', rarete: 'Rare', foil: 'gold' },
+      { name: 'B', cardid: 'B1', rarete: 'Commune', foil: 'non' },
+      { name: 'C', cardid: 'C1', rarete: 'Commune', foil: '' },
+    ], templates);
+    const plan = buildCollectorSet(text, settings, {
+      image: 'pack.png', finition: 'holo', dentele: true, tirage: { cardsPerPack: 5, weights: [1, 10, 0] },
+    });
+    expect(plan.errors).toEqual([]);
+    const doc = JSON.parse(plan.setJson);
+    expect(doc.set.paquet).toBe('pack.png');
+    expect(doc.set.paquet_style).toEqual({ finition: 'holo', dentele: true });
+    expect(doc.set.booster).toEqual({ slots: [{ nom: 'Cartes', nombre: 5, raretes: { Rare: 1, Commune: 10 } }] });
+    expect(doc.cartes[0]['Foil']).toBe('or');
+    expect(doc.cartes[1]['Foil']).toBeUndefined();
+    expect(doc.cartes.map((c: Record<string, unknown>) => c['Poids'])).toEqual([1, 10, 0]);
+  });
+
   it('suggests a code from the deck name', () => {
     expect(suggestSetCode('Livres de Fangh')).toBe('LIVRES-DE-FANGH');
     expect(suggestSetCode('é')).toBe('SET-1');

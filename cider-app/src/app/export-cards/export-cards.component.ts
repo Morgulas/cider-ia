@@ -42,14 +42,18 @@ import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
 import { CardTransferService } from '../cards-transfer/card-transfer.service';
 import { DecksService } from '../data-services/services/decks.service';
 import { DeckCollectorSettings } from '../data-services/types/deck.type';
-import { buildCollectorSet, suggestSetCode } from './collector-set';
+import { buildCollectorSet, CollectorBooster, suggestSetCode } from './collector-set';
+import { BoostersService } from '../data-services/services/boosters.service';
+import { AssetsService } from '../data-services/services/assets.service';
+import { Booster, BoosterDesign } from '../data-services/types/booster.type';
+import { BoosterPackComponent } from '../boosters/booster-pack.component';
 
 @Component({
     selector: 'app-export-cards',
     templateUrl: './export-cards.component.html',
     styleUrls: ['./export-cards.component.scss'],
     providers: [ConfirmationService],
-    imports: [Bind, Card_1, SelectButton, FormsModule, ButtonDirective, Ripple, Tooltip, ProgressBar, CardPreviewComponent, Paginator, Select, InputText, Checkbox, Message, ToggleSwitch, ConfirmDialog, ExportSelectionDialogComponent, Dialog, AsyncPipe, EntityPipe, SafeUrlPipe, TranslatePipe]
+    imports: [Bind, Card_1, SelectButton, FormsModule, ButtonDirective, Ripple, Tooltip, ProgressBar, CardPreviewComponent, Paginator, Select, InputText, Checkbox, Message, ToggleSwitch, ConfirmDialog, ExportSelectionDialogComponent, Dialog, AsyncPipe, EntityPipe, SafeUrlPipe, TranslatePipe, BoosterPackComponent]
 })
 export class ExportCardsComponent implements OnInit, AfterViewChecked {
   private readonly destroyRef = inject(DestroyRef);
@@ -74,6 +78,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   @ViewChildren('cardSheets') cardSheets: QueryList<ElementRef<HTMLElement>> = {} as QueryList<ElementRef<HTMLElement>>;
   @ViewChildren('cardSheetCards') cardSheetCards: QueryList<CardPreviewComponent> = {} as QueryList<CardPreviewComponent>;
   @ViewChildren('frontCards') frontCards: QueryList<CardPreviewComponent> = {} as QueryList<CardPreviewComponent>;
+  @ViewChildren('packRender') packRender: QueryList<ElementRef<HTMLElement>> = {} as QueryList<ElementRef<HTMLElement>>;
   @ViewChildren('backCards') backCards: QueryList<CardPreviewComponent> = {} as QueryList<CardPreviewComponent>;
 
   private autoFitDone = false;
@@ -165,6 +170,20 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   /** réglages de « Publier le set », gardés dans le deck */
   public collector: DeckCollectorSettings = { code: '', nom: '', univers: '', publication: 1 };
   public collectorErrors: string[] = [];
+  /** boosters du projet, pour le sachet du set publié */
+  public boosters: Booster[] = [];
+  private readonly boostersService = inject(BoostersService);
+  public readonly assetsService = inject(AssetsService);
+
+  get collectorBooster(): Booster | undefined {
+    return this.boosters.find(b => b.id === this.collector.boosterId);
+  }
+
+  /** le sachet est rendu sans finition ni dents : l'appli les ajoute elle-même, en relief */
+  get collectorPackDesign(): BoosterDesign | undefined {
+    const booster = this.collectorBooster;
+    return booster ? { ...booster.design, finish: 'mat', crimped: false } : undefined;
+  }
   public collectorDone = '';
 
   /** aperçu carte par carte : images individuelles et publication du set */
@@ -196,6 +215,11 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       this.updateSlices();
     });
 
+    this.boostersService.getAll().then(boosters => {
+      // boosters dont le pool contient ce deck en premier
+      this.boosters = [...boosters].sort((a, b) =>
+        Number(b.deckIds?.includes(this.deckId)) - Number(a.deckIds?.includes(this.deckId)) || a.name.localeCompare(b.name));
+    });
     this.decks.get(this.deckId).then(deck => {
       this.deckName = deck?.name ?? '';
       this.collector = deck?.collectorSet ? { ...deck.collectorSet } : {
@@ -871,10 +895,22 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       nom: (this.collector.nom ?? '').trim(),
       univers: (this.collector.univers ?? '').trim(),
       publication: Number(this.collector.publication),
+      boosterId: this.collector.boosterId,
+      boosterWeights: !!this.collector.boosterWeights,
     };
     const ids = this.cards.map(card => card.id);
     const exported = await this.cardTransfer.export(this.deckId, this.deckName, 'json', ids);
-    const plan = buildCollectorSet(await exported.text(), settings);
+    const booster = this.collectorBooster;
+    const extra: CollectorBooster | undefined = booster ? {
+      image: 'pack.png',
+      finition: booster.design.finish,
+      dentele: booster.design.crimped,
+      tirage: this.collector.boosterWeights ? {
+        cardsPerPack: booster.cardsPerPack,
+        weights: ids.map(id => booster.weights?.[id] ?? booster.defaultWeight),
+      } : undefined,
+    } : undefined;
+    const plan = buildCollectorSet(await exported.text(), settings, extra);
     if (plan.errors.length) {
       this.collectorErrors = plan.errors;
       return;
@@ -887,8 +923,18 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     try {
       const files = await this.renderSingularImages(
         (card, side) => `${cardIdOf.get(card.id)}_${side}.png`, this.individualExportPixelRatio);
-      this.loadingInfo = 'Zipping up files...';
       const zip = new JSZip();
+      if (extra?.image) {
+        this.loadingInfo = 'Rendering the booster pack...';
+        await GeneralUtils.delay(800);
+        const pack = this.packRender.first;
+        if (pack) {
+          const packUri = await this.imageRendererService.toPng(pack.nativeElement,
+            { pixelRatio: 1, style: { position: 'static', left: '0' } });
+          zip.file(extra.image, this.dataUrlToFile(packUri, extra.image));
+        }
+      }
+      this.loadingInfo = 'Zipping up files...';
       zip.file('set.json', plan.setJson);
       files.forEach(file => zip.file('cards/' + file.name, file));
       const blob = await zip.generateAsync({ type: 'blob' });

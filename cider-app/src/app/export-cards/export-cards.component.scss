@@ -301,3 +301,18 @@ $preview-individual-scale: 0.08;
   margin: 0.5rem 0 0;
   padding-left: 1.2rem;
 }
+
+// sachet du booster : aperçu réduit, et rendu à 500 × 800 px (format 5:8) hors de l'écran
+.collector-pack-preview {
+  width: 125px;
+  height: 200px;
+}
+
+.collector-pack-render {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 500px;
+  height: 800px;
+  pointer-events: none;
+}

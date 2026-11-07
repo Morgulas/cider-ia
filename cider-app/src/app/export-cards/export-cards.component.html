@@ -402,6 +402,28 @@
               (change)="saveCollectorSettings()" />
           </div>
           <div class="p-field">
+            <label for="collectorBooster">{{'export.collector-booster' | translate}}</label>
+            <p-select inputId="collectorBooster" [options]="boosters" optionLabel="name" optionValue="id"
+              [(ngModel)]="collector.boosterId" [showClear]="true" (onChange)="saveCollectorSettings()"
+              [placeholder]="'export.collector-booster-none' | translate"></p-select>
+          </div>
+          @if (collectorBooster && collectorPackDesign) {
+          <div class="p-field collector-pack-preview">
+            <app-booster-pack [design]="collectorPackDesign" [name]="collectorBooster.name"
+              [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="(assetsService.assetUrls | async) ?? {}"></app-booster-pack>
+          </div>
+          <!-- rendu en taille réelle, hors de l'écran, pour l'image du sachet -->
+          <div #packRender class="collector-pack-render" aria-hidden="true">
+            <app-booster-pack [design]="collectorPackDesign" [name]="collectorBooster.name"
+              [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="(assetsService.assetUrls | async) ?? {}"></app-booster-pack>
+          </div>
+          <div class="p-field p-d-flex p-flex-row">
+            <p-checkbox name="boosterWeights" class="p-mr-2" [binary]="true" [(ngModel)]="collector.boosterWeights"
+              (onChange)="saveCollectorSettings()" inputId="boosterWeights"></p-checkbox>
+            <label for="boosterWeights" class="ml-2">{{'export.collector-booster-weights' | translate}}</label>
+          </div>
+          }
+          <div class="p-field">
             <label for="collectorScale">{{'export.scale' | translate}}</label>
             <input type="number" pInputText id="collectorScale" [(ngModel)]="individualExportPixelRatio"
               (ngModelChange)="saveSettings()" />
