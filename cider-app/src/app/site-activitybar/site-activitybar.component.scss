@@ -96,3 +96,24 @@
         filter: hue-rotate(360deg);
     }
 }
+/* The panel shown in the sidebar */
+:host ::ng-deep .side-menu .p-menubar-item.activity-active .p-menubar-item-content {
+    position: relative;
+    background: var(--p-menubar-item-focus-background, var(--p-content-hover-background));
+    border-radius: 8px;
+
+    &::before {
+        content: '';
+        position: absolute;
+        left: -10px;
+        top: 8px;
+        bottom: 8px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: var(--p-primary-color);
+    }
+
+    .p-menubar-item-icon {
+        color: var(--p-primary-color);
+    }
+}

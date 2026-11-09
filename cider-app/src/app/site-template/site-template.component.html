@@ -9,7 +9,7 @@
       (onResizeStart)="onResizeStart($event)"
       (onResizeEnd)="onResizeEnd($event)">
       <ng-template pTemplate>
-        <app-site-sidebar [style.display]="disablePanels ? 'none' : 'flex'"></app-site-sidebar>
+        <app-site-sidebar [activity]="selectedActivity" [style.display]="disablePanels ? 'none' : 'flex'"></app-site-sidebar>
         @if (disablePanels) {
           <div class="site-sidebar-placeholder"></div>
         }

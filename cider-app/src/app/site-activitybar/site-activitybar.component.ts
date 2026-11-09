@@ -12,128 +12,62 @@ import { SettingsDialogComponent } from '../settings-dialog/settings-dialog.comp
     imports: [Bind, Menubar, SettingsDialogComponent]
 })
 export class SiteActivitybarComponent {
-  @Input() selectedActivity = 'explorer';
+  private activity = 'explorer';
+  @Input() set selectedActivity(value: string) {
+    this.activity = value;
+    this.menuItems = this.buildMenu();
+  }
+  get selectedActivity(): string {
+    return this.activity;
+  }
   @Output() selectedActivityChange: EventEmitter<string> = new EventEmitter<string>();
 
   public settingsDialogVisible = false;
-  public menuItems: MenuItem[] = [
-    {
-      label: 'Explorer',
-      icon: 'pi pi-fw pi-folder',
-      tooltipOptions: {
-        tooltipLabel: 'Explorer',
-        tooltipPosition: 'right',
-        showDelay: 500,
-        hideDelay: 500
-      },
+  public menuItems: MenuItem[] = [];
+
+  /** Panel entries toggle the sidebar on their panel; page entries close it */
+  private buildMenu(): MenuItem[] {
+    const tooltip = (label: string) => ({
+      tooltipLabel: label, tooltipPosition: 'right' as const, showDelay: 500, hideDelay: 500
+    });
+    const panel = (id: string, label: string, icon: string): MenuItem => ({
+      label, icon,
+      tooltipOptions: tooltip(label),
+      styleClass: this.activity === id ? 'activity-active' : '',
+      command: () => this.select(this.activity === id ? '' : id)
+    });
+    const page = (label: string, icon: string, url: string): MenuItem => ({
+      label, icon,
+      tooltipOptions: tooltip(label),
       command: () => {
-        if (this.selectedActivity == 'explorer') {
-          this.selectedActivity = '';
-        } else {
-          this.selectedActivity = 'explorer';
+        this.select('');
+        this.router.navigate([url]);
+      }
+    });
+    return [
+      panel('explorer', 'Explorer', 'pi pi-fw pi-folder'),
+      panel('assets', 'Illustrations', 'pi pi-fw pi-images'),
+      page('Boosters', 'pi pi-fw pi-gift', '/boosters'),
+      page('Game Simulator', 'pi pi-fw pi-crown', '/simulator'),
+      {
+        label: 'Settings',
+        icon: 'pi pi-fw pi-cog',
+        tooltipOptions: tooltip('Settings'),
+        styleClass: 'menu-item-bottom',
+        command: () => {
+          this.settingsDialogVisible = true;
         }
-        this.selectedActivityChange.emit(this.selectedActivity);
-        // console.log('Explorer activity selected:', this.selectedActivity);
-      }
-    },
-    // {
-    //   label: 'Source Control',
-    //   icon: 'pi pi-fw pi-share-alt',
-    //   tooltipOptions: {
-    //     tooltipLabel: 'Source Control',
-    //     tooltipPosition: 'right',
-    //     showDelay: 500,
-    //     hideDelay: 500
-    //   },
-    //   command: () => {
-    //     if (this.selectedActivity == 'source-control') {
-    //       this.selectedActivity = '';
-    //     } else {
-    //       this.selectedActivity = 'source-control';
-    //     }
-    //     this.selectedActivityChange.emit(this.selectedActivity);
-    //     console.log('Source Control activity selected:', this.selectedActivity);
-    //   }
-    // },
-    // {
-    //   label: 'AI Tools',
-    //   icon: 'pi pi-fw pi-sparkles',
-    //   tooltipOptions: {
-    //     tooltipLabel: 'AI Tools',
-    //     tooltipPosition: 'right',
-    //     showDelay: 500,
-    //     hideDelay: 500
-    //   },
-    //   command: () => {
-    //     if (this.selectedActivity == 'ai-tools') {
-    //       this.selectedActivity = '';
-    //     } else {
-    //       this.selectedActivity = 'ai-tools';
-    //     }
-    //     this.selectedActivityChange.emit(this.selectedActivity);
-    //   }
-    // },
-    // {
-    //   label: 'Create New Project',
-    //   icon: 'pi pi-fw pi-plus',
-    //   tooltipOptions: {
-    //     tooltipLabel: 'Create New Project',
-    //     tooltipPosition: 'right',
-    //     showDelay: 500,
-    //     hideDelay: 500
-    //   },
-    //   command: () => {
-    //     this.router.navigate(['/welcome']);
-    //   }
-    // },
-    {
-      label: 'Boosters',
-      icon: 'pi pi-fw pi-gift',
-      tooltipOptions: {
-        tooltipLabel: 'Boosters',
-        tooltipPosition: 'right',
-        showDelay: 500,
-        hideDelay: 500
       },
-      command: () => {
-        this.selectedActivity = '';
-        this.selectedActivityChange.emit(this.selectedActivity);
-        this.router.navigate(['/boosters']);
-      }
-    },
-    {
-      label: 'Game Simulator',
-      icon: 'pi pi-fw pi-crown',
-      tooltipOptions: {
-        tooltipLabel: 'Game Simulator',
-        tooltipPosition: 'right',
-        showDelay: 500,
-        hideDelay: 500
-      },
-      command: () => {
-        this.selectedActivity = '';
-        this.selectedActivityChange.emit(this.selectedActivity);
-        this.router.navigate(['/simulator']);
-      }
-    },
-    {
-      label: 'Settings',
-      icon: 'pi pi-fw pi-cog',
-      tooltipOptions: {
-        tooltipLabel: 'Settings',
-        tooltipPosition: 'right',
-        showDelay: 500,
-        hideDelay: 500
-      },
-      styleClass: 'menu-item-bottom',
-      command: () => {
-        this.settingsDialogVisible = true;
-      }
-    },
-  ];
+    ];
+  }
+
+  private select(activity: string) {
+    this.selectedActivity = activity;
+    this.selectedActivityChange.emit(activity);
+  }
 
   constructor(private router: Router) {
-    // Do nothing here
+    this.menuItems = this.buildMenu();
   }
 
 

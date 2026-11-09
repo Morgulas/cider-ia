@@ -1,22 +1,90 @@
-<p-tree [value]="files" styleClass="file-tree" [filter]="true" [filterPlaceholder]="'controls.search' | translate"
-    [selectionMode]="'single'" [(selection)]="selectedFile" [contextMenu]="cm" [draggableNodes]="true"
-    [droppableNodes]="true" (onNodeDrop)="onNodeDrop($event)" draggableScope="self" droppableScope="self"
-    (onNodeContextMenuSelect)="onNodeContextMenuSelect($event)" (onNodeSelect)="onNodeSelect($event)">
-    <ng-template let-node pTemplate="default">
-        <span>{{ node.label }}</span>
-        <span class="file-controls">
-            @for (action of node.data?.actions ?? []; track action.icon) {
-                <button type="button" class="node-action" [title]="action.label" [attr.aria-label]="action.label"
-                    (click)="$event.stopPropagation(); action.command()">
-                    <i [class]="action.icon"></i>
+<ng-template #nodeTemplate let-node>
+    <span class="node-label">{{ node.label }}</span>
+    @if (node.data?.badge != null) {
+        <span class="node-badge">{{ node.data.badge }}</span>
+    }
+    <span class="file-controls">
+        @for (action of node.data?.actions ?? []; track action.icon) {
+            <button type="button" class="node-action" [title]="action.label" [attr.aria-label]="action.label"
+                (click)="$event.stopPropagation(); action.command()">
+                <i [class]="action.icon"></i>
+            </button>
+        }
+    </span>
+</ng-template>
+
+@if (activity === 'assets') {
+    <!-- Illustrations: their own panel, the whole height for the folders -->
+    <div class="panel-title">
+        <i class="pi pi-images"></i>
+        <span>{{ 'sidebar.illustrations' | translate }}</span>
+        <button type="button" class="node-action" [title]="'sidebar.generate-new-asset' | translate"
+            [attr.aria-label]="'sidebar.generate-new-asset' | translate" (click)="router.navigateByUrl('/assets/generator')">
+            <i class="pi pi-sparkles"></i>
+        </button>
+    </div>
+    <p-tree [value]="assetFiles" styleClass="file-tree asset-tree" [filter]="true"
+        [filterPlaceholder]="'controls.search' | translate" [selectionMode]="'single'" [(selection)]="selectedFile"
+        [contextMenu]="cm" [draggableNodes]="true" [droppableNodes]="true" (onNodeDrop)="onNodeDrop($event)"
+        draggableScope="self" droppableScope="self" (onNodeContextMenuSelect)="onNodeContextMenuSelect($event)"
+        (onNodeSelect)="onNodeSelect($event)">
+        <ng-template let-node pTemplate="default">
+            <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node }" />
+        </ng-template>
+    </p-tree>
+} @else {
+    <!-- Project: home and documents -->
+    <p-tree [value]="projectFiles" styleClass="file-tree project-tree" [selectionMode]="'single'"
+        [(selection)]="selectedFile" [contextMenu]="cm" (onNodeContextMenuSelect)="onNodeContextMenuSelect($event)"
+        (onNodeSelect)="onNodeSelect($event)">
+        <ng-template let-node pTemplate="default">
+            <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node }" />
+        </ng-template>
+    </p-tree>
+
+    <!-- Deck picker: everything below belongs to this deck -->
+    <div class="deck-bar">
+        <span class="deck-bar-label">{{ 'sidebar.deck' | translate }}</span>
+        @if (decks.length) {
+            <div class="deck-bar-row">
+                <p-select [options]="decks" optionLabel="name" optionValue="id" [ngModel]="currentDeckId"
+                    (ngModelChange)="onDeckChange($event)" [filter]="decks.length > 6" filterBy="name"
+                    styleClass="deck-select" appendTo="body" [ariaLabel]="'sidebar.choose-deck' | translate">
+                    <ng-template let-deck pTemplate="item">
+                        <span class="deck-option">
+                            <i class="pi pi-clone"></i>
+                            <span class="deck-option-name">{{ deck.name }}</span>
+                            <span class="node-badge">{{ deck.cards }}</span>
+                        </span>
+                    </ng-template>
+                </p-select>
+                <button type="button" class="node-action" [pTooltip]="'sidebar.deck-actions' | translate"
+                    tooltipPosition="bottom" [attr.aria-label]="'sidebar.deck-actions' | translate"
+                    (click)="deckMenu.toggle($event)">
+                    <i class="pi pi-ellipsis-v"></i>
                 </button>
-            }
-            <!-- <p-button *ngIf="node.data.addAction" icon="pi pi-plus" [rounded]="true" [text]="true" />
-            <p-button *ngIf="node.data.editAction" icon="pi pi-pencil" [rounded]="true" [text]="true" /> -->
-            <!-- <p-button *ngIf="node.data.removeAction" icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger" /> -->
-        </span>
-    </ng-template>
-</p-tree>
+            </div>
+        } @else {
+            <button type="button" class="deck-empty" (click)="createDeck()">
+                <i class="pi pi-plus"></i> {{ 'sidebar.add-new-deck' | translate }}
+            </button>
+        }
+    </div>
+
+    @if (decks.length) {
+        <p-tree [value]="deckFiles" styleClass="file-tree deck-tree" [filter]="true"
+            [filterPlaceholder]="'controls.search' | translate" [selectionMode]="'single'" [(selection)]="selectedFile"
+            [contextMenu]="cm" (onNodeContextMenuSelect)="onNodeContextMenuSelect($event)"
+            (onNodeSelect)="onNodeSelect($event)">
+            <ng-template let-node pTemplate="default">
+                <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node }" />
+            </ng-template>
+        </p-tree>
+    } @else {
+        <div class="spacer"></div>
+    }
+}
+<p-menu #deckMenu [model]="deckMenuItems" [popup]="true" appendTo="body" />
 <p-contextmenu #cm [model]="menuItems" appendTo="body" />
 <app-entity-dialog [service]="service" [(visible)]="dialogVisible" [entity]="entity" [title]="dialogTitle"
     (created)="onEntityCreated($event)" (visibleChange)="onDialogVisibleChange($event)"></app-entity-dialog>

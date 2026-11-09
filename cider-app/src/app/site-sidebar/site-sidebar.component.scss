@@ -1,12 +1,29 @@
+:host {
+    flex-direction: column;
+    min-width: 0;
+    border-radius: 10px;
+    background: var(--cider-content-background, var(--p-tree-background));
+}
+
 :host ::ng-deep p-tree {
-    flex: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
     border: none;
     padding: 0;
-    border-radius: 10px;
-    background: var(--cider-content-background, var(--p-tree-background));
+    background: none;
+
+    &.deck-tree, &.asset-tree, &:has(> .deck-tree), &:has(> .asset-tree) {
+        flex: 1;
+        min-height: 0;
+    }
+
+    &.project-tree .p-tree-root, & > .project-tree .p-tree-root {
+        flex: 0 0 auto;
+        max-height: 30vh;
+        margin-bottom: 0;
+        padding-top: 0.5rem;
+    }
 
     .p-iconfield {
         margin: 10px;
@@ -136,4 +153,136 @@
         background: var(--p-content-hover-background);
         color: var(--p-primary-color);
     }
+}
+
+.node-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.node-badge {
+    flex: none;
+    margin-left: auto;
+    padding: 0 0.45rem;
+    min-width: 1.4rem;
+    text-align: center;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    line-height: 1.25rem;
+    background: var(--p-content-hover-background);
+    color: var(--p-text-muted-color);
+}
+
+/* The control bar of the selected deck */
+.deck-bar {
+    margin: 0.4rem 0.6rem 0;
+    padding: 0.6rem 0.5rem 0.2rem;
+    border-top: 1px solid var(--p-content-border-color);
+
+    .deck-bar-label {
+        display: block;
+        margin: 0 0 0.3rem 0.25rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--p-text-muted-color);
+    }
+
+    .deck-bar-row {
+        display: flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+
+    ::ng-deep .deck-select {
+        flex: 1;
+        min-width: 0;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+
+    .node-action {
+        width: 2rem;
+        height: 2rem;
+        flex: none;
+    }
+}
+
+.deck-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.6rem;
+    border: 1px dashed var(--p-content-border-color);
+    border-radius: 10px;
+    background: none;
+    color: var(--p-primary-color);
+    cursor: pointer;
+}
+
+.deck-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+
+    .deck-option-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+.panel-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 0.8rem 0;
+    font-weight: 600;
+
+    .pi-images {
+        color: #4db6ac;
+    }
+
+    .node-action {
+        margin-left: auto;
+    }
+}
+
+.spacer {
+    flex: 1;
+}
+
+:host ::ng-deep .file-tree .p-tree-node.p-tree-node-leaf.template-folder,
+:host ::ng-deep .file-tree .template-folder > .p-tree-node-content {
+    font-weight: 600;
+}
+
+:host ::ng-deep .p-tree-node-icon.pi-file-export {
+    color: #ff7043;
+}
+
+:host ::ng-deep .p-tree-node-icon.pi-images {
+    color: #4db6ac;
+}
+
+:host ::ng-deep .p-tree-node-icon.pi-sparkles {
+    color: #f06292;
+}
+
+.node-badge + .file-controls {
+    margin-left: 0;
+}
+
+:host ::ng-deep .file-tree .p-tree-node-label > span {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
 }
