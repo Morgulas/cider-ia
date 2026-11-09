@@ -1,6 +1,6 @@
 <ng-template #nodeTemplate let-node>
     <span class="node-label">{{ node.label }}</span>
-    @if (node.data?.badge != null) {
+    @if (node.data?.badge !== undefined && node.data?.badge !== null) {
         <span class="node-badge">{{ node.data.badge }}</span>
     }
     <span class="file-controls">
