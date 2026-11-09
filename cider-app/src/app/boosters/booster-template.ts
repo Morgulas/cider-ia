@@ -1,7 +1,7 @@
-import { BoosterDesign } from '../data-services/types/booster.type';
+import { BoosterBackDesign, BoosterDesign } from '../data-services/types/booster.type';
 
 /** Fond CSS correspondant aux réglages du formulaire. */
-function backgroundCss(design: BoosterDesign): string {
+function backgroundCss(design: Pick<BoosterDesign, 'background'>): string {
   switch (design.background) {
     case 'radial': return 'radial-gradient(circle at 50% 40%, var(--couleur-b) 0%, var(--couleur-a) 75%)';
     case 'rayures': return 'repeating-linear-gradient(135deg, var(--couleur-a) 0 22px, var(--couleur-b) 22px 44px)';
@@ -84,6 +84,94 @@ export function designToTemplate(design: BoosterDesign): { html: string; css: st
   letter-spacing: 0.15em;
   text-transform: uppercase;
   opacity: 0.8;
+}
+`;
+  return { html, css };
+}
+
+/**
+ * Point de départ du modèle du verso : le HTML et le CSS qui redonnent le verso des réglages.
+ * Contexte en plus du recto : {{booster.backTitle}}, {{booster.backText}}.
+ */
+export function backToTemplate(back: BoosterBackDesign): { html: string; css: string } {
+  const art = back.art ? `\n  <img class="illustration" src="{{assets.${back.art}}}" alt="">` : '';
+  const logo = back.logo ? `\n    <img class="logo" src="{{assets.${back.logo}}}" alt="">` : '';
+  const count = back.showCount ? '\n    <div class="nombre">{{booster.cardsPerPack}} cartes</div>' : '';
+  const barcode = back.barcode ? '\n  <div class="code-barres"></div>' : '';
+  const html = `<div class="verso">${art}
+  <div class="contenu">${logo}
+    <div class="titre">{{booster.backTitle}}</div>
+    {{#if booster.backText}}<div class="texte">{{booster.backText}}</div>{{/if}}${count}
+  </div>${barcode}
+</div>`;
+  const css = `.verso {
+  --couleur-a: ${back.colorA};
+  --couleur-b: ${back.colorB};
+  --couleur-texte: ${back.textColor};
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${backgroundCss(back)};
+  color: var(--couleur-texte);
+  font-family: Georgia, serif;
+}
+
+.illustration {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: ${(back.artOpacity ?? 25) / 100};
+}
+
+.contenu {
+  position: relative;
+  width: 76%;
+  text-align: center;
+}
+
+.logo {
+  display: block;
+  max-width: 50%;
+  max-height: 14cqh;
+  margin: 0 auto 3cqh;
+}
+
+.titre {
+  font-size: 8cqw;
+  font-weight: bold;
+}
+
+.texte {
+  margin-top: 3cqh;
+  font-size: 4.2cqw;
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.nombre {
+  display: inline-block;
+  margin-top: 4cqh;
+  padding: 1.5cqw 4cqw;
+  border: 1px solid currentColor;
+  border-radius: 2cqw;
+  font-size: 3.8cqw;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.code-barres {
+  position: absolute;
+  right: 8cqw;
+  bottom: 10cqh;
+  width: 26cqw;
+  height: 8cqw;
+  opacity: 0.75;
+  background: repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 3px,
+    currentColor 3px 5px, transparent 5px 6px, currentColor 6px 7px, transparent 7px 10px);
 }
 `;
   return { html, css };

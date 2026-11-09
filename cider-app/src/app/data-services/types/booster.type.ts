@@ -25,6 +25,33 @@ export interface BoosterDesign {
     /** Mode modèle : HTML et CSS Handlebars (contexte : booster, assets). */
     html?: string;
     css?: string;
+    /** Verso du sachet (finition et bords dentelés : ceux du recto). Absent = automatique. */
+    back?: BoosterBackDesign;
+}
+
+/** Verso du booster. */
+export interface BoosterBackDesign {
+    /**
+     * auto : tiré du recto (couleurs inversées, illustration estompée, nom, nombre de cartes) ;
+     * form : réglages ci-dessous ; template : modèle HTML/CSS.
+     */
+    mode: 'auto' | 'form' | 'template';
+    background: BoosterBackground;
+    colorA: string;
+    colorB: string;
+    textColor: string;
+    /** Illustration en fond, et son opacité (0 à 100). */
+    art?: string;
+    artOpacity: number;
+    logo?: string;
+    /** Titre ; vide = nom du booster. */
+    title: string;
+    /** Texte libre (contenu, règles, mentions…), sur plusieurs lignes. */
+    text: string;
+    showCount: boolean;
+    barcode: boolean;
+    html?: string;
+    css?: string;
 }
 
 /**

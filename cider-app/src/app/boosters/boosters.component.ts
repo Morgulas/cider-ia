@@ -8,6 +8,7 @@ import { SelectButton } from 'primeng/selectbutton';
 import { Select } from 'primeng/select';
 import { MultiSelect } from 'primeng/multiselect';
 import { InputNumber } from 'primeng/inputnumber';
+import { Textarea } from 'primeng/textarea';
 import { InputText } from 'primeng/inputtext';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 import { Tooltip } from 'primeng/tooltip';
@@ -31,8 +32,8 @@ import { CardTiltDirective } from '../card-binder/card-tilt.directive';
 import { BoosterPackComponent } from './booster-pack.component';
 import { BoosterOpeningComponent } from './booster-opening.component';
 import { AssetChoice, assetChoices } from './booster-assets';
-import { BoosterStats, PoolEntry, PulledCard, newBooster, openBooster, pickChance, poolOf, simulate, valueText, weightOf } from './booster-logic';
-import { designToTemplate } from './booster-template';
+import { BoosterStats, PoolEntry, PulledCard, autoBack, newBooster, openBooster, pickChance, poolOf, simulate, valueText, weightOf } from './booster-logic';
+import { backToTemplate, designToTemplate } from './booster-template';
 
 type Section = 'open' | 'pool' | 'design' | 'stats';
 
@@ -58,7 +59,7 @@ interface CollectedCard {
   templateUrl: './boosters.component.html',
   styleUrls: ['./boosters.component.scss'],
   providers: [ConfirmationService],
-  imports: [FormsModule, TranslatePipe, Button, SelectButton, Select, MultiSelect, InputNumber, InputText,
+  imports: [FormsModule, TranslatePipe, Button, SelectButton, Select, MultiSelect, InputNumber, InputText, Textarea,
     ToggleSwitch, Tooltip, ConfirmDialog, EditorComponent, BoosterPackComponent, BoosterOpeningComponent, CardTiltDirective]
 })
 export class BoostersComponent implements OnInit, OnDestroy {
@@ -113,6 +114,8 @@ export class BoostersComponent implements OnInit, OnDestroy {
   collected: CollectedCard[] = [];
   collectedIds = new Set<number>();
 
+  /** Face du sachet éditée et montrée dans l'onglet Design. */
+  designSide: 'front' | 'back' = 'front';
   editorOptions = { theme: 'vs-dark-extended', language: 'handlebars', automaticLayout: true, minimap: { enabled: false } };
   cssEditorOptions = { theme: 'vs-dark-extended', language: 'css-handlebars', automaticLayout: true, minimap: { enabled: false } };
 
@@ -390,6 +393,30 @@ export class BoostersComponent implements OnInit, OnDestroy {
       Object.assign(this.booster.design, designToTemplate(this.booster.design));
     }
     this.booster.design.mode = mode;
+    this.changed();
+  }
+
+  /** Verso : automatique (tiré du recto), réglages ou modèle HTML/CSS. */
+  setBackMode(mode: 'auto' | 'form' | 'template'): void {
+    if (!this.booster) {
+      return;
+    }
+    const design = this.booster.design;
+    // en quittant l'automatique, on part du verso automatique actuel
+    const back = design.back && design.back.mode !== 'auto' ? design.back : { ...autoBack(design), ...(design.back ?? {}) };
+    if (mode === 'template' && !back.html) {
+      Object.assign(back, backToTemplate({ ...back, mode: 'form' }));
+    }
+    design.back = { ...back, mode };
+    this.changed();
+  }
+
+  /** Remplace le modèle du verso par une traduction de ses réglages. */
+  backTemplateFromForm(): void {
+    if (!this.booster?.design.back) {
+      return;
+    }
+    Object.assign(this.booster.design.back, backToTemplate(this.booster.design.back));
     this.changed();
   }
 

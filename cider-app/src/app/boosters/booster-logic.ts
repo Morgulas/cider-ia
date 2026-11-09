@@ -1,4 +1,4 @@
-import { Booster, BoosterDesign } from '../data-services/types/booster.type';
+import { Booster, BoosterBackDesign, BoosterDesign } from '../data-services/types/booster.type';
 import { Card } from '../data-services/types/card.type';
 import { FoilEffect, foilOf } from '../card-binder/foil';
 
@@ -26,6 +26,33 @@ export const DEFAULT_DESIGN: BoosterDesign = {
   finish: 'holo',
   crimped: true,
 };
+
+/** Verso tiré du recto : couleurs inversées, illustration estompée. */
+export function autoBack(design: BoosterDesign): BoosterBackDesign {
+  return {
+    mode: 'auto',
+    background: design.background,
+    colorA: design.colorB,
+    colorB: design.colorA,
+    textColor: design.textColor,
+    art: design.art,
+    artOpacity: 25,
+    logo: design.logo,
+    title: '',
+    text: '',
+    showCount: true,
+    barcode: true,
+  };
+}
+
+/** Verso effectif d'un design : le verso réglé, ou le verso automatique (tiré du recto). */
+export function backOf(design: BoosterDesign): BoosterBackDesign {
+  const back = design.back;
+  if (!back || back.mode === 'auto') {
+    return autoBack(design);
+  }
+  return { ...autoBack(design), ...back };
+}
 
 /** Un booster neuf : tout le pool à poids 1. */
 export function newBooster(name: string, deckIds: number[]): Omit<Booster, 'id'> {

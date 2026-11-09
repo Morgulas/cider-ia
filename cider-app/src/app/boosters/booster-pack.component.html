@@ -1,6 +1,27 @@
 <div class="pack" [class]="uid" [class.crimped]="design.crimped" [class.glossy]="design.finish !== 'mat'">
-  @if (design.mode === 'template') {
+  @if (templateMode) {
   <div class="pack-template" [innerHTML]="templateHtml"></div>
+  } @else if (side === 'back') {
+  <div class="pack-form pack-back" [style.background]="backBackgroundStyle" [style.color]="back.textColor">
+    @if (backArtUrl) {
+    <img class="pack-art" [src]="backArtUrl" alt="" draggable="false" [style.opacity]="back.artOpacity / 100">
+    }
+    <div class="back-content">
+      @if (backLogoUrl) {
+      <img class="back-logo" [src]="backLogoUrl" alt="" draggable="false">
+      }
+      <div class="back-title">{{ backTitle }}</div>
+      @if (back.text) {
+      <div class="back-text">{{ back.text }}</div>
+      }
+      @if (back.showCount && cardsPerPack) {
+      <div class="back-count">{{ 'boosters.pack-count' | translate: { n: cardsPerPack } }}</div>
+      }
+    </div>
+    @if (back.barcode) {
+    <span class="back-barcode" aria-hidden="true"></span>
+    }
+  </div>
   } @else {
   <div class="pack-form" [style.background]="backgroundStyle" [style.color]="design.textColor">
     @if (artUrl) {

@@ -978,7 +978,21 @@
             "crimped": "Bords dentelés",
             "template-help": "Handlebars : <code>{{booster.title}}</code>, <code>{{booster.subtitle}}</code>, <code>{{booster.cardsPerPack}}</code>, <code>{{assets.nom}}</code>. Unités <code>cqw</code>/<code>cqh</code> : % de la largeur/hauteur du booster.",
             "from-form": "Repartir des réglages",
-            "preview-hint": "Survole ou fais glisser le booster pour l'incliner."
+            "preview-hint": "Survole ou fais glisser le booster pour l'incliner.",
+        "side-front": "Recto",
+        "side-back": "Verso",
+        "show-back": "Voir le verso",
+        "show-front": "Voir le recto",
+        "back-auto": "Automatique",
+        "back-auto-help": "Verso tiré du recto : couleurs inversées, illustration estompée, nom du booster, nombre de cartes et code-barres. Choisis Réglages ou Modèle HTML/CSS pour le personnaliser.",
+        "back-title": "Titre (vide : celui du recto)",
+        "back-text": "Texte",
+        "back-text-placeholder": "Contenu du booster, règles, mentions…",
+        "art-opacity": "Opacité de l'illustration",
+        "show-count": "Nombre de cartes",
+        "barcode": "Code-barres",
+        "back-shared": "La finition et les bords dentelés sont ceux du recto.",
+        "back-template-help": "Handlebars : comme le recto, plus <code>{{booster.backTitle}}</code> et <code>{{booster.backText}}</code>. Unités <code>cqw</code>/<code>cqh</code> : % de la largeur/hauteur du booster."
         },
         "stats": {
             "full-set": "boosters en moyenne pour avoir toutes les cartes",

@@ -22,6 +22,8 @@ export interface CollectorSetSettings {
 export interface CollectorBooster {
   /** image du sachet dans le ZIP (ex. pack.png) */
   image?: string;
+  /** image du verso du sachet dans le ZIP (ex. pack-back.png) */
+  imageBack?: string;
   /** finition de l'emballage : mat, brillant ou un effet foil */
   finition: string;
   /** bords dentelés en haut et en bas */
@@ -168,6 +170,7 @@ export function buildCollectorSet(exportJson: string, settings: CollectorSetSett
       univers: settings.univers ?? '',
       publication: settings.publication,
       ...(booster?.image ? { paquet: booster.image } : {}),
+      ...(booster?.imageBack ? { paquet_dos: booster.imageBack } : {}),
       ...(booster ? { paquet_style: { finition: booster.finition, dentele: booster.dentele } } : {}),
       ...(rules ? { booster: rules } : {}),
     },

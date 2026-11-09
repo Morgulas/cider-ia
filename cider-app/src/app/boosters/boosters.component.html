@@ -173,6 +173,12 @@
     @case ('design') {
     <div class="design-layout">
       <div class="design-settings">
+        <p-selectButton class="side-switch" [options]="[{ v: 'front', k: 'boosters.design.side-front' }, { v: 'back', k: 'boosters.design.side-back' }]"
+          [(ngModel)]="designSide" optionValue="v" [allowEmpty]="false">
+          <ng-template #item let-option>{{ option.k | translate }}</ng-template>
+        </p-selectButton>
+
+        @if (designSide === 'front') {
         <p-selectButton [options]="[{ v: 'form', k: 'boosters.design.form' }, { v: 'template', k: 'boosters.design.template' }]"
           [ngModel]="booster.design.mode" (ngModelChange)="setDesignMode($event)" optionValue="v" [allowEmpty]="false">
           <ng-template #item let-option>{{ option.k | translate }}</ng-template>
@@ -245,12 +251,78 @@
           </div>
         </div>
         }
+        } @else {
+        <p-selectButton [options]="[{ v: 'auto', k: 'boosters.design.back-auto' }, { v: 'form', k: 'boosters.design.form' }, { v: 'template', k: 'boosters.design.template' }]"
+          [ngModel]="booster.design.back?.mode ?? 'auto'" (ngModelChange)="setBackMode($event)" optionValue="v" [allowEmpty]="false">
+          <ng-template #item let-option>{{ option.k | translate }}</ng-template>
+        </p-selectButton>
+
+        @if (!booster.design.back || booster.design.back.mode === 'auto') {
+        <p class="back-help">{{ 'boosters.design.back-auto-help' | translate }}</p>
+        } @else if (booster.design.back.mode === 'form') {
+        <div class="settings-grid">
+          <label for="b-title">{{ 'boosters.design.back-title' | translate }}</label>
+          <input pInputText id="b-title" [(ngModel)]="booster.design.back.title" (ngModelChange)="changed()"
+            [placeholder]="booster.design.title || booster.name" />
+          <label for="b-text">{{ 'boosters.design.back-text' | translate }}</label>
+          <textarea pTextarea id="b-text" rows="5" [(ngModel)]="booster.design.back.text" (ngModelChange)="changed()"
+            [placeholder]="'boosters.design.back-text-placeholder' | translate"></textarea>
+          <label for="b-bg">{{ 'boosters.design.background' | translate }}</label>
+          <p-select inputId="b-bg" [options]="backgrounds" [(ngModel)]="booster.design.back.background" (ngModelChange)="changed()">
+            <ng-template #selectedItem let-v>{{ 'boosters.design.bg.' + v | translate }}</ng-template>
+            <ng-template #item let-v>{{ 'boosters.design.bg.' + v | translate }}</ng-template>
+          </p-select>
+          <span>{{ 'boosters.design.colors' | translate }}</span>
+          <div class="colors">
+            <input type="color" [(ngModel)]="booster.design.back.colorA" (ngModelChange)="changed()"
+              [attr.aria-label]="'boosters.design.color-a' | translate" [title]="'boosters.design.color-a' | translate" />
+            <input type="color" [(ngModel)]="booster.design.back.colorB" (ngModelChange)="changed()"
+              [attr.aria-label]="'boosters.design.color-b' | translate" [title]="'boosters.design.color-b' | translate" />
+            <input type="color" [(ngModel)]="booster.design.back.textColor" (ngModelChange)="changed()"
+              [attr.aria-label]="'boosters.design.color-text' | translate" [title]="'boosters.design.color-text' | translate" />
+          </div>
+          <label for="b-art">{{ 'boosters.design.art' | translate }}</label>
+          <p-select inputId="b-art" [options]="assets" optionLabel="label" optionValue="path" [(ngModel)]="booster.design.back.art"
+            (ngModelChange)="changed()" [filter]="true" [showClear]="true" [placeholder]="'boosters.design.no-image' | translate" />
+          <label for="b-art-opacity">{{ 'boosters.design.art-opacity' | translate }}</label>
+          <p-inputNumber inputId="b-art-opacity" [(ngModel)]="booster.design.back.artOpacity" (ngModelChange)="changed()"
+            [min]="0" [max]="100" suffix=" %" [showButtons]="true" [step]="5" />
+          <label for="b-logo">{{ 'boosters.design.logo' | translate }}</label>
+          <p-select inputId="b-logo" [options]="assets" optionLabel="label" optionValue="path" [(ngModel)]="booster.design.back.logo"
+            (ngModelChange)="changed()" [filter]="true" [showClear]="true" [placeholder]="'boosters.design.no-image' | translate" />
+          <label for="b-count">{{ 'boosters.design.show-count' | translate }}</label>
+          <p-toggleswitch inputId="b-count" [(ngModel)]="booster.design.back.showCount" (ngModelChange)="changed()" />
+          <label for="b-barcode">{{ 'boosters.design.barcode' | translate }}</label>
+          <p-toggleswitch inputId="b-barcode" [(ngModel)]="booster.design.back.barcode" (ngModelChange)="changed()" />
+        </div>
+        } @else {
+        <div class="template-editors">
+          <div class="template-help">
+            <span [innerHTML]="'boosters.design.back-template-help' | translate"></span>
+            <p-button [label]="'boosters.design.from-form' | translate" icon="pi pi-replay" [text]="true" size="small"
+              (onClick)="backTemplateFromForm()" />
+          </div>
+          <div class="editor-block">
+            <span class="editor-label">HTML</span>
+            <ngx-monaco-editor class="code" [options]="editorOptions" [(ngModel)]="booster.design.back.html" (ngModelChange)="changed()" />
+          </div>
+          <div class="editor-block">
+            <span class="editor-label">CSS</span>
+            <ngx-monaco-editor class="code" [options]="cssEditorOptions" [(ngModel)]="booster.design.back.css" (ngModelChange)="changed()" />
+          </div>
+        </div>
+        }
+        <p class="back-help">{{ 'boosters.design.back-shared' | translate }}</p>
+        }
       </div>
       <div class="design-preview">
         <div class="preview-pack" appCardTilt>
-          <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls" />
+          <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls"
+            [side]="designSide" />
         </div>
         <small class="hint">{{ 'boosters.design.preview-hint' | translate }}</small>
+        <p-button [label]="(designSide === 'front' ? 'boosters.design.show-back' : 'boosters.design.show-front') | translate"
+          icon="pi pi-sync" [text]="true" size="small" (onClick)="designSide = designSide === 'front' ? 'back' : 'front'" />
       </div>
     </div>
     }

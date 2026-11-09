@@ -903,6 +903,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     const booster = this.collectorBooster;
     const extra: CollectorBooster | undefined = booster ? {
       image: 'pack.png',
+      imageBack: 'pack-back.png',
       finition: booster.design.finish,
       dentele: booster.design.crimped,
       tirage: this.collector.boosterWeights ? {
@@ -927,11 +928,17 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       if (extra?.image) {
         this.loadingInfo = 'Rendering the booster pack...';
         await GeneralUtils.delay(800);
-        const pack = this.packRender.first;
-        if (pack) {
-          const packUri = await this.imageRendererService.toPng(pack.nativeElement,
+        // recto puis verso du sachet, rendus hors de l'écran
+        const renders = this.packRender.toArray();
+        const names = [extra.image, extra.imageBack];
+        for (let i = 0; i < renders.length && i < names.length; i++) {
+          const name = names[i];
+          if (!name) {
+            continue;
+          }
+          const uri = await this.imageRendererService.toPng(renders[i].nativeElement,
             { pixelRatio: 1, style: { position: 'static', left: '0' } });
-          zip.file(extra.image, this.dataUrlToFile(packUri, extra.image));
+          zip.file(name, this.dataUrlToFile(uri, name));
         }
       }
       this.loadingInfo = 'Zipping up files...';

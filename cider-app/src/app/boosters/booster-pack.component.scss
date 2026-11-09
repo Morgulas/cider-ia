@@ -113,6 +113,62 @@
   opacity: 0.8;
 }
 
+// ----- verso -----
+.pack-back {
+  justify-content: center;
+}
+
+.back-content {
+  position: relative;
+  width: 76%;
+  text-align: center;
+}
+
+.back-logo {
+  display: block;
+  max-width: 50%;
+  max-height: 14cqh;
+  margin: 0 auto 3cqh;
+  object-fit: contain;
+}
+
+.back-title {
+  font-size: 8cqw;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.back-text {
+  margin-top: 3cqh;
+  font-size: 4.2cqw;
+  line-height: 1.35;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.back-count {
+  display: inline-block;
+  margin-top: 4cqh;
+  padding: 1.5cqw 4cqw;
+  border: 1px solid currentColor;
+  border-radius: 2cqw;
+  font-size: 3.8cqw;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.back-barcode {
+  position: absolute;
+  right: 8cqw;
+  bottom: 10cqh;
+  width: 26cqw;
+  height: 8cqw;
+  opacity: 0.75;
+  background: repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 3px,
+    currentColor 3px 5px, transparent 5px 6px, currentColor 6px 7px, transparent 7px 10px);
+}
+
 // le foil de l'emballage occupe tout le sachet ; pas de filter (il ferait du foil un calque
 // séparé, que Chrome peut dessiner décalé quand le sachet est incliné en 3D)
 .foil {

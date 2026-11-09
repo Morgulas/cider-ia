@@ -2,15 +2,20 @@ import { ChangeDetectionStrategy, Component, Input, OnChanges } from '@angular/c
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TranslatePipe } from '@ngx-translate/core';
 import * as Handlebars from 'handlebars';
-import { BoosterDesign } from '../data-services/types/booster.type';
+import { BoosterBackDesign, BoosterDesign } from '../data-services/types/booster.type';
 import { AssetUrls } from '../data-services/types/asset.type';
 import HtmlSanitizer from '../shared/utils/html-sanitizer';
 import { registerHandlebarsHelpers } from '../shared/utils/handlebars-helpers';
 import { resolveAsset } from './booster-assets';
+import { backOf } from './booster-logic';
 
 /** Contexte des modèles HTML/CSS de booster. */
 export interface BoosterTemplateContext {
-  booster: { name: string; title: string; subtitle: string; cardsPerPack: number; colorA: string; colorB: string; textColor: string };
+  booster: {
+    name: string; title: string; subtitle: string; cardsPerPack: number; colorA: string; colorB: string; textColor: string;
+    /** verso : titre (ou nom du booster) et texte libre */
+    backTitle: string; backText: string;
+  };
   assets: AssetUrls;
 }
 
@@ -32,10 +37,16 @@ export class BoosterPackComponent implements OnChanges {
   @Input() name = '';
   @Input() cardsPerPack = 0;
   @Input() assetUrls: AssetUrls = {};
+  /** Face dessinée : recto ou verso du sachet. */
+  @Input() side: 'front' | 'back' = 'front';
 
   readonly uid = `pack-${++packCounter}`;
   artUrl?: string;
   logoUrl?: string;
+  /** verso effectif (réglé ou tiré du recto) */
+  back!: BoosterBackDesign;
+  backArtUrl?: string;
+  backLogoUrl?: string;
   templateHtml: SafeHtml = '';
   templateError = false;
 
@@ -46,14 +57,34 @@ export class BoosterPackComponent implements OnChanges {
   ngOnChanges(): void {
     this.artUrl = resolveAsset(this.assetUrls, this.design.art);
     this.logoUrl = resolveAsset(this.assetUrls, this.design.logo);
-    if (this.design.mode === 'template') {
+    this.back = backOf(this.design);
+    this.backArtUrl = resolveAsset(this.assetUrls, this.back.art);
+    this.backLogoUrl = resolveAsset(this.assetUrls, this.back.logo);
+    if (this.templateMode) {
       this.renderTemplate();
     }
   }
 
+  /** La face dessinée est-elle un modèle HTML/CSS ? */
+  get templateMode(): boolean {
+    return this.side === 'back' ? this.back?.mode === 'template' : this.design.mode === 'template';
+  }
+
+  get backTitle(): string {
+    return this.back.title || this.design.title || this.name;
+  }
+
   get backgroundStyle(): string {
-    const { colorA: a, colorB: b } = this.design;
-    switch (this.design.background) {
+    return BoosterPackComponent.background(this.design);
+  }
+
+  get backBackgroundStyle(): string {
+    return BoosterPackComponent.background(this.back);
+  }
+
+  private static background(d: Pick<BoosterDesign, 'colorA' | 'colorB' | 'background'>): string {
+    const { colorA: a, colorB: b } = d;
+    switch (d.background) {
       case 'radial': return `radial-gradient(circle at 50% 40%, ${b} 0%, ${a} 75%)`;
       case 'rayures': return `repeating-linear-gradient(135deg, ${a} 0 22px, ${b} 22px 44px)`;
       case 'uni': return a;
@@ -72,12 +103,14 @@ export class BoosterPackComponent implements OnChanges {
       booster: {
         name: this.name, title: this.design.title, subtitle: this.design.subtitle, cardsPerPack: this.cardsPerPack,
         colorA: this.design.colorA, colorB: this.design.colorB, textColor: this.design.textColor,
+        backTitle: this.backTitle, backText: this.back.text,
       },
       assets: this.assetUrls,
     };
     try {
-      const html = Handlebars.compile(this.design.html || '')(context);
-      const css = Handlebars.compile(this.design.css || '')(context)
+      const source = this.side === 'back' ? this.back : this.design;
+      const html = Handlebars.compile(source.html || '')(context);
+      const css = Handlebars.compile(source.css || '')(context)
         .replace(/([^{}]*\{)/g, `.${this.uid} $1`).replace(/!important/g, '');
       const safeHtml = HtmlSanitizer.sanitizeHtml(html);
       const safeCss = HtmlSanitizer.sanitizeCss(css);

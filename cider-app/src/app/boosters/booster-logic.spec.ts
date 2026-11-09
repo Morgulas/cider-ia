@@ -1,6 +1,6 @@
 import { Booster } from '../data-services/types/booster.type';
 import { Card } from '../data-services/types/card.type';
-import { newBooster, openBooster, pickChance, poolOf, simulate } from './booster-logic';
+import { backOf, newBooster, openBooster, pickChance, poolOf, simulate } from './booster-logic';
 
 function card(id: number, extra: Record<string, unknown> = {}): Card {
   return { id, deckId: 1, name: `C${id}`, count: 1, frontCardTemplateId: 1, backCardTemplateId: 1, ...extra } as Card;
@@ -57,5 +57,18 @@ describe('booster-logic', () => {
       , undefined, seeded(9));
     const total = [...stats.perGroup.values()].reduce((a, v) => a + v, 0);
     expect(total).toBeCloseTo(2);
+  });
+
+  it('derives the back from the front unless it is customised', () => {
+    const design = newBooster('Livres', []).design;
+    const auto = backOf(design);
+    expect(auto.mode).toBe('auto');
+    expect(auto.colorA).toBe(design.colorB);
+    expect(auto.colorB).toBe(design.colorA);
+    const custom = backOf({ ...design, back: { ...auto, mode: 'form', text: 'Contenu : 10 cartes' } });
+    expect(custom.mode).toBe('form');
+    expect(custom.text).toBe('Contenu : 10 cartes');
+    // repassé en automatique : on retrouve le verso tiré du recto
+    expect(backOf({ ...design, back: { ...auto, mode: 'auto', text: 'ancien' } }).text).toBe('');
   });
 });

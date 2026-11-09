@@ -412,9 +412,13 @@
             <app-booster-pack [design]="collectorPackDesign" [name]="collectorBooster.name"
               [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="(assetsService.assetUrls | async) ?? {}"></app-booster-pack>
           </div>
-          <!-- rendu en taille réelle, hors de l'écran, pour l'image du sachet -->
+          <!-- rendus en taille réelle, hors de l'écran : recto et verso du sachet -->
           <div #packRender class="collector-pack-render" aria-hidden="true">
             <app-booster-pack [design]="collectorPackDesign" [name]="collectorBooster.name"
+              [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="(assetsService.assetUrls | async) ?? {}"></app-booster-pack>
+          </div>
+          <div #packRender class="collector-pack-render" aria-hidden="true">
+            <app-booster-pack [design]="collectorPackDesign" [name]="collectorBooster.name" side="back"
               [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="(assetsService.assetUrls | async) ?? {}"></app-booster-pack>
           </div>
           <div class="p-field p-d-flex p-flex-row">
