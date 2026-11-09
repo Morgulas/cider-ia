@@ -113,11 +113,14 @@
   opacity: 0.8;
 }
 
-// le foil de l'emballage occupe tout le sachet ; pas de filter (il ferait du foil un calque
-// séparé, que Chrome peut dessiner décalé quand le sachet est incliné en 3D)
+// Le foil de l'emballage occupe tout le sachet. Ni filter ni mix-blend-mode : dans un sachet
+// incliné en 3D, Chrome (avec la carte graphique) peut dessiner ces calques à plat, décalés
+// du sachet. Le foil est donc posé en transparence simple, un peu plus discret.
 .foil {
   border-radius: 0;
   filter: none;
+  mix-blend-mode: normal;
+  opacity: calc(0.22 + var(--fo) * 0.4);
 }
 
 // brillance du plastique
