@@ -393,8 +393,10 @@
           </div>
           <div class="p-field">
             <label for="collectorUnivers">{{'export.collector-universe' | translate}}</label>
-            <input pInputText id="collectorUnivers" [(ngModel)]="collector.univers" (change)="saveCollectorSettings()"
-              placeholder="Terre de Fangh" />
+            <!-- un projet = un univers : le nom du projet, imposé -->
+            <input pInputText id="collectorUnivers" [value]="projectUniverse || collector.univers" readonly
+              [attr.aria-describedby]="'collectorUniversHelp'" />
+            <small id="collectorUniversHelp">{{'export.collector-universe-help' | translate}}</small>
           </div>
           <div class="p-field">
             <label for="collectorPublication">{{'export.collector-publication' | translate}}</label>

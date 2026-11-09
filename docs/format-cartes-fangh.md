@@ -110,6 +110,7 @@ cards/<CardID>_back.png   verso (sauf si « Exclure les versos » est coché)
 
 - Le deck doit avoir un attribut **CardID** (ou « Card ID ») unique par carte, fait de lettres, chiffres, `-` et `_`, et un attribut **Rareté**. Les valeurs de la liste de Rareté donnent l'ordre des raretés, de la plus commune à la plus rare : elles doivent correspondre aux règles de booster de l'appli (Commune, Peu commune, Rare, Légendaire par défaut).
 - Les erreurs (CardID vide ou en double, rareté vide ou hors liste) s'affichent avant tout rendu.
+- **Univers** : c'est le **nom du projet**, imposé (un projet = un univers). Dans l'appli, chaque univers a sa propre réserve de boosters rechargés. Pour changer d'univers, renommer le projet (l'appli verra alors un nouvel univers).
 - **Code du set** : ne plus le changer une fois le set importé, sinon l'appli le voit comme un nouveau set.
 - **Numéro de publication** : il augmente tout seul après chaque publication. L'appli refuse un numéro déjà importé.
 - **Sachet du booster** : choisis un booster du simulateur de boosters. Son recto et son verso (onglet Design > Recto / Verso) sont rendus en images (`pack.png` et `pack-back.png`, 500 × 800 px) ; sa finition (mat, brillant ou effet foil) et ses bords dentelés sont transmis à l'appli, qui les affiche en relief.

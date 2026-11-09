@@ -135,6 +135,7 @@
         "collector-code": "Code du set (ne plus le changer ensuite)",
         "collector-name": "Nom du set",
         "collector-universe": "Univers",
+        "collector-universe-help": "Le nom du projet : chaque projet est un univers dans l'appli de collection, avec sa propre réserve de boosters rechargés. Pour le changer, renomme le projet.",
         "collector-publication": "Numéro de publication",
         "collector-errors": "Corrige ces points avant de publier :",
         "collector-done": "Set publié :",

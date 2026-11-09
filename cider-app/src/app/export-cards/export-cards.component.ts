@@ -43,6 +43,7 @@ import { CardTransferService } from '../cards-transfer/card-transfer.service';
 import { DecksService } from '../data-services/services/decks.service';
 import { DeckCollectorSettings } from '../data-services/types/deck.type';
 import { buildCollectorSet, CollectorBooster, suggestSetCode } from './collector-set';
+import { CurrentProjectService } from '../server/current-project.service';
 import { BoostersService } from '../data-services/services/boosters.service';
 import { AssetsService } from '../data-services/services/assets.service';
 import { Booster, BoosterDesign } from '../data-services/types/booster.type';
@@ -173,6 +174,12 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   /** boosters du projet, pour le sachet du set publié */
   public boosters: Booster[] = [];
   private readonly boostersService = inject(BoostersService);
+  private readonly currentProject = inject(CurrentProjectService);
+
+  /** Univers du set publié : le nom du projet (un projet = un univers dans l'appli de collection) */
+  get projectUniverse(): string {
+    return (this.currentProject.project()?.name ?? '').trim();
+  }
   public readonly assetsService = inject(AssetsService);
 
   get collectorBooster(): Booster | undefined {
@@ -893,7 +900,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     const settings: DeckCollectorSettings = {
       code: (this.collector.code ?? '').trim(),
       nom: (this.collector.nom ?? '').trim(),
-      univers: (this.collector.univers ?? '').trim(),
+      univers: this.projectUniverse || (this.collector.univers ?? '').trim(),
       publication: Number(this.collector.publication),
       boosterId: this.collector.boosterId,
       boosterWeights: !!this.collector.boosterWeights,
