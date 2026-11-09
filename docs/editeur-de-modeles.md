@@ -1,6 +1,6 @@
 # Éditeur de modèles
 
-L'éditeur de modèles (menu **Modèles**, puis un modèle) a le code à gauche (HTML et CSS) et l'aperçu de la carte à droite. Chaque frappe met l'aperçu à jour. Ce guide décrit ce que le fork ajoute à l'éditeur d'origine.
+L'éditeur de modèles (dans l'Explorateur, **Modèles de carte** sous le deck, puis un modèle ; ou l'onglet **Modèles de carte** en haut des pages du deck) a le code à gauche (HTML et CSS) et l'aperçu de la carte à droite. Chaque frappe met l'aperçu à jour. Ce guide décrit ce que le fork ajoute à l'éditeur d'origine.
 
 ## Le code
 

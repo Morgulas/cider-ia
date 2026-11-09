@@ -24,15 +24,19 @@ Concevez de belles cartes de jeu avec la puissance et la simplicité de `HTML`, 
 
 | Ajout | Résumé | Documentation |
 | :--- | :--- | :--- |
+| **Interface réorganisée** | Sélecteur de deck dans le panneau latéral (seules les pages du deck choisi sont listées, avec compteurs), onglets en haut des pages d'un deck, panneau Illustrations à part avec vignettes et rangement par glisser-déposer. | [docs/interface.md](docs/interface.md) |
 | **Serveur et comptes** | Comptes créés par un administrateur, projets enregistrés sur le serveur avec enregistrement automatique, versions conservées, détection des modifications depuis deux appareils. | [docker/README.md](docker/README.md) |
 | **Illustrations de cartes** | Prompt d'illustration par deck à copier dans un chatbot (sans clé d'API), ou génération directe avec OpenAI, Gemini ou ComfyUI local, activée par compte avec quota mensuel. | [docker/README.md](docker/README.md#ia--illustrations-de-cartes) |
 | **Éditeur de modèles** | HTML/CSS en onglets, panneau Insérer, erreurs Handlebars signalées à la ligne, vues recto/verso et débordements, inspecteur HTML et CSS, réglages des variables CSS, aperçu dans une fenêtre séparée, modification avec un chatbot. | [docs/editeur-de-modeles.md](docs/editeur-de-modeles.md) |
 | **Projets légers** | Les images sont stockées une seule fois à part du projet : ouverture et enregistrement ne transfèrent que ce qui a changé. Le détail du dernier enregistrement s'affiche au survol de l'état, en bas de l'écran. | [docker/README.md](docker/README.md#dossier-de-données) |
 | **Effets foil** | Attribut « Foil » des cartes (holo, galaxie, or, argent, prisme, paillettes, cadre) dans le classeur, avec un sélecteur pour essayer les effets ; carte agrandie qui s'incline et classeur en plein écran. | [docs/boosters.md](docs/boosters.md) |
-| **Simulateur de boosters** | Pool de cartes avec un poids par carte ou par valeur d'attribut, chance de foil, design du sachet (réglages ou modèle HTML/CSS), ouverture animée carte par carte, statistiques simulées. | [docs/boosters.md](docs/boosters.md) |
+| **Simulateur de boosters** | Pool de cartes avec un poids par carte ou par valeur d'attribut, chance de foil, design du sachet recto et verso (réglages ou modèle HTML/CSS), sachet qu'on retourne, ouverture animée carte par carte, statistiques simulées. | [docs/boosters.md](docs/boosters.md) |
 | **Simulateur de jeu étoffé** | Zones de dépôt personnalisées, joueurs et compteurs, mains, tours, boosters ouverts sur la table, journal des actions, parties enregistrées dans le projet. | [docs/simulateur.md](docs/simulateur.md) |
 | **Import / export CSV et JSON** | Les cartes d'un deck s'importent et s'exportent en CSV ou en JSON ; « Publier le set » produit le ZIP de l'appli de collection. | [docs/format-cartes-fangh.md](docs/format-cartes-fangh.md) |
+| **Appli de collection** | « Publier le set » produit le ZIP d'un set (cartes rendues, sachet du booster, raretés, foils) pour [card-collector](https://github.com/Morgulas/card-collector), l'appli mobile où les joueurs ouvrent des boosters et remplissent leur classeur. | [docs/format-cartes-fangh.md](docs/format-cartes-fangh.md#publier-pour-lappli-de-collection) |
 | **Sauvegarde** | Procédure, script `backup.sh` et restauration du dossier de données ; outil `check-data` pour vérifier les données avant une mise à jour ou après une restauration. | [docs/sauvegarde.md](docs/sauvegarde.md) |
+
+Toute la documentation du fork est rangée dans [`docs/`](docs/README.md), y compris le guide de développement ([docs/developpement.md](docs/developpement.md)).
 
 ---
 

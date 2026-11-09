@@ -109,7 +109,7 @@ Les noms de modèles évoluent vite : ils sont modifiables sans toucher au code.
 
 **Accès** : l'IA est désactivée pour chaque compte par défaut. Dans **Utilisateurs**, l'administrateur l'active compte par compte et clique sur le compteur `x / y images` pour changer le quota mensuel (mois calendaire UTC ; `0` bloque la génération). Une génération échouée n'est pas décomptée ; un utilisateur ne peut lancer qu'une génération à la fois.
 
-**Utilisation** : dans la vue **Cartes** (miniatures), survoler une carte et cliquer sur ✨. On décrit un style commun au projet (mémorisé), le sujet est pré-rempli depuis le nom et la description de la carte. L'image choisie est enregistrée comme ressource **nommée comme la carte** : un modèle qui affiche `{{index assets card.name}}` la montre aussitôt.
+**Utilisation** : dans la page **Vignettes** du deck, survoler une carte et cliquer sur ✨. On décrit un style commun au projet (mémorisé), le sujet est pré-rempli depuis le nom et la description de la carte. L'image choisie est enregistrée comme ressource **nommée comme la carte** : un modèle qui affiche `{{index assets card.name}}` la montre aussitôt.
 
 **Coûts et confidentialité** : OpenAI et Gemini facturent chaque image (le quota sert aussi de garde-fou budgétaire) et reçoivent le texte de la demande. Les clés restent dans le conteneur `api` et ne sont jamais transmises au navigateur. ComfyUI reste entièrement local.
 

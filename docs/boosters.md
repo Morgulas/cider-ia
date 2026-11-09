@@ -1,6 +1,6 @@
 # Simulateur de boosters
 
-Icône **cadeau** dans la barre de gauche. Un booster décrit un paquet scellé : les cartes qui peuvent en sortir, avec quelle fréquence, et à quoi ressemble le sachet. Les boosters sont enregistrés dans le projet.
+Entrée **Boosters** dans les pages du deck (panneau Explorateur). Un booster décrit un paquet scellé : les cartes qui peuvent en sortir, avec quelle fréquence, et à quoi ressemble le sachet. Les boosters sont enregistrés dans le projet.
 
 ## Pool et poids
 
@@ -17,11 +17,23 @@ Le tableau donne pour chaque carte sa chance à chaque tirage, et sa chance d'ê
 - **Réglages** : titre, sous-titre, fond (dégradé, halo, rayures, uni), trois couleurs, illustration et logo pris dans les images du projet, finition (mat, brillant ou un des effets foil) et bords dentelés.
 - **Modèle HTML/CSS** : le sachet est un modèle Handlebars, comme une carte. Variables : `{{booster.title}}`, `{{booster.subtitle}}`, `{{booster.cardsPerPack}}`, `{{assets.nom}}`. Les unités `cqw` / `cqh` valent 1 % de la largeur / hauteur du sachet. Le premier passage en mode modèle traduit les réglages en code ; « Repartir des réglages » recommence.
 
+Le sélecteur **Recto / Verso** en tête de l'onglet Design choisit la face à régler ; le bouton sous l'aperçu (« Voir le verso » / « Voir le recto ») montre l'autre face.
+
+### Verso du sachet
+
+Trois modes :
+
+- **Automatique** (par défaut) : verso tiré du recto, couleurs inversées, illustration estompée, nom du booster, nombre de cartes et code-barres.
+- **Réglages** : fond et couleurs, couleur du texte, illustration (avec son opacité) et logo pris dans les images du projet, titre (vide : celui du recto), texte libre (contenu, règles, mentions…), nombre de cartes et code-barres à afficher ou non.
+- **Modèle HTML/CSS** : comme pour le recto, avec en plus `{{booster.backTitle}}` et `{{booster.backText}}`. Le premier passage part des réglages.
+
+La finition et les bords dentelés sont ceux du recto.
+
 L'aperçu s'incline au survol, comme la carte agrandie du classeur.
 
 ## Ouvrir
 
-Un clic sur le sachet le déchire, puis chaque clic (ou Espace, ou →) retourne la carte suivante et la range en bas. « Tout révéler » montre tout le booster. Les cartes encore jamais sorties pendant la session portent l'étiquette **Nouvelle**. « Ouvrir 10 boosters » montre directement tout le contenu, foils en premier.
+Le bouton **Retourner**, sous le sachet, le fait pivoter pour voir son verso ; un clic sur le sachet retourné le remet de face, sans l'ouvrir. Un clic sur le sachet de face le déchire, puis chaque clic (ou Espace, ou →) retourne la carte suivante et la range en bas. « Tout révéler » montre tout le booster. Les cartes encore jamais sorties pendant la session portent l'étiquette **Nouvelle**. « Ouvrir 10 boosters » montre directement tout le contenu, foils en premier.
 
 Le panneau **Session** compte les boosters ouverts et les cartes obtenues (exemplaires, foils) ; il n'est pas enregistré.
 
