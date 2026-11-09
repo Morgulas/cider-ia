@@ -81,3 +81,7 @@ html {
     outline: 6px solid #f59e0b !important;
     outline-offset: -3px !important;
 }
+
+/* Export « avec calques » vers l'appli de collection : rendu d'un seul calque (voir CardPreviewComponent.captureLayers) */
+.cc-layer-pass, .cc-layer-pass * { visibility: hidden !important; }
+.cc-layer-pass [data-calque-on], .cc-layer-pass [data-calque-on] * { visibility: visible !important; }

@@ -19,6 +19,8 @@ export interface DeckCollectorSettings {
     boosterId?: number;
     /** reprendre les poids et le nombre de cartes du booster pour les tirages de l'appli */
     boosterWeights?: boolean;
+    /** exporter aussi les calques (éléments marqués data-calque dans les modèles) : sinon, image seule */
+    calques?: boolean;
 }
 
 export interface DeckImportSettings {

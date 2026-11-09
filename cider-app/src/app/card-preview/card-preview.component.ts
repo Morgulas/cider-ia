@@ -144,6 +144,43 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     return this.imageRendererService.toPng(this.cardElement.get(0)!.nativeElement, { pixelRatio: 1.0, filter: filter });
   }
 
+  /**
+   * Calques de la carte (export « avec calques » vers l'appli de collection), sur le rendu en direct
+   * (cache désactivé) : chaque élément marqué data-calque="nom" donne
+   *  - sa zone, en % de la carte : [x, y, largeur, hauteur] (union des éléments de même nom) ;
+   *  - son image seule : un PNG de la taille de la carte, transparent ailleurs (les autres éléments sont
+   *    masqués par visibility, voir .cc-layer-pass dans styles.scss).
+   */
+  public async captureLayers(pixelRatio: number): Promise<Record<string, { zone: number[]; image: string }>> {
+    const root = this.cardElement.get(0)?.nativeElement;
+    if (!root) {
+      return {};
+    }
+    const box = root.getBoundingClientRect();
+    if (!box.width || !box.height) {
+      return {};
+    }
+    const groups = layerGroups(root);
+    const out: Record<string, { zone: number[]; image: string }> = {};
+    const filter = (node: HTMLElement) => 'style' !== node.localName;
+    for (const [name, elements] of groups) {
+      const zone = layerZone(box, elements.map(e => e.getBoundingClientRect()));
+      if (!zone) {
+        continue;
+      }
+      root.classList.add('cc-layer-pass');
+      elements.forEach(e => e.setAttribute('data-calque-on', ''));
+      try {
+        const image = await this.imageRendererService.toPng(root, { pixelRatio, filter });
+        out[name] = { zone, image };
+      } finally {
+        root.classList.remove('cc-layer-pass');
+        elements.forEach(e => e.removeAttribute('data-calque-on'));
+      }
+    }
+    return out;
+  }
+
   public isLoaded() {
     return this.isLoadedSubject.asObservable();
   }
@@ -153,3 +190,38 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   }
 }
 
+/** nom de calque accepté par l'appli de collection */
+export const LAYER_NAME = /^[a-z0-9_-]{1,20}$/;
+
+/** Éléments marqués data-calque, regroupés par nom (minuscules ; noms invalides ignorés, 6 calques au plus) */
+export function layerGroups(root: HTMLElement): Map<string, HTMLElement[]> {
+  const groups = new Map<string, HTMLElement[]>();
+  root.querySelectorAll<HTMLElement>('[data-calque]').forEach(element => {
+    const name = (element.getAttribute('data-calque') ?? '').trim().toLowerCase();
+    if (!LAYER_NAME.test(name) || (!groups.has(name) && groups.size >= 6)) {
+      return;
+    }
+    groups.set(name, [...(groups.get(name) ?? []), element]);
+  });
+  return groups;
+}
+
+/** Zone [x, y, largeur, hauteur] en % de la carte, union des rectangles (bornée à la carte) ; null si vide */
+export function layerZone(card: { left: number; top: number; width: number; height: number },
+  rects: { left: number; top: number; right: number; bottom: number }[]): number[] | null {
+  const clamp = (v: number) => Math.min(100, Math.max(0, v));
+  const pct = (v: number, origin: number, size: number) => clamp((v - origin) / size * 100);
+  const visible = rects.filter(r => r.right > r.left && r.bottom > r.top);
+  if (!visible.length) {
+    return null;
+  }
+  const x0 = pct(Math.min(...visible.map(r => r.left)), card.left, card.width);
+  const y0 = pct(Math.min(...visible.map(r => r.top)), card.top, card.height);
+  const x1 = pct(Math.max(...visible.map(r => r.right)), card.left, card.width);
+  const y1 = pct(Math.max(...visible.map(r => r.bottom)), card.top, card.height);
+  if (x1 <= x0 || y1 <= y0) {
+    return null;
+  }
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  return [r2(x0), r2(y0), r2(x1 - x0), r2(y1 - y0)];
+}

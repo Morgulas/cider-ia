@@ -142,6 +142,8 @@
         "collector-booster": "Booster pack (booster simulator design)",
         "collector-booster-none": "None: generic pack",
         "collector-booster-weights": "Use the booster draws (cards per pack and weights) instead of the app rules",
+        "collector-layers": "Also export layers (illustration, text…)",
+        "collector-layers-help": "Besides each card image, exports every template element marked data-calque=\"name\" (for example data-calque=\"illustration\"): its image alone and its position. The collection app uses them to restrict foil and misprints to the illustration. Unchecked: image only, as before.",
         "landscape": "Landscape",
         "portrait": "Portrait",
         "custom": "Custom",

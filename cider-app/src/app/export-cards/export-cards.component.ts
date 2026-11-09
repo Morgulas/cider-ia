@@ -42,7 +42,7 @@ import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
 import { CardTransferService } from '../cards-transfer/card-transfer.service';
 import { DecksService } from '../data-services/services/decks.service';
 import { DeckCollectorSettings } from '../data-services/types/deck.type';
-import { buildCollectorSet, CollectorBooster, suggestSetCode } from './collector-set';
+import { addLayers, buildCollectorSet, CardLayers, CollectorBooster, suggestSetCode } from './collector-set';
 import { CurrentProjectService } from '../server/current-project.service';
 import { BoostersService } from '../data-services/services/boosters.service';
 import { AssetsService } from '../data-services/services/assets.service';
@@ -904,6 +904,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       publication: Number(this.collector.publication),
       boosterId: this.collector.boosterId,
       boosterWeights: !!this.collector.boosterWeights,
+      calques: !!this.collector.calques,
     };
     const ids = this.cards.map(card => card.id);
     const exported = await this.cardTransfer.export(this.deckId, this.deckName, 'json', ids);
@@ -931,6 +932,12 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     try {
       const files = await this.renderSingularImages(
         (card, side) => `${cardIdOf.get(card.id)}_${side}.png`, this.individualExportPixelRatio);
+      let setJson = plan.setJson;
+      if (settings.calques) {
+        const layers = await this.renderCollectorLayers(cardIdOf, this.individualExportPixelRatio);
+        files.push(...layers.files);
+        setJson = addLayers(setJson, plan.cardIds, layers.byCard);
+      }
       const zip = new JSZip();
       if (extra?.image) {
         this.loadingInfo = 'Rendering the booster pack...';
@@ -949,7 +956,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
         }
       }
       this.loadingInfo = 'Zipping up files...';
-      zip.file('set.json', plan.setJson);
+      zip.file('set.json', setJson);
       files.forEach(file => zip.file('cards/' + file.name, file));
       const blob = await zip.generateAsync({ type: 'blob' });
       this.loadingInfo = 'Saving file...';
@@ -974,6 +981,41 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   }
 
   /** Enregistre les réglages de publication dans le deck */
+  /**
+   * Calques des rectos (export « avec calques ») : second passage sur le rendu en direct (sans cache),
+   * page par page. Une carte dont le modèle n'a aucun élément data-calque n'a pas de calque.
+   */
+  private async renderCollectorLayers(cardIdOf: Map<number, string>, pixelRatio: number):
+    Promise<{ files: File[]; byCard: Map<string, CardLayers> }> {
+    const files: File[] = [];
+    const byCard = new Map<string, CardLayers>();
+    this.renderCache = false;
+    this.loadingPercent = 0;
+    for (let chunkIndex = 0; chunkIndex < this.slicedSingularCards.length; chunkIndex++) {
+      this.singularSheet = this.slicedSingularCards[chunkIndex];
+      this.loadingInfo = 'Rendering layers ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
+      await GeneralUtils.delay(1000);
+      await Promise.all(this.frontCards.map(preview => lastValueFrom(preview.isLoaded())));
+      await GeneralUtils.delay(800);   // images de fond des modèles
+      for (const preview of this.frontCards.toArray()) {
+        const cardId = cardIdOf.get(preview.card.id);
+        if (!cardId) {
+          continue;
+        }
+        const own: CardLayers = {};
+        for (const [name, layer] of Object.entries(await preview.captureLayers(pixelRatio))) {
+          const fileName = `${cardId}_front_${name}.png`;
+          files.push(this.dataUrlToFile(layer.image, fileName));
+          own[name] = { zone: layer.zone, image: 'cards/' + fileName };
+        }
+        byCard.set(cardId, own);
+      }
+      this.loadingPercent += 100.0 / this.slicedSingularCards.length;
+    }
+    this.renderCache = true;
+    return { files, byCard };
+  }
+
   public async saveCollectorSettings() {
     const deck = await this.decks.get(this.deckId);
     if (deck) {

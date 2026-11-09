@@ -142,6 +142,8 @@
         "collector-booster": "Sachet du booster (design du simulateur de boosters)",
         "collector-booster-none": "Aucun : sachet générique",
         "collector-booster-weights": "Reprendre les tirages du booster (cartes par booster et poids) au lieu des règles de l'appli",
+        "collector-layers": "Exporter aussi les calques (illustration, texte…)",
+        "collector-layers-help": "En plus de l'image de chaque carte, exporte chaque élément du modèle marqué data-calque=\"nom\" (par exemple data-calque=\"illustration\") : son image seule et sa position. L'appli de collection s'en sert pour limiter le foil et les erreurs d'impression à l'illustration. Décoché : image seule, comme avant.",
         "landscape": "Paysage",
         "portrait": "Portrait",
         "custom": "Personnalisé",

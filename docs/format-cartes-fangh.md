@@ -106,6 +106,7 @@ Page **Exporter les cartes** d'un deck > **Set pour l'appli de collection**. Le 
 set.json                  ce format, avec un bloc "set" : code, nom, univers, publication
 cards/<CardID>_front.png  recto rendu de chaque carte
 cards/<CardID>_back.png   verso (sauf si « Exclure les versos » est coché)
+cards/<CardID>_front_<calque>.png   option « Exporter aussi les calques » : un calque seul
 ```
 
 - Le deck doit avoir un attribut **CardID** (ou « Card ID ») unique par carte, fait de lettres, chiffres, `-` et `_`, et un attribut **Rareté**. Les valeurs de la liste de Rareté donnent l'ordre des raretés, de la plus commune à la plus rare : elles doivent correspondre aux règles de booster de l'appli (Commune, Peu commune, Rare, Légendaire par défaut).
@@ -116,5 +117,27 @@ cards/<CardID>_back.png   verso (sauf si « Exclure les versos » est coché)
 - **Sachet du booster** : choisis un booster du simulateur de boosters. Son recto et son verso (onglet Design > Recto / Verso) sont rendus en images (`pack.png` et `pack-back.png`, 500 × 800 px) ; sa finition (mat, brillant ou effet foil) et ses bords dentelés sont transmis à l'appli, qui les affiche en relief.
 - **Reprendre les tirages du booster** (option) : le nombre de cartes par booster et le poids de chaque carte remplacent les règles de l'appli (un seul emplacement, comme dans le simulateur).
 - L'attribut **Foil** des cartes est transmis sous sa forme canonique (holo, galaxie, or…), comme dans le classeur.
+- **Exporter aussi les calques** (option, décochée par défaut : image seule, comme avant). Voir ci-dessous.
 - Les réglages (code, nom, univers, publication, booster) sont enregistrés dans le deck.
 - Pour publier seulement une partie du deck : bouton **Sélectionner les cartes** de la page, ou sélection dans la liste des cartes puis Exporter.
+
+### Calques
+
+Avec l'option **Exporter aussi les calques**, chaque élément d'un modèle de recto marqué `data-calque="nom"` devient un calque. Pour la carte, l'export produit alors :
+
+- **son image seule** : `cards/<CardID>_front_<nom>.png`. L'image est à la taille de la carte et transparente partout ailleurs. Les éléments posés par-dessus, comme un cadre, n'y apparaissent pas.
+- **sa position** : la zone `[x, y, largeur, hauteur]`, en % de la carte, dans `set.json` :
+
+```json
+"Calques": { "illustration": { "zone": [0, 15.29, 100, 54.13], "image": "cards/A001_front_illustration.png" } }
+```
+
+Exemple de modèle :
+
+```html
+<div class="image" data-calque="illustration"></div>
+```
+
+- Un nom de calque compte de 1 à 20 caractères : minuscules, chiffres, `-` ou `_`. Une carte a au plus 6 calques. Plusieurs éléments du même nom forment un seul calque, et leur zone est l'union de leurs rectangles.
+- L'appli de collection se sert aujourd'hui du calque **`illustration`** : le foil ne brille que sur l'illustration (le foil « cadre », partout sauf sur elle), et l'encre manquante d'une erreur d'impression ne touche que l'illustration. Les autres noms sont exportés et gardés, pour de futurs effets.
+- Les calques sont rendus dans un second passage, sans le cache d'images. L'export est donc plus long. Une carte dont le modèle n'a aucun `data-calque` n'a pas de calque.

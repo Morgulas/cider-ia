@@ -429,6 +429,14 @@
             <label for="boosterWeights" class="ml-2">{{'export.collector-booster-weights' | translate}}</label>
           </div>
           }
+          <div class="p-field p-d-flex p-flex-row">
+            <p-checkbox name="collectorLayers" class="p-mr-2" [binary]="true" [(ngModel)]="collector.calques"
+              (onChange)="saveCollectorSettings()" inputId="collectorLayers"></p-checkbox>
+            <label for="collectorLayers" class="ml-2">{{'export.collector-layers' | translate}}</label>
+          </div>
+          @if (collector.calques) {
+          <div class="p-field"><small>{{'export.collector-layers-help' | translate}}</small></div>
+          }
           <div class="p-field">
             <label for="collectorScale">{{'export.scale' | translate}}</label>
             <input type="number" pInputText id="collectorScale" [(ngModel)]="individualExportPixelRatio"

@@ -1,6 +1,6 @@
 import { FieldType } from '../data-services/types/field-type.type';
 import { DeckColumn, exportJson } from '../cards-transfer/card-transfer';
-import { buildCollectorSet, suggestSetCode } from './collector-set';
+import { addLayers, buildCollectorSet, CardLayers, suggestSetCode } from './collector-set';
 
 const columns: DeckColumn[] = [
   { field: 'name', header: 'Name', type: FieldType.text },
@@ -75,5 +75,15 @@ describe('collector set', () => {
   it('suggests a code from the deck name', () => {
     expect(suggestSetCode('Livres de Fangh')).toBe('LIVRES-DE-FANGH');
     expect(suggestSetCode('é')).toBe('SET-1');
+  });
+
+  it('adds the layers of the cards that have some', () => {
+    const json = JSON.stringify({ cartes: [{ CardID: 'A1' }, { CardID: 'B1' }] });
+    const doc = JSON.parse(addLayers(json, ['A1', 'B1'], new Map<string, CardLayers>([
+      ['A1', { illustration: { zone: [5, 10, 90, 45], image: 'cards/A1_front_illustration.png' } }],
+      ['B1', {}],
+    ])));
+    expect(doc.cartes[0].Calques.illustration.zone).toEqual([5, 10, 90, 45]);
+    expect(doc.cartes[1].Calques).toBeUndefined();
   });
 });

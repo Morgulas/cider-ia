@@ -4,6 +4,9 @@
  *   set.json                     format cartes-fangh + bloc "set" (code, nom, univers, publication)
  *   cards/<CardID>_front.png     recto rendu
  *   cards/<CardID>_back.png      verso rendu (facultatif)
+ *   cards/<CardID>_front_<calque>.png  avec « Exporter aussi les calques » : image d'un calque seul
+ *                                (élément du modèle marqué data-calque), décrit dans set.json
+ *                                (carte.Calques.<calque> = { zone: [x, y, l, h] en %, image })
  *
  * Ce fichier ne contient que la partie sans rendu : vérification des cartes et
  * construction de set.json à partir de l'export JSON du deck.
@@ -178,4 +181,22 @@ export function buildCollectorSet(exportJson: string, settings: CollectorSetSett
     cartes,
   };
   return { setJson: JSON.stringify(content, null, 2) + '\n', cardIds, errors };
+}
+
+/** Calques d'une carte : zone en % de la carte et chemin de l'image dans le ZIP */
+export type CardLayers = Record<string, { zone: number[]; image: string }>;
+
+/**
+ * Ajoute les calques aux cartes de set.json (« Calques » de chaque carte, si elle en a).
+ * @param cardIds CardID de chaque carte, dans l'ordre de set.json (plan.cardIds)
+ */
+export function addLayers(setJson: string, cardIds: string[], layers: Map<string, CardLayers>): string {
+  const doc = JSON.parse(setJson) as { cartes: Record<string, unknown>[] };
+  doc.cartes.forEach((carte, index) => {
+    const own = layers.get(cardIds[index]);
+    if (own && Object.keys(own).length) {
+      carte['Calques'] = own;
+    }
+  });
+  return JSON.stringify(doc, null, 2) + '\n';
 }
