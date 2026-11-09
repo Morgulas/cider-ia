@@ -465,6 +465,7 @@ $folio: 26px;
   // les mélange avec ce qui est derrière la vue 3D et laisse une copie fantôme, à plat,
   // quand on incline fort
   isolation: isolate;
+  will-change: transform;
   // chaque face dans son propre plan 3D : sans cela, Chrome fait clignoter
   // le contenu redimensionné de la carte pendant le retournement
   transform: rotateY(0deg);

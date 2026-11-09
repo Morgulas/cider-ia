@@ -1,4 +1,22 @@
+@use 'sass:math';
+@use 'sass:list';
 @use '../card-binder/foil';
+
+// contour d'un sachet dentelé : $n dents en haut et en bas, de hauteur var(--tooth)
+@function crimped-polygon($n) {
+  $w: math.div(100%, $n);
+  $points: list.append((), 0 var(--tooth), comma);
+  @for $i from 0 to $n {
+    $points: list.append($points, ($w * $i + math.div($w, 2)) 0, comma);
+    $points: list.append($points, ($w * ($i + 1)) var(--tooth), comma);
+  }
+  $points: list.append($points, 100% calc(100% - var(--tooth)), comma);
+  @for $i from $n through 1 {
+    $points: list.append($points, ($w * $i - math.div($w, 2)) 100%, comma);
+    $points: list.append($points, ($w * ($i - 1)) calc(100% - var(--tooth)), comma);
+  }
+  @return polygon($points);
+}
 
 :host {
   display: block;
@@ -12,25 +30,21 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  // calques en mix-blend-mode (foil, reflet) mélangés dans ce seul plan : sans cela, Chrome
-  // les mélange avec ce qui est derrière la vue 3D et laisse une copie fantôme, à plat,
-  // quand on incline fort
+  // Le sachet est d'abord dessiné à plat, foil compris (isolation + calque propre), puis ce
+  // dessin est incliné. Sans cela, Chrome (avec la carte graphique) mélange le foil en
+  // mix-blend-mode après l'inclinaison : le foil apparaît à plat, décalé du sachet.
   isolation: isolate;
+  will-change: transform;
   border-radius: 2.5cqw;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 
-  // bords dentelés en haut et en bas (sachet thermoscellé) : dents triangulaires
+  // bords dentelés en haut et en bas (sachet thermoscellé) : dents triangulaires.
+  // Découpe par clip-path et non par mask : un masque met le sachet sur un calque à part et,
+  // une fois incliné en 3D, Chrome dessine les calques foil/reflet à plat, décalés du sachet.
   &.crimped {
     --tooth: 2.6cqw;
     border-radius: 0;
-    -webkit-mask:
-      linear-gradient(#000 0 0) center / 100% calc(100% - 2 * var(--tooth)) no-repeat,
-      conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) top / calc(2 * var(--tooth)) var(--tooth) repeat-x,
-      conic-gradient(from -45deg at 50% 100%, #000 90deg, #0000 0) bottom / calc(2 * var(--tooth)) var(--tooth) repeat-x;
-    mask:
-      linear-gradient(#000 0 0) center / 100% calc(100% - 2 * var(--tooth)) no-repeat,
-      conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) top / calc(2 * var(--tooth)) var(--tooth) repeat-x,
-      conic-gradient(from -45deg at 50% 100%, #000 90deg, #0000 0) bottom / calc(2 * var(--tooth)) var(--tooth) repeat-x;
+    clip-path: crimped-polygon(19);
   }
 }
 
@@ -99,9 +113,11 @@
   opacity: 0.8;
 }
 
-// le foil de l'emballage occupe tout le sachet
+// le foil de l'emballage occupe tout le sachet ; pas de filter (il ferait du foil un calque
+// séparé, que Chrome peut dessiner décalé quand le sachet est incliné en 3D)
 .foil {
   border-radius: 0;
+  filter: none;
 }
 
 // brillance du plastique

@@ -180,6 +180,7 @@
   // les mélange avec ce qui est derrière la vue 3D et laisse une copie fantôme, à plat,
   // quand on incline fort
   isolation: isolate;
+  will-change: transform;
   position: absolute;
   inset: 0;
   backface-visibility: hidden;
