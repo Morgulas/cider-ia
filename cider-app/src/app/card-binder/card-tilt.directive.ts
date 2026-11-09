@@ -192,8 +192,9 @@ export class CardTiltDirective implements OnInit, OnDestroy {
     }
     const strength = Math.min(1, Math.hypot(rx, ry) / DRAG_MAX * 1.6);
     // le reflet glisse à l'opposé de l'inclinaison, comme une lumière fixe au-dessus
-    const gx = 50 + (ry / DRAG_MAX) * 60;
-    const gy = 50 - (rx / DRAG_MAX) * 60;
+    // bornée à 0–100 % : au-delà, les dégradés des foils montrent le bord de leur motif
+    const gx = Math.min(100, Math.max(0, 50 + (ry / DRAG_MAX) * 60));
+    const gy = Math.min(100, Math.max(0, 50 - (rx / DRAG_MAX) * 60));
     this.apply(rx, ry, gx, gy, strength);
   }
 

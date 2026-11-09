@@ -7,8 +7,10 @@
 // qui ondule doucement au survol de la pochette.
 
 .foil {
-  --fx: var(--glare-x, 50%);
-  --fy: var(--glare-y, 50%);
+  // position de la lumière bornée à 0–100 % : au-delà, le dégradé (répété) montre le bord
+  // du motif suivant, d'où un changement brutal de couleur quand on incline au maximum
+  --fx: clamp(0%, var(--glare-x, 50%), 100%);
+  --fy: clamp(0%, var(--glare-y, 50%), 100%);
   --fo: var(--glare-o, 0);
   position: absolute;
   inset: 0;
