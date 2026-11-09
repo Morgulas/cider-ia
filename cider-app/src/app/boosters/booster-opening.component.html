@@ -77,18 +77,27 @@
   }
   @default {
   <div class="sealed">
-    <div class="pack-tilt" appCardTilt role="button" tabindex="0" (click)="tear()" (keydown.enter)="tear()"
+    <div class="pack-tilt" appCardTilt role="button" tabindex="0" (click)="packClick()" (keydown.enter)="packClick()"
       [attr.aria-label]="'boosters.open' | translate" [class.tearing]="state === 'tearing'">
-      <div class="pack-part pack-top">
-        <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls" />
+      <!-- recto (déchirable) et verso : chacun tourne sur lui-même, face cachée invisible -->
+      <div class="pack-face pack-recto" [class.turned]="packFlipped">
+        <div class="pack-part pack-top">
+          <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls" />
+        </div>
+        <div class="pack-part pack-body">
+          <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls" />
+        </div>
+        <span class="tear-line" aria-hidden="true"></span>
       </div>
-      <div class="pack-part pack-body">
-        <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls" />
+      <div class="pack-face pack-verso" [class.turned]="packFlipped" aria-hidden="true">
+        <app-booster-pack [design]="booster.design" [name]="booster.name" [cardsPerPack]="booster.cardsPerPack" [assetUrls]="assetUrls"
+          side="back" />
       </div>
-      <span class="tear-line" aria-hidden="true"></span>
     </div>
     <div class="hint">{{ 'boosters.hint-open' | translate }}</div>
     <div class="actions">
+      <p-button [label]="(packFlipped ? 'boosters.flip-front' : 'boosters.flip') | translate" icon="pi pi-sync" severity="secondary"
+        (onClick)="packFlipped = !packFlipped" [disabled]="state !== 'sealed'" />
       <p-button [label]="'boosters.open' | translate" icon="pi pi-gift" (onClick)="tear()" [disabled]="state !== 'sealed'" />
       <p-button [label]="'boosters.open-many' | translate: { n: 10 }" icon="pi pi-clone" severity="secondary"
         (onClick)="openMany(10)" [disabled]="state !== 'sealed'" />

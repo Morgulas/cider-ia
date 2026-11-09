@@ -72,6 +72,31 @@
   }
 }
 
+// Recto et verso : chaque face tourne sur elle-même. Le sachet a un filter (ombre), donc pas
+// de 3D partagée et backface-visibility est ignoré : la face cachée est masquée à mi-rotation
+// (visibility, au moment où la face passe de profil).
+.pack-face {
+  position: absolute;
+  inset: 0;
+  transform: perspective(1400px) rotateY(0deg);
+  transition: transform 0.6s cubic-bezier(.45, .05, .35, 1), visibility 0s linear 0.22s;
+
+  &.pack-recto.turned {
+    transform: perspective(1400px) rotateY(180deg);
+    visibility: hidden;
+  }
+
+  &.pack-verso {
+    transform: perspective(1400px) rotateY(-180deg);
+    visibility: hidden;
+  }
+
+  &.pack-verso.turned {
+    transform: perspective(1400px) rotateY(0deg);
+    visibility: visible;
+  }
+}
+
 // le sachet en deux morceaux superposés : la bande du haut part à la déchirure
 .pack-part {
   position: absolute;

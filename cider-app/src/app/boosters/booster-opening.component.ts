@@ -78,13 +78,28 @@ export class BoosterOpeningComponent implements OnChanges, OnDestroy {
     this.timers.forEach(clearTimeout);
     this.timers = [];
     this.state = 'sealed';
+    this.packFlipped = false;
     this.pulls = [];
     this.index = 0;
     this.flipped = false;
     this.batch = 0;
   }
 
+  /** Le sachet est-il retourné (verso visible) ? */
+  packFlipped = false;
+
+  /** Clic sur le sachet : retourné, il revient sur le recto ; sinon il s'ouvre. */
+  packClick(): void {
+    if (this.packFlipped) {
+      this.packFlipped = false;
+      return;
+    }
+    this.tear();
+  }
+
   tear(): void {
+    // on ouvre toujours par le recto
+    this.packFlipped = false;
     if (this.state !== 'sealed' || !this.pool.length) {
       return;
     }

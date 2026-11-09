@@ -1019,6 +1019,8 @@
         "pack-result": "Contenu du booster",
         "open-another": "Ouvrir un autre booster",
         "open-many": "Ouvrir {{n}} boosters",
+        "flip": "Retourner",
+        "flip-front": "Face avant",
         "open": "Ouvrir le booster",
         "hint-open": "Clique sur le booster pour le déchirer",
         "new": "Nouvelle"
