@@ -56,7 +56,7 @@
   width: calc(var(--card-w) * 1.05);
   height: calc(var(--card-w) * 1.68);
   cursor: pointer;
-  transform-style: preserve-3d;
+  // un seul plan : pas de preserve-3d (avec le filter, il donnait une copie fantôme du sachet)
   transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
   transition: transform 0.12s ease-out;
   touch-action: none;
@@ -176,6 +176,10 @@
 }
 
 .face {
+  // calques en mix-blend-mode (foil, reflet) mélangés dans ce seul plan : sans cela, Chrome
+  // les mélange avec ce qui est derrière la vue 3D et laisse une copie fantôme, à plat,
+  // quand on incline fort
+  isolation: isolate;
   position: absolute;
   inset: 0;
   backface-visibility: hidden;

@@ -409,7 +409,7 @@
 .preview-pack {
   width: 250px;
   height: 400px;
-  transform-style: preserve-3d;
+  // un seul plan : pas de preserve-3d (avec le filter, il donnait une copie fantôme du sachet)
   transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
   transition: transform 0.12s ease-out;
   touch-action: none;
