@@ -120,7 +120,12 @@
         "templates": "Modèles de carte",
         "move-card-template": "Déplacer vers le deck",
         "moved": "Déplacé",
-        "template-moved": "Modèle déplacé vers « {{deck}} »"
+        "template-moved": "Modèle déplacé vers « {{deck}} »",
+        "boosters": "Boosters",
+        "grid-view": "Vue en vignettes",
+        "list-view": "Vue en liste",
+        "all-illustrations": "Toutes",
+        "no-illustration": "Aucune illustration ici"
     },
     "export": {
         "sheet-export": "Planche de cartes",
@@ -1032,5 +1037,11 @@
         "open": "Ouvrir le booster",
         "hint-open": "Clique sur le booster pour le déchirer",
         "new": "Nouvelle"
+    },
+    "activity": {
+        "explorer": "Explorateur",
+        "illustrations": "Illustrations",
+        "simulator": "Simulateur de partie",
+        "settings": "Paramètres"
     }
 }

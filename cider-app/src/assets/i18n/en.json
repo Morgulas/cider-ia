@@ -120,7 +120,12 @@
         "templates": "Card templates",
         "move-card-template": "Move to deck",
         "moved": "Moved",
-        "template-moved": "Template moved to “{{deck}}”"
+        "template-moved": "Template moved to “{{deck}}”",
+        "boosters": "Boosters",
+        "grid-view": "Thumbnail view",
+        "list-view": "List view",
+        "all-illustrations": "All",
+        "no-illustration": "No illustration here"
     },
     "export": {
         "sheet-export": "Card Sheet",
@@ -1029,5 +1034,11 @@
         "open": "Open the booster",
         "hint-open": "Click the booster to tear it open",
         "new": "New"
+    },
+    "activity": {
+        "explorer": "Explorer",
+        "illustrations": "Illustrations",
+        "simulator": "Game simulator",
+        "settings": "Settings"
     }
 }

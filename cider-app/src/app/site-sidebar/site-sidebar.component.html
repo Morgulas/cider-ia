@@ -18,20 +18,84 @@
     <div class="panel-title">
         <i class="pi pi-images"></i>
         <span>{{ 'sidebar.illustrations' | translate }}</span>
+        <span class="view-switch">
+            <button type="button" class="node-action" [class.on]="assetView === 'grid'"
+                [title]="'sidebar.grid-view' | translate" [attr.aria-label]="'sidebar.grid-view' | translate"
+                [attr.aria-pressed]="assetView === 'grid'" (click)="setAssetView('grid')">
+                <i class="pi pi-th-large"></i>
+            </button>
+            <button type="button" class="node-action" [class.on]="assetView === 'list'"
+                [title]="'sidebar.list-view' | translate" [attr.aria-label]="'sidebar.list-view' | translate"
+                [attr.aria-pressed]="assetView === 'list'" (click)="setAssetView('list')">
+                <i class="pi pi-list"></i>
+            </button>
+        </span>
         <button type="button" class="node-action" [title]="'sidebar.generate-new-asset' | translate"
             [attr.aria-label]="'sidebar.generate-new-asset' | translate" (click)="router.navigateByUrl('/assets/generator')">
             <i class="pi pi-sparkles"></i>
         </button>
     </div>
-    <p-tree [value]="assetFiles" styleClass="file-tree asset-tree" [filter]="true"
-        [filterPlaceholder]="'controls.search' | translate" [selectionMode]="'single'" [(selection)]="selectedFile"
-        [contextMenu]="cm" [draggableNodes]="true" [droppableNodes]="true" (onNodeDrop)="onNodeDrop($event)"
-        draggableScope="self" droppableScope="self" (onNodeContextMenuSelect)="onNodeContextMenuSelect($event)"
-        (onNodeSelect)="onNodeSelect($event)">
-        <ng-template let-node pTemplate="default">
-            <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node }" />
-        </ng-template>
-    </p-tree>
+    @if (assetView === 'list') {
+        <p-tree [value]="assetFiles" styleClass="file-tree asset-tree" [filter]="true"
+            [filterPlaceholder]="'controls.search' | translate" [selectionMode]="'single'" [(selection)]="selectedFile"
+            [contextMenu]="cm" [draggableNodes]="true" [droppableNodes]="true" (onNodeDrop)="onNodeDrop($event)"
+            draggableScope="self" droppableScope="self" (onNodeContextMenuSelect)="onNodeContextMenuSelect($event)"
+            (onNodeSelect)="onNodeSelect($event)">
+            <ng-template let-node pTemplate="default">
+                <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node }" />
+            </ng-template>
+        </p-tree>
+    } @else {
+        <div class="asset-search">
+            <i class="pi pi-search"></i>
+            <input type="search" [(ngModel)]="assetQuery" [placeholder]="'controls.search' | translate"
+                [attr.aria-label]="'controls.search' | translate" />
+        </div>
+        <div class="asset-crumbs">
+            @for (crumb of assetCrumbs; track crumb.path; let last = $last) {
+                <button type="button" class="crumb" [class.current]="last" (click)="assetFolder = crumb.path; assetQuery = ''"
+                    (dragover)="onTileDragOver($event)" (drop)="onTileDrop($event, crumb.path)">{{ crumb.label }}</button>
+                @if (!last) { <i class="pi pi-angle-right"></i> }
+            }
+            <span class="file-controls always">
+                @for (action of assetFolderNode?.data?.actions ?? []; track action.icon) {
+                    <button type="button" class="node-action" [title]="action.label" [attr.aria-label]="action.label"
+                        (click)="action.command()"><i [class]="action.icon"></i></button>
+                }
+            </span>
+        </div>
+        <div class="asset-grid">
+            @for (folder of gridFolders; track folder.data.path) {
+                <button type="button" class="tile folder-tile" (click)="assetFolder = folder.data.path"
+                    (contextmenu)="showTileMenu($event, folder, cm)" (dragover)="onTileDragOver($event)"
+                    (drop)="onTileDrop($event, folder.data.path)">
+                    <span class="thumb"><i class="pi pi-folder"></i><span class="count">{{ folderCount(folder) }}</span></span>
+                    <span class="tile-name">{{ folder.label }}</span>
+                </button>
+            }
+            @for (asset of gridAssets; track asset.data.id) {
+                <button type="button" class="tile" [class.selected]="selectedFile?.data?.id === asset.data.id && selectedFile?.data?.type === 'asset'"
+                    [title]="asset.label" (click)="openAsset(asset)" (contextmenu)="showTileMenu($event, asset, cm)"
+                    draggable="true" (dragstart)="onTileDragStart($event, asset)">
+                    <span class="thumb">
+                        @if (assetUrl(asset); as url) {
+                            @if (asset.icon === 'pi pi-image') {
+                                <img [src]="url" [alt]="asset.label" loading="lazy" draggable="false" />
+                            } @else {
+                                <i [class]="asset.icon"></i>
+                            }
+                        } @else {
+                            <i [class]="asset.icon"></i>
+                        }
+                    </span>
+                    <span class="tile-name">{{ asset.label }}</span>
+                </button>
+            }
+            @if (!gridFolders.length && !gridAssets.length) {
+                <p class="grid-empty">{{ 'sidebar.no-illustration' | translate }}</p>
+            }
+        </div>
+    }
 } @else {
     <!-- Project: home and documents -->
     <p-tree [value]="projectFiles" styleClass="file-tree project-tree" [selectionMode]="'single'"

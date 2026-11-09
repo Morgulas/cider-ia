@@ -1,9 +1,11 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Router } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 import { Bind } from 'primeng/bind';
 import { Menubar } from 'primeng/menubar';
 import { SettingsDialogComponent } from '../settings-dialog/settings-dialog.component';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
     selector: 'app-site-activitybar',
@@ -27,6 +29,7 @@ export class SiteActivitybarComponent {
 
   /** Panel entries toggle the sidebar on their panel; page entries close it */
   private buildMenu(): MenuItem[] {
+    const t = (key: string) => this.translate.instant(key);
     const tooltip = (label: string) => ({
       tooltipLabel: label, tooltipPosition: 'right' as const, showDelay: 500, hideDelay: 500
     });
@@ -45,14 +48,13 @@ export class SiteActivitybarComponent {
       }
     });
     return [
-      panel('explorer', 'Explorer', 'pi pi-fw pi-folder'),
-      panel('assets', 'Illustrations', 'pi pi-fw pi-images'),
-      page('Boosters', 'pi pi-fw pi-gift', '/boosters'),
-      page('Game Simulator', 'pi pi-fw pi-crown', '/simulator'),
+      panel('explorer', t('activity.explorer'), 'pi pi-fw pi-folder'),
+      panel('assets', t('activity.illustrations'), 'pi pi-fw pi-images'),
+      page(t('activity.simulator'), 'pi pi-fw pi-crown', '/simulator'),
       {
-        label: 'Settings',
+        label: t('activity.settings'),
         icon: 'pi pi-fw pi-cog',
-        tooltipOptions: tooltip('Settings'),
+        tooltipOptions: tooltip(t('activity.settings')),
         styleClass: 'menu-item-bottom',
         command: () => {
           this.settingsDialogVisible = true;
@@ -66,8 +68,10 @@ export class SiteActivitybarComponent {
     this.selectedActivityChange.emit(activity);
   }
 
-  constructor(private router: Router) {
+  constructor(private router: Router, private translate: TranslateService) {
     this.menuItems = this.buildMenu();
+    // labels follow the language
+    this.translate.stream('activity.explorer').pipe(takeUntilDestroyed()).subscribe(() => this.menuItems = this.buildMenu());
   }
 
 

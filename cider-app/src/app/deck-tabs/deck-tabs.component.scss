@@ -1,0 +1,43 @@
+:host {
+    display: block;
+    flex: none;
+}
+
+.deck-tabs {
+    display: flex;
+    gap: 0.15rem;
+    margin: 0 10px 10px 0;
+    padding: 0.25rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-radius: 10px;
+    background: var(--cider-content-background, var(--p-content-background));
+}
+
+.deck-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    color: var(--p-text-muted-color);
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+
+    i {
+        font-size: 0.9rem;
+    }
+
+    &:hover {
+        background: var(--p-content-hover-background);
+        color: var(--p-text-color);
+    }
+
+    &.active {
+        background: var(--p-highlight-background);
+        color: var(--p-highlight-color);
+        font-weight: 600;
+    }
+}

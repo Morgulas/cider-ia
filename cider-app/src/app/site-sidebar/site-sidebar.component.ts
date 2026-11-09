@@ -34,10 +34,11 @@ export interface DeckOption {
 export type SidebarActivity = 'explorer' | 'assets';
 
 import { DocumentsService } from '../data-services/services/documents.service';
+import { BoostersService } from '../data-services/services/boosters.service';
 import { HttpClient } from '@angular/common/http';
 import { AppDB } from '../data-services/indexed-db/db';
 import { TranslateService, TranslatePipe } from '@ngx-translate/core';
-import { Asset, StoredAsset } from '../data-services/types/asset.type';
+import { Asset, AssetUrls, StoredAsset } from '../data-services/types/asset.type';
 import { Bind } from 'primeng/bind';
 import { ContextMenu } from 'primeng/contextmenu';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
@@ -70,6 +71,7 @@ export function deckSwitchUrl(currentUrl: string, deckId: number): string {
 export class SiteSidebarComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly currentProject = inject(CurrentProjectService);
+  private readonly boostersService = inject(BoostersService);
 
   /** Explorer (project + selected deck) or illustrations */
   @Input() activity: SidebarActivity | string = 'explorer';
@@ -80,6 +82,13 @@ export class SiteSidebarComponent implements OnInit {
   deckFiles: TreeNode[] = [];
   /** Illustrations and other assets */
   assetFiles: TreeNode[] = [];
+
+  /** Illustrations as thumbnails (default) or as a tree */
+  assetView: 'grid' | 'list' = 'grid';
+  /** Folder shown by the thumbnails, '' for the top */
+  assetFolder = '';
+  assetQuery = '';
+  assetUrls: AssetUrls = {};
 
   decks: DeckOption[] = [];
   currentDeckId: number | null = null;
@@ -125,7 +134,7 @@ export class SiteSidebarComponent implements OnInit {
       // only what the sidebar shows: a card edit (and its journal entry, written at
       // every save) used to rebuild the whole tree; cards count in the deck picker
       const treeTables = [AppDB.DECKS_TABLE, AppDB.CARD_TEMPLATES_TABLE, AppDB.DOCUMENTS_TABLE,
-        AppDB.ASSETS_TABLE, AppDB.ASSET_FOLDERS_TABLE, AppDB.CARDS_TABLE];
+        AppDB.ASSETS_TABLE, AppDB.ASSET_FOLDERS_TABLE, AppDB.CARDS_TABLE, AppDB.BOOSTERS_TABLE];
       if (!change || change.type === 'reset'
         || ((change.type === 'create' || change.type === 'delete') && treeTables.includes(change.tableName))) {
         this.updateFiles();
@@ -139,6 +148,11 @@ export class SiteSidebarComponent implements OnInit {
         this.updateFiles();
       }
     });
+
+    try {
+      this.assetView = localStorage.getItem('cider.sidebar.assetView') === 'list' ? 'list' : 'grid';
+    } catch { /* no storage */ }
+    this.assetsService.getAssetUrls().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(urls => this.assetUrls = urls);
 
     // Highlight the page being shown
     this.router.events.pipe(filter(e => e instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef))
@@ -373,6 +387,17 @@ export class SiteSidebarComponent implements OnInit {
       page('sidebar.export-cards', '/export-cards', 'pi pi-file-export', 'card-export'),
     ];
 
+    // boosters mix several decks: listed with the decks they draw from
+    const boosters = await this.boostersService.getAll().catch(() => []);
+    nodes.push({
+      label: this.translate.instant('sidebar.boosters'),
+      data: { url: '/boosters', badge: boosters.filter(booster => (booster.deckIds ?? []).includes(deck.id)).length },
+      icon: 'pi pi-gift',
+      styleClass: 'deck-boosters',
+      draggable: false,
+      droppable: false
+    });
+
     const newTemplate: MenuItem = {
       label: this.translate.instant('sidebar.add-new-card-template'),
       icon: 'pi pi-plus',
@@ -450,6 +475,111 @@ export class SiteSidebarComponent implements OnInit {
       this.router.navigateByUrl(`/decks/${this.currentDeckId}/cards/listing`);
     }
     this.updateFiles();
+  }
+
+  // -----------------------------------------------
+  // Illustrations as thumbnails
+  // -----------------------------------------------
+  setAssetView(view: 'grid' | 'list') {
+    this.assetView = view;
+    try {
+      localStorage.setItem('cider.sidebar.assetView', view);
+    } catch { /* no storage */ }
+  }
+
+  private findAssetFolder(nodes: TreeNode[], path: string): TreeNode | undefined {
+    for (const node of nodes) {
+      const type = node.data?.type;
+      if ((type === 'asset-root' || type === 'asset-folder') && (node.data.path ?? '') === path) return node;
+      const found = this.findAssetFolder(node.children ?? [], path);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  /** The folder the thumbnails show (the top when it was renamed or deleted) */
+  get assetFolderNode(): TreeNode | undefined {
+    return this.findAssetFolder(this.assetFiles, this.assetFolder) ?? this.assetFiles[0];
+  }
+
+  get gridFolders(): TreeNode[] {
+    if (this.assetQuery.trim()) return [];
+    return (this.assetFolderNode?.children ?? []).filter(node => node.data?.type === 'asset-folder');
+  }
+
+  /** Files of the folder, or of every folder matching the search */
+  get gridAssets(): TreeNode[] {
+    const query = this.assetQuery.trim().toLowerCase();
+    if (!query) return (this.assetFolderNode?.children ?? []).filter(node => node.data?.type === 'asset');
+    const found: TreeNode[] = [];
+    const walk = (nodes: TreeNode[]) => nodes.forEach(node => {
+      if (node.data?.type === 'asset' && (node.label ?? '').toLowerCase().includes(query)) found.push(node);
+      walk(node.children ?? []);
+    });
+    walk(this.assetFiles);
+    return found;
+  }
+
+  get assetCrumbs(): { label: string; path: string }[] {
+    const crumbs = [{ label: this.translate.instant('sidebar.all-illustrations'), path: '' }];
+    const node = this.assetFolderNode;
+    const path: string = node?.data?.path ?? '';
+    if (!path) return crumbs;
+    const parts = path.split('/');
+    parts.forEach((part, i) => crumbs.push({ label: part, path: parts.slice(0, i + 1).join('/') }));
+    return crumbs;
+  }
+
+  /** Object URL of an asset, from its folders and name like {{assets.dossier.nom}} */
+  assetUrl(node: TreeNode): string | null {
+    let level: string | AssetUrls | undefined = this.assetUrls;
+    const keys = [...(node.data?.path ? String(node.data.path).split('/') : []), node.label ?? ''];
+    for (const key of keys) {
+      if (!level || typeof level === 'string') return null;
+      level = level[StringUtils.toKebabCase(key)];
+    }
+    return typeof level === 'string' ? level : null;
+  }
+
+  folderCount(node: TreeNode): number {
+    return (node.children ?? []).length;
+  }
+
+  openAsset(node: TreeNode) {
+    this.selectedFile = node;
+    if (node.data?.url) this.router.navigateByUrl(node.data.url);
+  }
+
+  showTileMenu(event: MouseEvent, node: TreeNode, cm: ContextMenu) {
+    event.preventDefault();
+    this.menuItems = node.data?.contextMenu ?? [];
+    cm.show(event);
+  }
+
+  onTileDragStart(event: DragEvent, node: TreeNode) {
+    event.dataTransfer?.setData('application/x-cider-asset', String(node.data.id));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  onTileDragOver(event: DragEvent) {
+    if (event.dataTransfer?.types.includes('application/x-cider-asset')) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  /** An asset thumbnail dropped on a folder or a crumb: move it there */
+  async onTileDrop(event: DragEvent, path: string) {
+    const id = Number(event.dataTransfer?.getData('application/x-cider-asset'));
+    if (!id) return;
+    event.preventDefault();
+    const asset = await this.assetsService.get(id);
+    if (!asset || (asset.path || '') === path) return;
+    if (await this.assetsService.moveAsset(asset, path)) {
+      this.messageService.add({ severity: 'success', summary: this.translate.instant('sidebar.moved'), detail: `${asset.name} → ${path || '/'}`, life: 2500 });
+      // a move is an update: the database watcher does not rebuild for it
+      this.updateFiles();
+    }
   }
 
   // -----------------------------------------------

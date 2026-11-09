@@ -1,0 +1,11 @@
+@if (tabs.length) {
+    <nav class="deck-tabs" [attr.aria-label]="'sidebar.deck' | translate">
+        @for (tab of tabs; track tab.key) {
+            <a class="deck-tab" [class.active]="tab.key === active" [routerLink]="tab.url"
+                [attr.aria-current]="tab.key === active ? 'page' : null">
+                <i [class]="tab.icon"></i>
+                <span>{{ tab.key | translate }}</span>
+            </a>
+        }
+    </nav>
+}

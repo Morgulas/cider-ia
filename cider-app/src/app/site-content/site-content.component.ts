@@ -7,11 +7,13 @@ import { AssetsService } from '../data-services/services/assets.service';
 import { HandlebarsPipe } from '../shared/pipes/handlebars.pipe';
 import { AppDB } from '../data-services/indexed-db/db';
 import { debounceTime, filter } from 'rxjs';
+import { DeckTabsComponent } from '../deck-tabs/deck-tabs.component';
 
 @Component({
     selector: 'app-site-content',
     templateUrl: './site-content.component.html',
-    styleUrls: ['./site-content.component.scss']
+    styleUrls: ['./site-content.component.scss'],
+    imports: [DeckTabsComponent]
 })
 export class SiteContentComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
