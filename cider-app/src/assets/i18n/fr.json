@@ -32,7 +32,8 @@
         "zoom-in": "Zoom avant",
         "reset-view": "Réinitialiser la vue",
         "preview-settings": "Paramètres d'aperçu",
-        "done": "Terminé"
+        "done": "Terminé",
+        "no-results": "Aucun résultat"
     },
     "fields": {
         "name": "Nom",
@@ -504,7 +505,9 @@
         "popout-active": "L'aperçu est dans la fenêtre séparée. Les boutons ci-dessus la pilotent (carte, vue, inspecteur).",
         "popout-back": "Ramener l'aperçu ici",
         "inspect-selected": "Élément cliqué :",
-        "inspect-no-css": "aucune règle CSS ne le cible directement"
+        "inspect-no-css": "aucune règle CSS ne le cible directement",
+        "save-failed": "Modèle non enregistré",
+        "deleted": "Le modèle « {{name}} » a été supprimé : ses dernières modifications ne sont pas enregistrées."
     },
     "server": {
         "login": {
@@ -1061,5 +1064,8 @@
         "illustrations": "Illustrations",
         "simulator": "Simulateur de partie",
         "settings": "Paramètres"
+    },
+    "spreadsheet": {
+        "loading": "Chargement des cartes…"
     }
 }

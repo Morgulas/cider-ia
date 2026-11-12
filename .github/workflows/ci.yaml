@@ -33,6 +33,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Translations
+        run: npm run check:i18n
+
       - name: Run tests
         run: npm run test:ci
 

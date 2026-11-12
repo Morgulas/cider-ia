@@ -274,6 +274,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   private popup: Window | null = null;
   private colorContext: CanvasRenderingContext2D | null = null;
   private static cssFormatterRegistered = false;
+  /** template whose code changed and is not saved yet */
+  private pendingTemplate: CardTemplate | null = null;
 
 
   constructor(private domSanitizer: DomSanitizer, 
@@ -284,6 +286,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     private localStorage: LocalStorageService,
     private route: ActivatedRoute) {
       this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+        // the template left keeps its last changes (typed less than a second ago)
+        void this.flushTemplateSave();
         const templateIdString = params.get('templateId') || '';
         const templateId = parseInt(templateIdString, 10);
         if (!isNaN(templateId)) {
@@ -336,7 +340,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       this.updateOverflowCandidates();
     });
     this.templateChanges.asObservable().pipe(debounceTime(1000))
-      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.save(this.selectedTemplate));
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => void this.flushTemplateSave());
 
     this.layout = localStorage.getItem(LAYOUT_KEY) === 'split' ? 'split' : 'tabs';
     this.insertPanelVisible = localStorage.getItem(INSERT_PANEL_KEY) !== 'hidden';
@@ -389,6 +393,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngOnDestroy(): void {
+    // last changes, typed less than a second before leaving the page
+    void this.flushTemplateSave();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
@@ -475,8 +481,31 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   public debounceSave() {
+    // the template object edited: still the right one if another template is opened meanwhile
+    this.pendingTemplate = this.selectedTemplate;
     this.templateChanges.next(true);
     this.checks.next();
+  }
+
+  /** Saves now the code changed and not saved yet */
+  public async flushTemplateSave(): Promise<void> {
+    const template = this.pendingTemplate;
+    this.pendingTemplate = null;
+    if (!template?.id) {
+      return;
+    }
+    try {
+      if (!(await this.service.saveCode(template.id, template))) {
+        // deleted from the sidebar while open here: not created again
+        this.messageService.add({ severity: 'warn', life: 6000,
+          summary: this.translate.instant('template-editor.save-failed'),
+          detail: this.translate.instant('template-editor.deleted', { name: template.name }) });
+      }
+    } catch (error) {
+      console.error('template not saved', error);
+      this.messageService.add({ severity: 'error', life: 6000,
+        summary: this.translate.instant('template-editor.save-failed'), detail: String((error as Error)?.message ?? error) });
+    }
   }
 
   /*********************************************************************
@@ -652,7 +681,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     if (!this.selectedTemplate?.id) {
       return;
     }
-    await this.service.update(this.selectedTemplate.id, this.selectedTemplate, true);
+    this.pendingTemplate = this.selectedTemplate;
+    await this.flushTemplateSave();
     await this.currentProject.flush();
     this.messageService.add({ severity: 'success', life: 2000, summary: this.translate.instant('template-editor.saved') });
   }
@@ -1277,21 +1307,6 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     });
   }
 
-  
-  public save(entity : CardTemplate) {
-    const id = fieldOf<number>(this.selectedTemplate, this.service?.getIdField());
-    if (id) {
-      this.updateExisting(id, this.selectedTemplate);
-    }
-  }
-
-  public updateExisting(id: number, entity: CardTemplate) {
-    this.service?.update(id, entity, true).catch(error => {
-      console.error('template not saved', error);
-      this.messageService.add({ severity: 'error', life: 6000,
-        summary: this.translate.instant('template-editor.save-failed'), detail: String(error?.message ?? error) });
-    });
-  }
 
   public openCreateNew() {
     this.editTemplate = {

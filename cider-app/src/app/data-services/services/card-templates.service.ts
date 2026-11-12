@@ -24,4 +24,13 @@ export class CardTemplatesService extends DecksChildService<CardTemplate, number
   override getEntityName(entity: CardTemplate) {
     return entity.name;
   }
+
+  /**
+   * Saves the code of a template (HTML and CSS) and nothing else: its name and deck,
+   * changed meanwhile elsewhere (sidebar), are kept, and a template deleted meanwhile
+   * is not created again. Returns false when the template no longer exists.
+   */
+  saveCode(id: number, code: Pick<CardTemplate, 'html' | 'css'>): Promise<boolean> {
+    return this.db.table(this.tableName).update(id, { html: code.html, css: code.css }).then(updated => updated > 0);
+  }
 }
