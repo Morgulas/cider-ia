@@ -76,6 +76,8 @@ export class CurrentProjectService {
   readonly saveState = signal<SaveState>('idle');
   readonly lastSavedAt = signal<Date | null>(null);
   readonly lastError = signal<string | null>(null);
+  /** with the 'error' state: whether the save is tried again by itself */
+  readonly willRetry = signal(false);
   readonly lastSaveStats = signal<SaveStats | null>(null);
   /** time the page was blocked by long tasks since the save started */
   private blockedDuringSave = 0;
@@ -441,10 +443,30 @@ export class CurrentProjectService {
         this.lastError.set(apiErrorMessage(error, 'The project was saved from somewhere else'));
         return;
       }
+      if (error instanceof HttpErrorResponse && error.status === 413) {
+        // retrying cannot help: saved again with the next change (an image removed...)
+        this.saveState.set('error');
+        this.willRetry.set(false);
+        this.lastError.set(this.tooLargeMessage(error));
+        return;
+      }
       this.saveState.set('error');
+      this.willRetry.set(true);
       this.lastError.set(apiErrorMessage(error, 'The project could not be saved'));
       this.scheduleSave(CurrentProjectService.RETRY_DELAY_MS);
     }
+  }
+
+  /** The project is over the size limit of the server (whole project, or one request) */
+  private tooLargeMessage(error: HttpErrorResponse): string {
+    const body = error.error as { size?: unknown; maxSize?: unknown } | null;
+    const mb = (bytes: number, round: (value: number) => number) => round(bytes / (1024 * 1024));
+    if (body && typeof body === 'object' && typeof body.size === 'number' && typeof body.maxSize === 'number') {
+      return this.translate.instant('server.save.too-large', {
+        size: mb(body.size, Math.ceil), max: mb(body.maxSize, Math.floor),
+      });
+    }
+    return this.translate.instant('server.save.too-large-request');
   }
 
   /*********************************************************************
@@ -517,6 +539,7 @@ export class CurrentProjectService {
   private copyReplaced(): void {
     this.resetState();
     this.saveState.set('error');
+    this.willRetry.set(false);
     this.lastError.set(this.translate.instant('server.save.copy-replaced'));
     void this.router.navigateByUrl('/projects');
   }

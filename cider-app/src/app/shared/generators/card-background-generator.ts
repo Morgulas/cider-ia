@@ -315,7 +315,6 @@ export function generateRandomCardBackground(baseOptions: Partial<CardBackground
 
 //   randomOptions.textureType = 'swirl';
 
-  console.log('background options: ', randomOptions);
   
   // 4. Call the original generator with the fully randomized options
   return generateCardBackground(randomOptions);

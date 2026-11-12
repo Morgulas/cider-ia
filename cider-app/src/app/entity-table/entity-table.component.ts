@@ -151,7 +151,6 @@ export class EntityTableComponent<Entity, Identifier extends string | number> im
   }
 
   public confirmImport(table: Table) {
-    console.log('upload data');
     if (this.importFile) {
       XlsxUtils.entityImport(this.columns, this.lookups, this.importFile).then(entities => {
         this.service?.deleteAll().then(completed => {

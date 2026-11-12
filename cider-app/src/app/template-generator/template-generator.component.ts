@@ -69,9 +69,6 @@ export class TemplateGeneratorComponent implements OnInit {
   }
 
   public async createTemplate() {
-    console.log('Creating template with size:', this.selectedSize, 
-      'and layout:', this.selectedLayout, 
-      'and deckId:', this.deckId);
     if (!this.selectedTheme) {
       return;
     }

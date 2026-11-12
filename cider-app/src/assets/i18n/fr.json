@@ -605,6 +605,7 @@
             "pending": "Modifications non enregistrées",
             "saving": "Enregistrement…",
             "error": "Non enregistré : {{error}} — nouvel essai",
+            "error-final": "Non enregistré : {{error}}",
             "conflict-title": "Projet modifié ailleurs",
             "conflict-message": "Ce projet a été enregistré depuis un autre onglet ou appareil après son ouverture ici. Quelle version voulez-vous garder ?",
             "keep-local": "Garder ma version",
@@ -615,6 +616,8 @@
             "close-failed": "Le projet ouvert a des modifications qui n'ont pas pu être enregistrées.",
             "pending-other": "Des modifications du projet « {{name}} » faites dans ce navigateur n'ont pas été enregistrées. Ouvrez d'abord ce projet pour les enregistrer.",
             "copy-replaced": "Le projet a été fermé : un autre onglet de ce navigateur a ouvert un projet.",
+            "too-large": "le projet pèserait {{size}} Mo avec ses images, plus que la limite de {{max}} Mo du serveur (CIDER_MAX_PROJECT_MB). Retirez ou allégez des images, puis modifiez le projet pour réessayer",
+            "too-large-request": "un fichier ou le projet dépasse la taille maximale acceptée par le serveur (CIDER_MAX_PROJECT_MB)",
             "stats": "Dernier enregistrement : {{total}} ms au total\n· lecture du projet : {{export}} ms\n· images envoyées : {{files}} ({{fileKb}} Ko) en {{upload}} ms\n· données : {{dataKb}} Ko en {{send}} ms\n· page bloquée : {{blocked}} ms"
         },
         "ai": {

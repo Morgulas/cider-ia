@@ -602,6 +602,7 @@
             "pending": "Unsaved changes",
             "saving": "Saving…",
             "error": "Not saved: {{error}} — retrying",
+            "error-final": "Not saved: {{error}}",
             "conflict-title": "Project changed elsewhere",
             "conflict-message": "This project was saved from another tab or device after you opened it here. Which version do you want to keep?",
             "keep-local": "Keep my version",
@@ -612,6 +613,8 @@
             "close-failed": "The open project has changes that could not be saved.",
             "pending-other": "Changes to the project \"{{name}}\" made in this browser were not saved. Open that project first to save them.",
             "copy-replaced": "The project was closed: another tab of this browser opened a project.",
+            "too-large": "the project would weigh {{size}} MB with its images, more than the {{max}} MB limit of the server (CIDER_MAX_PROJECT_MB). Remove or shrink images, then edit the project to try again",
+            "too-large-request": "a file or the project is larger than the server accepts (CIDER_MAX_PROJECT_MB)",
             "stats": "Last save: {{total}} ms in total\n· reading the project: {{export}} ms\n· images sent: {{files}} ({{fileKb}} KB) in {{upload}} ms\n· data: {{dataKb}} KB in {{send}} ms\n· page blocked: {{blocked}} ms"
         },
         "ai": {

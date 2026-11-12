@@ -33,7 +33,6 @@ export class AssetsService extends IndexedDbService<Asset, number> {
   }
 
   public updateAssetUrls() {
-    console.log('update asset urls');
     this.isLoadingSubject.next(false);
     this.getAll().then(assets => {
       // release the old URLs - simple cleanup might be insufficient if we have nested structure, 

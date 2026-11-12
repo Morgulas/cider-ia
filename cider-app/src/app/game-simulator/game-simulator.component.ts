@@ -1401,12 +1401,10 @@ export class GameSimulatorComponent implements OnInit, OnDestroy, AfterViewInit 
     if (this.hoveredItem == item) {
       return;
     }
-    // console.log('mouse entered: ', event, item);
     this.hoveredItem = item;
   }
 
   onMouseExited(_event: Event, item: Positionable) {
-    // console.log('mouse exited: ', event, item);
     if (this.hoveredItem == item) {
       this.hoveredItem = undefined;
     }

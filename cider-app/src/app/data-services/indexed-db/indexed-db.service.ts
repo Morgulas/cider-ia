@@ -56,7 +56,6 @@ export class IndexedDbService<Entity, Identity extends string | number> implemen
   }
 
   search(searchParameters: SearchParameters, equalityCriterias?: EqualityCriteria): Promise<SearchResult<Entity>> {
-    console.log('searchParameters', searchParameters);
     let query = equalityCriterias ? this.db.table(this.tableName).where(equalityCriterias) 
       : this.db.table(this.tableName).toCollection();
     if (searchParameters.sorting && searchParameters.sorting.length > 0) {

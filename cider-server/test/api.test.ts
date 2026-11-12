@@ -297,6 +297,24 @@ describe('cider-server API', () => {
     assert.equal((await call('DELETE', `/api/users/${adminId}`, { cookie: adminCookie })).status, 409);
   });
 
+  it('sends the cookie again when a session in use is extended', async () => {
+    const cookie = await login('alice', 'alice-password-2');
+    // fresh session: nothing to extend
+    assert.equal((await call('GET', '/api/auth/me', { cookie })).cookie, undefined);
+    // used again two hours later (expiry moved back by two hours)
+    const records = (server.sessions as unknown as { sessions: { expiresAt: string }[] }).sessions;
+    const record = records[records.length - 1];
+    record.expiresAt = new Date(Date.parse(record.expiresAt) - 2 * 3600 * 1000).toISOString();
+    const renewed = await call('GET', '/api/auth/me', { cookie });
+    assert.equal(renewed.status, 200);
+    assert.equal(renewed.cookie?.value, cookie);
+    assert.equal(renewed.cookie?.maxAge, 30 * 24 * 3600);
+    assert.equal(renewed.cookie?.httpOnly, true);
+    assert.equal(renewed.cookie?.path, '/api');
+    // no cookie for a request without a valid session
+    assert.equal((await call('GET', '/api/auth/me', { cookie: 'not-a-session' })).cookie, undefined);
+  });
+
   it('logs out', async () => {
     const session = await login('bob', 'bob-password');
     assert.equal((await call('POST', '/api/auth/logout', { cookie: session })).status, 200);

@@ -11,6 +11,10 @@ server {
     index index.html;
     server_tokens off;
 
+    # Derrière un reverse proxy déclaré dans CIDER_REVERSE_PROXY_IPS : $remote_addr devient
+    # l'adresse du client (écrit au démarrage par 15-cider-real-ip.sh, vide sinon)
+    include /etc/nginx/snippets/real-ip.conf;
+
     gzip on;
     gzip_types text/plain text/css application/javascript application/json application/wasm image/svg+xml;
     gzip_min_length 1024;
@@ -24,8 +28,9 @@ server {
         proxy_pass http://api:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
-        # uniquement l'adresse vue par nginx : une valeur envoyée par le client est ignorée
-        # (sinon il pourrait contourner la limite de tentatives de connexion)
+        # uniquement l'adresse retenue par nginx (celle du client, ou celle annoncée par un
+        # reverse proxy de CIDER_REVERSE_PROXY_IPS) : une valeur envoyée par le client lui-même
+        # est ignorée (sinon il pourrait contourner la limite de tentatives de connexion)
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $cider_forwarded_proto;
         client_max_body_size ${CIDER_MAX_PROJECT_MB}m;

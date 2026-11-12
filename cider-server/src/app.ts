@@ -6,7 +6,7 @@ import { promises as fs } from 'node:fs';
 import { ServerConfig } from './config.js';
 import { checkPasswordRules, hashPassword, verifyPassword } from './passwords.js';
 import { BlobStore, BlobStoreError } from './store/blobs.js';
-import { ProjectStore, ProjectStoreError, SaveInfo, VERSION_LABEL_MAX_LENGTH } from './store/projects.js';
+import { ProjectStore, ProjectStoreError, ProjectTooLargeError, SaveInfo, VERSION_LABEL_MAX_LENGTH } from './store/projects.js';
 import { BLOB_HASH_PATTERN, inlineBlobs } from './store/project-blobs.js';
 import { SessionStore } from './store/sessions.js';
 import { toPublicUser, UserChanges, UserRecord, UserStore, UserStoreError } from './store/users.js';
@@ -97,7 +97,7 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
   const users = new UserStore(config.dataDir, () => ai.defaultMonthlyImages);
   const sessions = new SessionStore(config.dataDir, config.sessionDays);
   const blobs = new BlobStore(config.dataDir);
-  const projects = new ProjectStore(config.dataDir, blobs);
+  const projects = new ProjectStore(config.dataDir, blobs, config.maxProjectMb * 1024 * 1024);
   const aiUsage = new AiUsageStore(config.dataDir);
   await users.load();
   await sessions.load();
@@ -181,6 +181,10 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
       if (error instanceof ProjectStoreError && error.missing !== undefined) {
         body['missing'] = error.missing;
       }
+      if (error instanceof ProjectTooLargeError) {
+        body['size'] = error.size;
+        body['maxSize'] = error.maxSize;
+      }
       return reply.status(status).send(body);
     }
     if (error.statusCode && error.statusCode < 500) {
@@ -198,11 +202,16 @@ export async function buildApp(config: ServerConfig, options: { imageProviders?:
     }
   });
 
-  // resolve the logged-in user from the session cookie
-  app.addHook('preHandler', async (request) => {
-    const userId = await sessions.resolve(request.cookies[SESSION_COOKIE]);
-    const user = userId ? users.get(userId) : undefined;
+  // resolve the logged-in user from the session cookie; when the session was
+  // extended, the cookie is sent again so the browser keeps it as long
+  app.addHook('preHandler', async (request, reply) => {
+    const token = request.cookies[SESSION_COOKIE];
+    const session = await sessions.check(token);
+    const user = session ? users.get(session.userId) : undefined;
     request.user = user && !user.disabled ? user : undefined;
+    if (session?.renewed && request.user && token && !request.url.startsWith('/api/auth/logout')) {
+      setSessionCookie(request, reply, token);
+    }
   });
 
   const requireUser = (request: FastifyRequest): UserRecord => {

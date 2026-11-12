@@ -55,7 +55,6 @@ export class SiteContentComponent implements OnInit {
   }
 
   private addGlobalStyles() {
-    console.log('Adding global styles to site content component', this.assetUrls);
     const uniqueId = 'project-global-styles';
 
     // check if style tag already exists and if not, create it

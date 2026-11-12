@@ -15,7 +15,7 @@
             @case ('saving') { <i class="pi pi-spin pi-spinner"></i> {{ 'server.save.saving' | translate }} }
             @case ('error') {
                 <i class="pi pi-exclamation-triangle"></i>
-                {{ 'server.save.error' | translate: { error: currentProject.lastError() } }}
+                {{ (currentProject.willRetry() ? 'server.save.error' : 'server.save.error-final') | translate: { error: currentProject.lastError() } }}
             }
             @case ('conflict') { <i class="pi pi-exclamation-triangle"></i> {{ 'server.save.conflict-title' | translate }} }
         }

@@ -29,10 +29,8 @@ export class ColorManagementService {
     // 1. Load profiles if not already loaded
     if (!this.profilesLoaded) {
       try {
-        console.log('ColorManagementService: Fetching profiles from ./assets/icc/profiles.json');
         this.availableProfiles = await firstValueFrom(this.http.get<IccProfile[]>('./assets/icc/profiles.json'));
         this.profilesLoaded = true;
-        console.log('ColorManagementService: Profiles loaded successfully:', this.availableProfiles);
       } catch (e) {
         console.error('ColorManagementService: Failed to load profiles.json from ./assets/icc/profiles.json', e);
       }
@@ -42,10 +40,8 @@ export class ColorManagementService {
     if (!this.wasmReady) {
       if (!this.wasmInitPromise) {
         const wasmPath = './assets/wasm/cider_press_bg.wasm';
-        console.log(`ColorManagementService: Initializing WASM from ${wasmPath}`);
         this.wasmInitPromise = init(wasmPath).then(() => {
           this.wasmReady = true;
-          console.log('ColorManagementService: WASM module initialized successfully.');
         }).catch((err: unknown) => {
           console.error(`ColorManagementService: WASM initialization failed for ${wasmPath}`, err);
           this.wasmInitPromise = null; // Allow retry
@@ -97,7 +93,6 @@ export class ColorManagementService {
         const buffer = await firstValueFrom(this.http.get(profilePath, { responseType: 'arraybuffer' }));
         const profileBytes = new Uint8Array(buffer);
 
-        console.log('ColorManagementService: Creating new SoftProofer for', profileName);
         // Default to high precision (16-bit intermediate) for all soft proofing
         proofer = new SoftProofer(profileBytes, intent, true);
         this.proofers.set(prooferKey, proofer);

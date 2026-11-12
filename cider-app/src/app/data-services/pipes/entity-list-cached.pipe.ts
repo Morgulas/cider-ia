@@ -13,7 +13,6 @@ export class EntityListCachedPipe implements PipeTransform {
     if (!options && service) {
       const takenOptions = await service.getAll();
       cache.set(service, takenOptions);
-      console.log('setOptionsCache', takenOptions);
       return takenOptions;
     }
     return options;

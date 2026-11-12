@@ -17,6 +17,8 @@ FROM nginx:1.27-alpine
 ENV CIDER_MAX_PROJECT_MB=200
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
+# adresse réelle des clients derrière un reverse proxy (CIDER_REVERSE_PROXY_IPS), écrite au démarrage
+COPY --chmod=755 docker/15-cider-real-ip.sh /docker-entrypoint.d/15-cider-real-ip.sh
 COPY --from=build /app/dist/cider/browser /usr/share/nginx/html
 
 EXPOSE 80

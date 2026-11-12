@@ -70,6 +70,15 @@ export class SessionStore {
 
   /** Returns the user id of a valid session, extending it while it is used */
   async resolve(token: string | undefined): Promise<string | undefined> {
+    return (await this.check(token))?.userId;
+  }
+
+  /**
+   * The user id of a valid session, and whether it was just extended: the browser
+   * must then get the cookie again with a new expiry, or it drops it after the
+   * lifetime counted from the login, however much the session is used.
+   */
+  async check(token: string | undefined): Promise<{ userId: string; renewed: boolean } | undefined> {
     if (!token) {
       return undefined;
     }
@@ -91,8 +100,9 @@ export class SessionStore {
         session.expiresAt = this.expiry();
         await this.save();
       });
+      return { userId: session.userId, renewed: true };
     }
-    return session.userId;
+    return { userId: session.userId, renewed: false };
   }
 
   revoke(token: string | undefined): Promise<void> {

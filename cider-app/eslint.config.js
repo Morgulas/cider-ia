@@ -56,6 +56,8 @@ module.exports = defineConfig([
       "@angular-eslint/no-empty-lifecycle-method": "warn",
       // constructor injection is still the convention of this code base
       "@angular-eslint/prefer-inject": "off",
+      // no debug traces left in the console; info, warn and error are deliberate
+      "no-console": ["error", { allow: ["info", "warn", "error"] }],
     },
   },
   {

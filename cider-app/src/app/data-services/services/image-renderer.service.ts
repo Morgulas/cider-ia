@@ -19,7 +19,6 @@ export class ImageRendererService {
 
     public toPng(node: HTMLElement, options?: ImageRendererOptions): Promise<string> {
         const renderer = this.localStorageService.getRenderer();
-        console.log('Rendering with:', renderer);
 
         if (renderer === 'dom-to-image-more') {
             // dom-to-image-more doesn't support pixelRatio as a direct option in the same way,

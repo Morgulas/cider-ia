@@ -182,6 +182,31 @@ describe('project files API', () => {
     assert.equal(saved.status, 200, saved.body);
   });
 
+  it('refuses a save that makes the project larger than the limit, files included', async () => {
+    // each file is under the 1 MB limit of a request, together they are over it
+    const big1 = Buffer.alloc(600 * 1024, 1);
+    const big2 = Buffer.alloc(600 * 1024, 2);
+    for (const big of [big1, big2]) {
+      const sent = await call('PUT', `/api/blobs/${sha(big)}`, { cookie, raw: big, contentType: BLOB_CONTENT_TYPE });
+      assert.equal(sent.status, 200, sent.body);
+    }
+    const refused = await save(refProject('too big', [image1, big1, big2]), 2);
+    assert.equal(refused.status, 413, refused.body);
+    assert.equal(refused.json.maxSize, 1024 * 1024);
+    assert.ok(refused.json.size > 1200 * 1024);
+    // nothing saved: the project keeps its revision and size
+    const project = (await call('GET', `/api/projects/${projectId}`, { cookie })).json.project;
+    assert.equal(project.revision, 2);
+    assert.ok(project.size < 1024 * 1024);
+    // under the limit again: saved
+    const saved = await save(refProject('fits', [image1, big1]), 2);
+    assert.equal(saved.status, 200, saved.body);
+    const back = await save(refProject('v2', [image1, image2]), 3);
+    assert.equal(back.status, 200, back.body);
+    // big2 was never part of a save: removed, so the cleanup test below only finds its own orphan
+    await fs.rm(server.blobs.file(userId, sha(big2)));
+  });
+
   it('checks that a file matches its identifier', async () => {
     const wrong = await call('PUT', `/api/blobs/${sha(image1)}`, { cookie, raw: image2, contentType: BLOB_CONTENT_TYPE });
     assert.equal(wrong.status, 400);

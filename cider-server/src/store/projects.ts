@@ -99,6 +99,16 @@ export class ProjectStoreError extends Error {
   }
 }
 
+const MB = 1024 * 1024;
+
+/** A save that would make the project, its files included, larger than the limit */
+export class ProjectTooLargeError extends ProjectStoreError {
+  constructor(readonly size: number, readonly maxSize: number) {
+    super(`the project would weigh ${Math.ceil(size / MB)} MB with its files, `
+      + `more than the limit of ${Math.floor(maxSize / MB)} MB`, 413);
+  }
+}
+
 /** Blobs written less than this long ago are never cleaned up (sent for a save still to come) */
 export const BLOB_MIN_AGE_MS = 24 * 3600 * 1000;
 
@@ -126,15 +136,22 @@ export class ProjectStore {
   private readonly root: string;
   private readonly queues = new Map<string, SerialQueue>();
 
-  constructor(dataDir: string, readonly blobs: BlobStore) {
+  /**
+   * maxProjectBytes: largest size of a saved project, its files (images...) included.
+   * Each request is already limited by the HTTP server, but the files are sent one
+   * by one, apart from the data: only the total says how big the project is.
+   */
+  constructor(dataDir: string, readonly blobs: BlobStore, private readonly maxProjectBytes = Infinity) {
     this.root = path.join(dataDir, 'projects');
   }
 
   /**
    * Project data as it is stored: inline files are moved to the blob store, and
    * every referenced file must be there. Returns the data and the full size.
+   * With checkSize, a project larger than the limit is refused (saves, new projects);
+   * data already stored is never refused (conversion of an old project).
    */
-  private async prepareData(userId: string, data: Buffer): Promise<{ data: Buffer; size: number }> {
+  private async prepareData(userId: string, data: Buffer, checkSize = true): Promise<{ data: Buffer; size: number }> {
     const extracted = extractBlobs(data);
     for (const [hash, bytes] of extracted.blobs) {
       await this.blobs.write(userId, hash, bytes);
@@ -151,6 +168,9 @@ export class ProjectStore {
     }
     if (missing.length > 0) {
       throw new ProjectStoreError('some files of the project were not sent', 422, undefined, missing);
+    }
+    if (checkSize && size > this.maxProjectBytes) {
+      throw new ProjectTooLargeError(size, this.maxProjectBytes);
     }
     return { data: extracted.data, size };
   }
@@ -295,7 +315,7 @@ export class ProjectStore {
         throw error;
       }
       if (hasInlineBlobs(data)) {
-        const prepared = await this.prepareData(userId, data);
+        const prepared = await this.prepareData(userId, data, false);
         if (prepared.data !== data) {
           // replaced, not rewritten: a version hard-linked to this file keeps its content
           await writeFileAtomic(this.dataFile(userId, projectId), prepared.data);

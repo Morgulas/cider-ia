@@ -890,7 +890,6 @@ export class SiteSidebarComponent implements OnInit {
 
   public onEntityCreated(entity: { id: number }) {
     if (this.service === this.decksService) {
-      console.log('Deck created, creating system attributes for deck ' + entity.id);
       this.cardAttributesService.createSystemAttributes(entity.id);
     }
   }
@@ -945,7 +944,6 @@ export class SiteSidebarComponent implements OnInit {
   }
 
   async onNodeDrop(event: TreeNodeDropEvent) {
-    console.log('onNodeDrop', event);
     const dragNode = event.dragNode;
     const dropNode = event.dropNode;
 
@@ -974,7 +972,6 @@ export class SiteSidebarComponent implements OnInit {
       if (asset) {
         // Prevent moving to same location (reordering)
         if ((asset.path || '') === targetPath) {
-          console.log('Dropped in same location, ignoring (reorder prevention)');
           this.updateFiles(); // Revert any UI reordering
           return;
         }
@@ -991,7 +988,6 @@ export class SiteSidebarComponent implements OnInit {
 
     // 3. Handle Asset Folder Move
     if (dragNode.data.type === 'asset-folder') {
-      console.log('onNodeDrop: Handling Asset Folder Move');
       const folderPath = dragNode.data.path;
       const folderName = folderPath.split('/').pop();
       let targetParentPath = '';
@@ -1006,7 +1002,6 @@ export class SiteSidebarComponent implements OnInit {
       }
 
       const newPath = targetParentPath ? targetParentPath + '/' + folderName : folderName;
-      console.log(`onNodeDrop: Moving folder from ${folderPath} to ${newPath}`);
 
       // Prevent moving into itself or its own subfolder
       if (newPath === folderPath || newPath.startsWith(folderPath + '/')) {

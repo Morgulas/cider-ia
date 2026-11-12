@@ -247,6 +247,25 @@ describe('CurrentProjectService', () => {
     expect(service.saveState()).toBe('saved');
   });
 
+  it('does not retry a project over the size limit, and saves again with the next change', async () => {
+    await service.open('p1');
+    api.saveData.and.rejectWith(new HttpErrorResponse({
+      status: 413, error: { error: 'too large', size: 250 * 1024 * 1024, maxSize: 200 * 1024 * 1024 },
+    }));
+    await changeAndWaitForSave();
+    expect(service.saveState()).toBe('error');
+    expect(service.willRetry()).toBeFalse();
+    expect(service.lastError()).toBe('server.save.too-large');
+    jasmine.clock().tick(CurrentProjectService.RETRY_DELAY_MS + 10);
+    await settle();
+    expect(api.saveData).toHaveBeenCalledTimes(1);
+
+    api.saveData.and.callFake(async (id, _data, base) => meta(id, base + 1));
+    await changeAndWaitForSave();
+    expect(api.saveData).toHaveBeenCalledTimes(2);
+    expect(service.saveState()).toBe('saved');
+  });
+
   it('retries after a network error', async () => {
     await service.open('p1');
     api.saveData.and.rejectWith(new HttpErrorResponse({ status: 0 }));

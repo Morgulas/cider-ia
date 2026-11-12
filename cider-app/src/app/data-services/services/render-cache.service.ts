@@ -18,11 +18,9 @@ export class RenderCacheService {
   public getOrSet(key: number, setter: () => Promise<string>): Observable<string> {
     const cachedValue = this.renderCache.getValue().get(key);
     if (cachedValue instanceof AsyncSubject) {
-      // console.log('read AsyncSubject', key)
       return cachedValue.asObservable();
     }
     else {
-      // console.log('write AsyncSubject', key);
       const imageSubject = new AsyncSubject<string>();
       this.renderCache.getValue().set(key, imageSubject);
       setter().then(base64 => {

@@ -27,7 +27,6 @@ export default class MonacoThemes {
                 // 'scrollbarSlider.activeBackground': '#00AAAA',
             }
         });
-        console.log('monaco: ', monaco);
 
         // monaco.editor.setTheme('vs-dark-extended');
     }

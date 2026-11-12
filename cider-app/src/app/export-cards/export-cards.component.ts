@@ -369,7 +369,6 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   }
 
   public updateSelection(selection: Card | Card[] | undefined) {
-    console.log('updateSelection', selection);
     if (Array.isArray(selection)) {
       this.cards = selection;
       this.updateExpandedCards();
@@ -440,7 +439,6 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       this.showBack = !this.excludeCardBacks;
       this.updateSlices();
     }
-    // console.log('change paper type', this.selectedPaper.name, this.mirrorBacksX, this.mirrorBacksY);
     if (this.selectedPaper.name !== 'Tabletop Simulator') {
       this.autoFit();
     }
@@ -785,7 +783,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
           return this.imageRendererService.toPng(cardSheet.nativeElement, {
             pixelRatio: 1.0,
             style: { transform: 'none', margin: '0', filter: 'none' },
-            onImageErrorHandler: (error) => { console.log('error', error); }
+            onImageErrorHandler: (error) => { console.warn('image export failed', error); }
           });
         })));
         this.loadingPercent += 100.0 / (this.slicedCards.length + 1);

@@ -34,10 +34,11 @@ Dans Dockhand, les variables de `.env.example` se renseignent dans les variables
 | `CIDER_DATA_PATH` | `./data` | **Dossier de l'hôte** où sont stockés comptes et projets |
 | `PUID` / `PGID` | `1000` | Propriétaire des fichiers de données sur l'hôte (`id -u` / `id -g`) |
 | `CIDER_SESSION_DAYS` | `30` | Durée de vie d'une session inutilisée, en jours |
-| `CIDER_MAX_PROJECT_MB` | `200` | Taille maximale d'un projet, images comprises, en Mo |
+| `CIDER_MAX_PROJECT_MB` | `200` | Taille maximale d'un projet, images comprises, en Mo : un enregistrement qui la dépasserait est refusé, avec un message dans la barre d'état |
 | `CIDER_MAX_PROJECTS_PER_USER` | `100` | Nombre maximal de projets par utilisateur |
 | `CIDER_SETUP_TOKEN` | *(vide)* | Code de création du premier administrateur ; vide = code aléatoire affiché dans les logs |
 | `CIDER_COOKIE_SECURE` | `auto` | `true` pour toujours marquer le cookie de session `Secure` (recommandé derrière un reverse proxy HTTPS) |
+| `CIDER_REVERSE_PROXY_IPS` | *(vide)* | Adresse(s) du reverse proxy en amont (IP ou plage CIDR, séparées par des virgules) : l'adresse réelle des clients est alors lue dans `X-Forwarded-For`. Voir Sécurité |
 
 ## Dossier de données
 
@@ -118,7 +119,7 @@ Les noms de modèles évoluent vite : ils sont modifiables sans toucher au code.
 ## Sécurité
 
 - **Servir l'application en HTTPS** (via un reverse proxy) dès qu'elle est accessible hors du réseau local : identifiants et cookie de session circulent sinon en clair. Mettre alors `CIDER_COOKIE_SECURE=true`.
-- Connexion limitée à 10 tentatives par minute et par adresse ; cookie de session `HttpOnly` et `SameSite=Strict` ; en-tête anti-CSRF exigé par l'API. Derrière un reverse proxy en amont (celui du Synology par exemple), toutes les connexions arrivent avec l'adresse du proxy : la limite de 10 tentatives par minute s'applique alors à l'ensemble des utilisateurs.
+- Connexion limitée à 10 tentatives par minute et par adresse ; cookie de session `HttpOnly` et `SameSite=Strict` ; en-tête anti-CSRF exigé par l'API. Derrière un reverse proxy en amont (Nginx Proxy Manager, celui du Synology…), toutes les connexions arrivent avec l'adresse du proxy : sans réglage, la limite de 10 tentatives par minute s'applique à l'ensemble des utilisateurs. Indiquer l'adresse du proxy dans `CIDER_REVERSE_PROXY_IPS` (par ex. `172.16.0.0/12` pour un NPM dans Docker sur le même hôte) : nginx prend alors l'adresse du client dans l'en-tête `X-Forwarded-For` que le proxy ajoute. N'y mettre que le proxy : une adresse de confiance peut annoncer n'importe quelle adresse de client. Pour trouver celle du proxy : `docker logs cider-ia-web`, première colonne des lignes d'accès (avant réglage).
 - **En-têtes de sécurité** : nginx envoie une Content-Security-Policy (`docker/security-headers.conf`). Les scripts ne peuvent venir que du serveur lui-même ; images, polices et feuilles de style externes en https restent autorisées pour les modèles de cartes.
 - **Modèles de cartes** : le HTML des cartes est nettoyé avant affichage (DOMPurify). Scripts, attributs `on…`, `<link>`, `<iframe>`, `<form>`, `<object>` et `<foreignObject>` sont retirés. Pour une police externe, utiliser `@import url(...)` dans le CSS du modèle ou dans le document `global-styles`.
 
