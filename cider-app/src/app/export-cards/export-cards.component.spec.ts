@@ -217,4 +217,47 @@ describe('ExportCardsComponent', () => {
     expect(setJson.cartes[0]['Poids']).toBeUndefined();
     expect(setJson.set.paquet_style).toEqual({ finition: 'mat', dentele: false });
   });
+
+  describe('rendering of the card images', () => {
+    /** Stand-in for a displayed card preview: its HTML (key) gives its image */
+    const preview = (c: Card, side: 'front' | 'back', renders: string[]) => ({
+      card: c,
+      template: { id: side === 'front' ? 1 : 2, name: side },
+      isLoaded: () => of(true),
+      renderKey: () => side === 'back' ? 'verso commun' : `recto ${c.id}`,
+      renderPng: async (pixelRatio: number) => {
+        renders.push(`${side} ${c.id} x${pixelRatio}`);
+        return PNG;
+      },
+    });
+
+    const render = async (pages: Card[][], onFront?: (p: unknown) => Promise<void>) => {
+      const renders: string[] = [];
+      component.slicedSingularCards = pages;
+      component.excludeCardBacks = false;
+      const shown = (side: 'front' | 'back') => ({
+        toArray: () => component.singularSheet.map(c => preview(
+          { ...c, frontCardTemplateId: 1, backCardTemplateId: 2 } as Card, side, renders)),
+      });
+      Object.defineProperty(component, 'frontCards', { get: () => shown('front') });
+      Object.defineProperty(component, 'backCards', { get: () => shown('back') });
+      const files: File[] = await (component as unknown as {
+        renderSingularImages: (name: (c: Card, side: string) => string, ratio: number, onFront?: unknown) => Promise<File[]>
+      }).renderSingularImages((c, side) => `${c.id}_${side}.png`, 2, onFront);
+      return { files, renders };
+    };
+
+    it('renders each side at the asked scale, the back shared by every card only once', async () => {
+      await create();
+      ((component as unknown as { renderSingularImages: jasmine.Spy }).renderSingularImages).and.callThrough();
+      const fronts: number[] = [];
+      const { files, renders } = await render([[cards[0]], [cards[1]]], async p => {
+        fronts.push((p as { card: Card }).card.id);
+      });
+      expect(files.map(f => f.name).sort()).toEqual(['11_back.png', '11_front.png', '12_back.png', '12_front.png']);
+      expect(renders.sort()).toEqual(['back 11 x2', 'front 11 x2', 'front 12 x2']);
+      expect(fronts).toEqual([11, 12]);
+      expect(component.renderCache).toBeFalse();
+    });
+  });
 });

@@ -35,4 +35,22 @@ export class ImageRendererService {
             return htmlToImage.toPng(node, options);
         }
     }
+
+    /**
+     * JPEG (data URL) of a node, on a white background: much smaller than a PNG for
+     * illustrated cards, for print documents where transparency is not needed.
+     */
+    public toJpeg(node: HTMLElement, options?: ImageRendererOptions & { quality?: number }): Promise<string> {
+        const quality = options?.quality ?? 0.92;
+        if (this.localStorageService.getRenderer() === 'dom-to-image-more') {
+            return domToImageMore.toJpeg(node, {
+                filter: options?.filter,
+                scale: options?.pixelRatio || 1,
+                style: options?.style,
+                quality,
+                bgcolor: '#ffffff',
+            });
+        }
+        return htmlToImage.toJpeg(node, { ...options, quality, backgroundColor: '#ffffff' });
+    }
 }

@@ -62,6 +62,8 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   private static readonly SHEET_EXPORT = 'sheet-export';
   public static readonly COLLECTOR_EXPORT = 'collector-set';
   public static readonly PDF_DPI = 72;
+  /** quality of the sheet images in the PDF: visually lossless for print */
+  public static readonly PDF_JPEG_QUALITY = 0.92;
   private static readonly EXPORT_OPTIONS: RadioOption[] = [
     { name: 'Card Sheet', value: ExportCardsComponent.SHEET_EXPORT },
     { name: 'Individual Images', value: ExportCardsComponent.SINGULAR_EXPORT },
@@ -779,9 +781,12 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
         await Promise.all(promisedCards$);
 
         this.loadingInfo = 'Generating sheet ' + sheetIndex + ' images...';
+        // JPEG for the PDF: a PNG of illustrated cards is about ten times larger, and a big
+        // deck gave a PDF of hundreds of MB that the browser could run out of memory building
         const cardSheets = await Promise.all(this.cardSheets.map(cardSheet => limit(() => {
-          return this.imageRendererService.toPng(cardSheet.nativeElement, {
+          return this.imageRendererService.toJpeg(cardSheet.nativeElement, {
             pixelRatio: 1.0,
+            quality: ExportCardsComponent.PDF_JPEG_QUALITY,
             style: { transform: 'none', margin: '0', filter: 'none' },
             onImageErrorHandler: (error) => { console.warn('image export failed', error); }
           });
@@ -828,46 +833,86 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Rend chaque carte (recto, et verso sauf « Exclure les versos ») en PNG, page par page.
-   * `fileName` donne le nom de chaque image ; une erreur de rendu est rejetée.
+   * Rend chaque carte (recto, et verso sauf « Exclure les versos ») en PNG, page par page,
+   * directement depuis son HTML à l'échelle demandée (une échelle 2 donne une image nette deux
+   * fois plus grande). Les cartes identiques (le verso commun d'un deck…) ne sont rendues qu'une fois.
+   * `fileName` donne le nom de chaque image ; `onFront` est appelé pour chaque recto affiché
+   * (calques de la publication). Une erreur de rendu est rejetée.
    */
   private async renderSingularImages(fileName: (card: Card, side: 'front' | 'back') => string,
-    pixelRatio: number): Promise<File[]> {
+    pixelRatio: number, onFront?: (preview: CardPreviewComponent) => Promise<void>): Promise<File[]> {
     const limit = pLimit(3);
-    let allExportedFiles: File[] = [];
+    const files: File[] = [];
     const totalCards = this.cards.length * (this.excludeCardBacks ? 1 : 2);
     const failed = (cardPreview: CardPreviewComponent) =>
-      Promise.reject('Failed to render card "' + cardPreview.card.name + '" with template "' + cardPreview.template.name + '".');
+      'Failed to render card "' + cardPreview.card.name + '" with template "' + cardPreview.template.name + '".';
+    // rendu en direct, sans passer par les images en cache de l'aperçu
+    this.renderCache = false;
+    /** HTML d'une carte → son image, pour les cartes identiques */
+    const rendered = new Map<string, Promise<string>>();
 
     for (let chunkIndex = 0; chunkIndex < this.slicedSingularCards.length; chunkIndex++) {
       const chunk = this.slicedSingularCards[chunkIndex];
       this.singularSheet = chunk;
-      this.loadingInfo = 'Rendering cards chunk ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
-      await GeneralUtils.delay(1000);
+      this.loadingInfo = 'Rendering cards ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
+      const previews = await this.singularPreviewsShown(chunk);
 
-      // Wait for fronts (and backs) to load
-      await Promise.all(this.frontCards.map(cardPreview => lastValueFrom(cardPreview.isCacheLoaded()).catch(() => failed(cardPreview))));
-      if (!this.excludeCardBacks) {
-        await Promise.all(this.backCards.map(cardPreview => lastValueFrom(cardPreview.isCacheLoaded()).catch(() => failed(cardPreview))));
-      }
-
-      this.loadingInfo = 'Generating PNGs for chunk ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
-      const render = (cardPreview: CardPreviewComponent, side: 'front' | 'back') => limit(async () => {
-        const imgUri = await this.imageRendererService.toPng(cardPreview.element.nativeElement, { pixelRatio });
-        return this.dataUrlToFile(imgUri, fileName(cardPreview.card, side));
+      const render = (preview: CardPreviewComponent, side: 'front' | 'back') => limit(async () => {
+        const key = preview.renderKey();
+        let png = rendered.get(key);
+        if (!png) {
+          png = preview.renderPng(pixelRatio);
+          rendered.set(key, png);
+        }
+        let uri: string;
+        try {
+          uri = await png;
+        } catch {
+          throw failed(preview);
+        }
+        const file = this.dataUrlToFile(uri, fileName(preview.card, side));
+        if (side === 'front' && onFront) {
+          await onFront(preview);
+        }
+        return file;
       });
-      const chunkFiles$ = this.frontCards.map(cardPreview => render(cardPreview, 'front'))
-        .concat(this.excludeCardBacks ? [] : this.backCards.map(cardPreview => render(cardPreview, 'back')));
-      const chunkFiles = await Promise.all(this.promisesProgress(chunkFiles$, () => this.loadingPercent += 100.0 / totalCards));
-      allExportedFiles = allExportedFiles.concat(chunkFiles);
+      const chunkFiles$ = previews.front.map(preview => render(preview, 'front'))
+        .concat(previews.back.map(preview => render(preview, 'back')));
+      files.push(...await Promise.all(this.promisesProgress(chunkFiles$, () => this.loadingPercent += 100.0 / totalCards)));
     }
-    return allExportedFiles;
+    return files;
+  }
+
+  /**
+   * Les aperçus des cartes de la page, une fois affichés : modèle chargé, taille connue.
+   * Attend que l'affichage ait remplacé les aperçus de la page précédente.
+   */
+  private async singularPreviewsShown(chunk: Card[]): Promise<{ front: CardPreviewComponent[]; back: CardPreviewComponent[] }> {
+    const ids = chunk.map(card => card.id).join(',');
+    // the template of a preview arrives after its card (async pipe): wait for it, since a
+    // new template restarts the preview's "loaded" signal
+    const templateShown = (preview: CardPreviewComponent, side: 'front' | 'back') => {
+      const wanted = side === 'front' ? preview.card.frontCardTemplateId : preview.card.backCardTemplateId;
+      return !wanted || preview.template?.id === wanted;
+    };
+    const shown = (list: QueryList<CardPreviewComponent>, side: 'front' | 'back') => !!list?.toArray
+      && list.toArray().map(preview => preview.card.id).join(',') === ids
+      && list.toArray().every(preview => templateShown(preview, side));
+    for (let i = 0; i < 600 && !(shown(this.frontCards, 'front') && (this.excludeCardBacks || shown(this.backCards, 'back'))); i++) {
+      await GeneralUtils.delay(50);
+    }
+    const front = this.frontCards.toArray();
+    const back = this.excludeCardBacks ? [] : this.backCards.toArray();
+    // a card without template for a side never gets a size: do not wait for it forever
+    const loaded = (preview: CardPreviewComponent) =>
+      Promise.race([lastValueFrom(preview.isLoaded()), GeneralUtils.delay(15000)]);
+    await Promise.all([...front, ...back].map(loaded));
+    return { front, back };
   }
 
   private async exportIndividualImages() {
     this.displayLoading = true;
     this.loadingPercent = 0;
-    this.renderCache = true;
     try {
       const files = await this.renderSingularImages((card, side) => {
         const imgIdentifier = this.individualExportUseCardName ? StringUtils.toKebabCase(card?.name) : card?.id;
@@ -932,15 +977,23 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
 
     this.displayLoading = true;
     this.loadingPercent = 0;
-    this.renderCache = true;
     try {
+      // calques des rectos (« Exporter aussi les calques ») : pris pendant le même passage
+      const layerFiles: File[] = [];
+      const layersByCard = new Map<string, CardLayers>();
+      const captureLayers = settings.calques ? async (preview: CardPreviewComponent) => {
+        const cardId = cardIdOf.get(preview.card.id);
+        if (cardId) {
+          const own = await this.collectorLayersOf(preview, cardId, this.individualExportPixelRatio, layerFiles);
+          layersByCard.set(cardId, own);
+        }
+      } : undefined;
       const files = await this.renderSingularImages(
-        (card, side) => `${cardIdOf.get(card.id)}_${side}.png`, this.individualExportPixelRatio);
+        (card, side) => `${cardIdOf.get(card.id)}_${side}.png`, this.individualExportPixelRatio, captureLayers);
       let setJson = plan.setJson;
       if (settings.calques) {
-        const layers = await this.renderCollectorLayers(cardIdOf, this.individualExportPixelRatio);
-        files.push(...layers.files);
-        setJson = addLayers(setJson, plan.cardIds, layers.byCard);
+        files.push(...layerFiles);
+        setJson = addLayers(setJson, plan.cardIds, layersByCard);
       }
       const zip = new JSZip();
       if (extra?.image) {
@@ -985,38 +1038,18 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Calques des rectos (export « avec calques ») : second passage sur le rendu en direct (sans cache),
-   * page par page. Une carte dont le modèle n'a aucun élément data-calque n'a pas de calque.
+   * Calques d'un recto (export « avec calques ») : une image par élément data-calque du modèle,
+   * ajoutée à `files`. Une carte dont le modèle n'a aucun élément data-calque n'a pas de calque.
    */
-  private async renderCollectorLayers(cardIdOf: Map<number, string>, pixelRatio: number):
-    Promise<{ files: File[]; byCard: Map<string, CardLayers> }> {
-    const files: File[] = [];
-    const byCard = new Map<string, CardLayers>();
-    this.renderCache = false;
-    this.loadingPercent = 0;
-    for (let chunkIndex = 0; chunkIndex < this.slicedSingularCards.length; chunkIndex++) {
-      this.singularSheet = this.slicedSingularCards[chunkIndex];
-      this.loadingInfo = 'Rendering layers ' + (chunkIndex + 1) + '/' + this.slicedSingularCards.length + '...';
-      await GeneralUtils.delay(1000);
-      await Promise.all(this.frontCards.map(preview => lastValueFrom(preview.isLoaded())));
-      await GeneralUtils.delay(800);   // images de fond des modèles
-      for (const preview of this.frontCards.toArray()) {
-        const cardId = cardIdOf.get(preview.card.id);
-        if (!cardId) {
-          continue;
-        }
-        const own: CardLayers = {};
-        for (const [name, layer] of Object.entries(await preview.captureLayers(pixelRatio))) {
-          const fileName = `${cardId}_front_${name}.png`;
-          files.push(this.dataUrlToFile(layer.image, fileName));
-          own[name] = { zone: layer.zone, image: 'cards/' + fileName };
-        }
-        byCard.set(cardId, own);
-      }
-      this.loadingPercent += 100.0 / this.slicedSingularCards.length;
+  private async collectorLayersOf(preview: CardPreviewComponent, cardId: string, pixelRatio: number,
+    files: File[]): Promise<CardLayers> {
+    const own: CardLayers = {};
+    for (const [name, layer] of Object.entries(await preview.captureLayers(pixelRatio))) {
+      const fileName = `${cardId}_front_${name}.png`;
+      files.push(this.dataUrlToFile(layer.image, fileName));
+      own[name] = { zone: layer.zone, image: 'cards/' + fileName };
     }
-    this.renderCache = true;
-    return { files, byCard };
+    return own;
   }
 
   /** Enregistre les réglages de publication dans le deck */

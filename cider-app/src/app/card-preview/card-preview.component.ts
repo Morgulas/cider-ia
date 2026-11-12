@@ -10,7 +10,6 @@ import { RenderCacheService } from '../data-services/services/render-cache.servi
 import { CardToHtmlPipe } from '../shared/pipes/template-to-html.pipe';
 import { ImageRendererService } from '../data-services/services/image-renderer.service';
 import { DomSanitizer } from '@angular/platform-browser';
-import GeneralUtils from '../shared/utils/general-utils';
 import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
 
 @Component({
@@ -108,13 +107,14 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     if (this.cache && this.assetUrls) {
       lastValueFrom(this.isLoadedSubject).then(() => {
         this.renderCacheService.getOrSet(this.getHash(),
-          () => GeneralUtils.delay(2000).then(() => this.toImageUrl()))
+          () => this.whenRenderable().then(() => this.toImageUrl()))
           // completes by itself (AsyncSubject), and may run after the preview is destroyed:
           // no takeUntilDestroyed here
           .subscribe({
             next: (cachedImageUrl) => {
               this.cachedImageUrl = cachedImageUrl;
-              GeneralUtils.delay(1000).then(() => {
+              // shown once the browser has decoded the image (the page is captured right after)
+              whenImageDecoded(cachedImageUrl).then(() => {
                 this.isCacheLoadedSubject.next(true);
                 this.isCacheLoadedSubject.complete();
               });
@@ -131,10 +131,47 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     }
   }
 
+  /**
+   * The card is ready to be captured: displayed, its images decoded and its fonts loaded
+   * (instead of a fixed wait, which was both slower and not always enough).
+   */
+  private async whenRenderable(): Promise<void> {
+    await nextFrame();
+    const root = this.cardElement.get(0)?.nativeElement;
+    if (root) {
+      await Promise.all(Array.from(root.querySelectorAll('img')).map(img => img.decode().catch(() => undefined)));
+    }
+    await document.fonts?.ready;
+    await nextFrame();
+  }
+
   public getHash(): number {
     const html = this.cardToHtmlPipe.transform(this.template, this.card, this.assetUrls);
     // the HTML string inside Angular's SafeHtml wrapper
     return this.renderCacheService.calculateHash((html as unknown as { changingThisBreaksApplicationSecurity: string }).changingThisBreaksApplicationSecurity);
+  }
+
+  /**
+   * What the card shows (its HTML with the assets): two previews with the same key give
+   * the same image, e.g. the back shared by every card of a deck.
+   */
+  public renderKey(): string {
+    const html = this.cardToHtmlPipe.transform(this.template, this.card, this.assetUrls);
+    return (html as unknown as { changingThisBreaksApplicationSecurity: string }).changingThisBreaksApplicationSecurity;
+  }
+
+  /**
+   * The card rendered as a PNG data URL from its live HTML (cache off), at the given
+   * scale: a scale of 2 gives a sharp image twice as large, not an enlarged one.
+   * Waits for the images and fonts of the card first.
+   */
+  public async renderPng(pixelRatio: number): Promise<string> {
+    if (!this.cardElement.get(0)) {
+      throw new Error('card not displayed');
+    }
+    await this.whenRenderable();
+    const root = this.cardElement.get(0)!.nativeElement;
+    return this.imageRendererService.toPng(root, { pixelRatio, filter: (node: HTMLElement) => 'style' !== node.localName });
   }
 
   public toImageUrl(): Promise<string> {
@@ -224,4 +261,16 @@ export function layerZone(card: { left: number; top: number; width: number; heig
   }
   const r2 = (v: number) => Math.round(v * 100) / 100;
   return [r2(x0), r2(y0), r2(x1 - x0), r2(y1 - y0)];
+}
+
+/** After the next paint */
+function nextFrame(): Promise<void> {
+  return new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve)));
+}
+
+/** Once an image URL is decoded by the browser (errors ignored: the capture shows what it can) */
+function whenImageDecoded(url: string): Promise<void> {
+  const image = new Image();
+  image.src = url;
+  return image.decode().catch(() => undefined).then(() => nextFrame());
 }
