@@ -2,7 +2,7 @@ import { Component, Input, OnInit, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmationService, MenuItem, MessageService, TreeDragDropService, TreeNode, PrimeTemplate } from 'primeng/api';
 import { DecksService } from '../data-services/services/decks.service';
-import { AssetsService } from '../data-services/services/assets.service';
+import { AssetFolderError, AssetsService } from '../data-services/services/assets.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
 import { debounceTime, filter, firstValueFrom } from 'rxjs';
@@ -575,11 +575,31 @@ export class SiteSidebarComponent implements OnInit {
     event.preventDefault();
     const asset = await this.assetsService.get(id);
     if (!asset || (asset.path || '') === path) return;
-    if (await this.assetsService.moveAsset(asset, path)) {
-      this.messageService.add({ severity: 'success', summary: this.translate.instant('sidebar.moved'), detail: `${asset.name} → ${path || '/'}`, life: 2500 });
-      // a move is an update: the database watcher does not rebuild for it
-      this.updateFiles();
+    try {
+      await this.assetsService.moveAsset(asset, path);
+      this.assetMoved(asset.name, path);
+    } catch (error) {
+      this.folderError(error);
     }
+    // a move is an update: the database watcher does not rebuild for it
+    this.updateFiles();
+  }
+
+  private assetMoved(name: string, folder: string) {
+    this.messageService.add({
+      severity: 'success', summary: this.translate.instant('sidebar.moved'), life: 2500,
+      detail: this.translate.instant('sidebar.asset-moved', { name, folder: folder || this.translate.instant('sidebar.top-level') }),
+    });
+  }
+
+  /** A refused folder or asset operation (name taken, folder exists...), explained */
+  private folderError(error: unknown) {
+    const problem = error instanceof AssetFolderError ? error.problem : 'failed';
+    const name = error instanceof AssetFolderError ? error.target : '';
+    this.messageService.add({
+      severity: 'warn', summary: this.translate.instant('sidebar.not-done'), life: 5000,
+      detail: this.translate.instant(`sidebar.folder-error.${problem}`, { name }),
+    });
   }
 
   // -----------------------------------------------
@@ -976,13 +996,13 @@ export class SiteSidebarComponent implements OnInit {
           return;
         }
 
-        const success = await this.assetsService.moveAsset(asset, targetPath);
-        if (success) {
-          this.messageService.add({ severity: 'success', summary: 'Moved', detail: `Moved ${asset.name} to ${targetPath || 'root'}` });
-        } else {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to move asset' });
-          this.updateFiles();
+        try {
+          await this.assetsService.moveAsset(asset, targetPath);
+          this.assetMoved(asset.name, targetPath);
+        } catch (error) {
+          this.folderError(error);
         }
+        this.updateFiles();
       }
     }
 
@@ -1003,22 +1023,22 @@ export class SiteSidebarComponent implements OnInit {
 
       const newPath = targetParentPath ? targetParentPath + '/' + folderName : folderName;
 
-      // Prevent moving into itself or its own subfolder
-      if (newPath === folderPath || newPath.startsWith(folderPath + '/')) {
-        console.warn('Cannot move folder into itself or child');
+      // dropped where it already is: nothing to do
+      if (newPath === folderPath) {
         this.updateFiles();
         return;
       }
 
-      this.assetsService.renameFolder(folderPath, newPath).then(success => {
-        if (success) {
-          this.messageService.add({ severity: 'success', summary: 'Moved', detail: `Moved folder to ${newPath}` });
-          // UI should update via DB watcher
-        } else {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to move folder' });
-          this.updateFiles();
-        }
-      });
+      try {
+        await this.assetsService.renameFolder(folderPath, newPath);
+        this.messageService.add({
+          severity: 'success', summary: this.translate.instant('sidebar.moved'), life: 2500,
+          detail: this.translate.instant('sidebar.folder-moved', { folder: newPath }),
+        });
+      } catch (error) {
+        this.folderError(error);
+      }
+      this.updateFiles();
     }
   }
 
@@ -1029,10 +1049,16 @@ export class SiteSidebarComponent implements OnInit {
     // Use openCreateDialog with a proxy object having a create method.
     // only what the entity dialog calls
     const folderService = {
-      create: (entity: DialogEntity) => {
-        const folderName = entity.name ?? '';
-        const fullPath = parentPath ? parentPath + '/' + folderName : folderName;
-        return this.assetsService.createFolder(fullPath);
+      create: async (entity: DialogEntity) => {
+        try {
+          const folderName = AssetsService.checkFolderName(entity.name ?? '');
+          const fullPath = parentPath ? parentPath + '/' + folderName : folderName;
+          return await this.assetsService.createFolder(fullPath);
+        } catch (error) {
+          // the dialog stays open to correct the name
+          this.folderError(error);
+          throw error;
+        }
       },
       getFields: () => Promise.resolve([
         { field: 'name', header: 'Name', type: 'text' }
@@ -1050,14 +1076,16 @@ export class SiteSidebarComponent implements OnInit {
 
     // Proxy service for rename
     const renameService = {
-      create: (entity: DialogEntity) => { // we hijack create to mean "save rename"
-        const newName = entity.name ?? '';
-        // If generic rename (just name change), new path is parent + newName
-        let newPath = newName;
-        if (parentPath) {
-          newPath = parentPath + '/' + newName;
+      create: async (entity: DialogEntity) => { // we hijack create to mean "save rename"
+        try {
+          const newName = AssetsService.checkFolderName(entity.name ?? '');
+          const newPath = parentPath ? parentPath + '/' + newName : newName;
+          return await this.assetsService.renameFolder(currentPath, newPath);
+        } catch (error) {
+          // the dialog stays open to correct the name
+          this.folderError(error);
+          throw error;
         }
-        return this.assetsService.renameFolder(currentPath, newPath);
       },
       getFields: () => Promise.resolve([
         { field: 'name', header: 'Name', type: 'text' }

@@ -125,7 +125,19 @@
         "grid-view": "Thumbnail view",
         "list-view": "List view",
         "all-illustrations": "All",
-        "no-illustration": "No illustration here"
+        "no-illustration": "No illustration here",
+        "not-done": "Not done",
+        "folder-error": {
+            "empty-name": "The folder name is empty.",
+            "slash-in-name": "The name “{{name}}” contains “/”: choose a name without a slash.",
+            "exists": "The folder “{{name}}” already exists: choose another name (folders are not merged).",
+            "into-itself": "A folder cannot go into one of its own subfolders.",
+            "name-taken": "The folder already has an asset “{{name}}”: rename one of them before moving.",
+            "failed": "The operation failed."
+        },
+        "asset-moved": "“{{name}}” moved to {{folder}}",
+        "folder-moved": "Folder moved to {{folder}}",
+        "top-level": "the top level"
     },
     "export": {
         "sheet-export": "Card Sheet",

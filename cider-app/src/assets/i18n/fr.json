@@ -125,7 +125,19 @@
         "grid-view": "Vue en vignettes",
         "list-view": "Vue en liste",
         "all-illustrations": "Toutes",
-        "no-illustration": "Aucune illustration ici"
+        "no-illustration": "Aucune illustration ici",
+        "not-done": "Impossible",
+        "folder-error": {
+            "empty-name": "Le nom du dossier est vide.",
+            "slash-in-name": "Le nom « {{name}} » contient « / » : choisissez un nom sans barre oblique.",
+            "exists": "Le dossier « {{name}} » existe déjà : choisissez un autre nom (les deux dossiers ne sont pas fusionnés).",
+            "into-itself": "Un dossier ne peut pas aller dans l’un de ses sous-dossiers.",
+            "name-taken": "Le dossier contient déjà une ressource « {{name}} » : renommez l’une des deux avant de déplacer.",
+            "failed": "L’opération a échoué."
+        },
+        "asset-moved": "« {{name}} » déplacé vers {{folder}}",
+        "folder-moved": "Dossier déplacé vers {{folder}}",
+        "top-level": "la racine"
     },
     "export": {
         "sheet-export": "Planche de cartes",

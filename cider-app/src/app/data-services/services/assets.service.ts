@@ -8,6 +8,18 @@ import { SearchParameters } from '../types/search-parameters.type';
 import { IndexedDbService } from '../indexed-db/indexed-db.service';
 import StringUtils from 'src/app/shared/utils/string-utils';
 
+/** Why a folder operation was refused: a key of the sidebar.folder-error translations */
+export type AssetFolderProblem = 'empty-name' | 'slash-in-name' | 'exists' | 'into-itself' | 'name-taken';
+
+export class AssetFolderError extends Error {
+  constructor(readonly problem: AssetFolderProblem, readonly target: string) {
+    super(`${problem}: ${target}`);
+  }
+}
+
+/** Key of an asset in {{assets...}}: two assets with the same key in a folder hide each other */
+const assetKey = (name: string | undefined) => StringUtils.toKebabCase(name ?? '');
+
 @Injectable({
   providedIn: 'root'
 })
@@ -197,18 +209,34 @@ export class AssetsService extends IndexedDbService<Asset, number> {
     });
   }
 
-  override update(id: number, entity: Asset) {
+  override update(id: number, entity: Asset, suppressUrlUpdates?: boolean) {
     return AssetsService.insertArrayBuffer(entity).then(entity => super.update(id, entity)).then(entity => {
-      this.updateAssetUrls();
+      if (!suppressUrlUpdates) {
+        this.updateAssetUrls();
+      }
       return entity;
     });
   }
 
-  override delete(id: number) {
+  override delete(id: number, suppressUrlUpdates?: boolean) {
     return super.delete(id).then(response => {
-      this.updateAssetUrls();
+      if (!suppressUrlUpdates) {
+        this.updateAssetUrls();
+      }
       return response;
     });
+  }
+
+  /** Checks the name of a folder (last part of its path); throws an AssetFolderError */
+  static checkFolderName(name: string): string {
+    const trimmed = (name ?? '').trim();
+    if (!trimmed) {
+      throw new AssetFolderError('empty-name', trimmed);
+    }
+    if (trimmed.includes('/')) {
+      throw new AssetFolderError('slash-in-name', trimmed);
+    }
+    return trimmed;
   }
 
   async createFolder(resultSet: string) {
@@ -219,8 +247,23 @@ export class AssetsService extends IndexedDbService<Asset, number> {
     return true;
   }
 
+  /**
+   * Renames or moves a folder with its subfolders and assets. Refused (AssetFolderError)
+   * when the target is the folder itself or one of its subfolders, or already exists:
+   * merging two folders could put two assets with the same name side by side.
+   */
   async renameFolder(oldPath: string, newPath: string) {
-    // 1. Update all assets that start with oldPath
+    if (newPath === oldPath) {
+      return true;
+    }
+    if (newPath.startsWith(oldPath + '/')) {
+      throw new AssetFolderError('into-itself', newPath);
+    }
+    if ((await this.getFolders()).some(folder => folder.toLowerCase() === newPath.toLowerCase()
+      && folder.toLowerCase() !== oldPath.toLowerCase())) {
+      throw new AssetFolderError('exists', newPath);
+    }
+    // 1. Update all assets that start with oldPath (URLs rebuilt once, at the end)
     const allAssets = await this.getAll();
     const assetsToUpdate = allAssets.filter(a => (a.path === oldPath) || (a.path && a.path.startsWith(oldPath + '/')));
     for (const asset of assetsToUpdate) {
@@ -229,8 +272,9 @@ export class AssetsService extends IndexedDbService<Asset, number> {
       } else if (asset.path) {
         asset.path = newPath + asset.path.substring(oldPath.length);
       }
-      await this.update(asset.id, asset);
+      await this.update(asset.id, asset, true);
     }
+    this.updateAssetUrls();
 
     // 2. Update folder entries in assetFolders table
     const allFolders = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).toArray();
@@ -250,8 +294,9 @@ export class AssetsService extends IndexedDbService<Asset, number> {
     const allAssets = await this.getAll();
     const assetsToDelete = allAssets.filter(a => (a.path === path) || (a.path && a.path.startsWith(path + '/')));
     for (const asset of assetsToDelete) {
-      await this.delete(asset.id);
+      await this.delete(asset.id, true);
     }
+    this.updateAssetUrls();
 
     const allFolders = await this.db.table(AppDB.ASSET_FOLDERS_TABLE).toArray();
     const foldersToDelete = allFolders.filter(f => f.path === path || f.path.startsWith(path + '/'));
@@ -261,7 +306,16 @@ export class AssetsService extends IndexedDbService<Asset, number> {
     return true;
   }
 
+  /**
+   * Moves an asset to a folder. Refused (AssetFolderError 'name-taken') when the folder
+   * already has an asset with the same name: one would hide the other in the templates.
+   */
   async moveAsset(asset: Asset, targetFolder: string) {
+    const metadata = await this.getAllMetadata();
+    if (metadata.some(other => other.id !== asset.id && (other.path || '') === targetFolder
+      && assetKey(other.name) === assetKey(asset.name))) {
+      throw new AssetFolderError('name-taken', asset.name);
+    }
     asset.path = targetFolder;
     await this.update(asset.id, asset);
     if (targetFolder) {
