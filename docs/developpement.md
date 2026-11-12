@@ -94,6 +94,7 @@ cd cider-app
 npm ci
 npm start                  # serveur de développement sur :4200, relaie /api vers :3000
 npm run lint               # obligatoire : la CI échoue sur la moindre erreur
+npm run check:i18n         # obligatoire : chaque clé de traduction du code existe en français et en anglais
 npm run test:ci            # tests Karma (Chrome headless)
 npm run build              # build de production
 
@@ -118,7 +119,7 @@ CIDER_DATA_DIR=/tmp/ciderdata CIDER_SETUP_TOKEN=setup123 CIDER_COOKIE_SECURE=fal
 
 `.github/workflows/ci.yaml`, à chaque push sur `main` et à chaque pull request :
 
-1. **app** : `npm ci`, lint, tests, build ;
+1. **app** : `npm ci`, lint, traductions, tests, build ;
 2. **server** : `npm ci`, tests, build ;
 3. si les deux passent sur `main` : construction et publication des images `ghcr.io/morgulas/cider-ia-web` et `ghcr.io/morgulas/cider-ia-api` (étiquettes `latest` et `sha-<commit>`).
 
