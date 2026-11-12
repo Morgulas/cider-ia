@@ -922,6 +922,12 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       this.collectorErrors = plan.errors;
       return;
     }
+    // les images sont nommées par position (carte n → CardID n) : une carte supprimée
+    // entre-temps (autre onglet) décalerait tous les noms suivants
+    if (plan.cardIds.length !== ids.length) {
+      this.collectorErrors = ['Les cartes du deck ont changé depuis l\'ouverture de la page : rechargez-la puis publiez de nouveau.'];
+      return;
+    }
     const cardIdOf = new Map(ids.map((id, index) => [id, plan.cardIds[index]]));
 
     this.displayLoading = true;
@@ -978,7 +984,6 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  /** Enregistre les réglages de publication dans le deck */
   /**
    * Calques des rectos (export « avec calques ») : second passage sur le rendu en direct (sans cache),
    * page par page. Une carte dont le modèle n'a aucun élément data-calque n'a pas de calque.
@@ -1014,6 +1019,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     return { files, byCard };
   }
 
+  /** Enregistre les réglages de publication dans le deck */
   public async saveCollectorSettings() {
     const deck = await this.decks.get(this.deckId);
     if (deck) {
