@@ -17,4 +17,12 @@ export class DocumentsService extends IndexedDbService<Document, number> {
       { field: 'content', header: 'Content', type: FieldType.text, hidden: true }
     ]);
   }
+
+  /**
+   * Saves the text of a document and nothing else: a name changed meanwhile is kept and
+   * a document deleted meanwhile is not created again. False when it no longer exists.
+   */
+  saveContent(id: number, content: string): Promise<boolean> {
+    return this.db.table(this.tableName).update(id, { content }).then(updated => updated > 0);
+  }
 }

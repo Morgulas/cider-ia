@@ -164,3 +164,66 @@
         transition: flex 0.3s ease-in-out, display 0s 0.3s allow-discrete;
     }
 }
+/*
+ * Phones and narrow windows: the sidebar is a drawer over the page (closed by default,
+ * opened with the activity bar), and the page keeps the whole width.
+ */
+:host ::ng-deep .site-body.narrow {
+    position: relative;
+
+    >p-splitter {
+        position: relative;
+    }
+
+    app-site-activitybar .side-menu {
+        width: 48px;
+
+        &.p-menubar {
+            padding: 0 4px;
+        }
+    }
+
+    .site-splitter {
+        >.p-splitterpanel:first-child {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 20;
+            width: min(85vw, 340px);
+            min-width: 0;
+            flex: none !important;
+            transform: none;
+            background: var(--p-surface-900, #18181b);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+        }
+
+        >.p-splitter-gutter {
+            display: none;
+        }
+
+        >.p-splitterpanel:last-child {
+            flex: 1 1 100% !important;
+            min-width: 0;
+        }
+
+        app-site-sidebar {
+            margin-right: 0;
+        }
+
+        app-site-content {
+            margin-left: 0;
+        }
+
+        &.no-sidebar>.p-splitterpanel:first-child {
+            display: none;
+        }
+    }
+
+    .drawer-backdrop {
+        position: absolute;
+        inset: 0 0 0 48px;
+        z-index: 15;
+        background: rgba(0, 0, 0, 0.45);
+    }
+}

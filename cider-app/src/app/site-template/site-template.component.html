@@ -1,6 +1,6 @@
 <div class="site-wrapper">
   <app-site-menu></app-site-menu>
-  <div class="site-body">
+  <div class="site-body" [class.narrow]="narrow">
     <app-site-activitybar
     [(selectedActivity)]="selectedActivity"></app-site-activitybar>
     <p-splitter #splitter
@@ -23,6 +23,10 @@
         }
       </ng-template>
     </p-splitter>
+    <!-- phones: the sidebar opens over the page; a tap outside closes it -->
+    @if (narrow && selectedActivity) {
+      <div class="drawer-backdrop" (click)="selectedActivity = ''" aria-hidden="true"></div>
+    }
   </div>
   <app-site-footer></app-site-footer>
 </div>

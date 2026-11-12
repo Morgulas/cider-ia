@@ -66,3 +66,17 @@
     }
   }
 }
+
+/* phones: the project button takes the room, the breadcrumb goes */
+@media (max-width: 768px) {
+  .separator,
+  .breadcrumb {
+    display: none;
+  }
+
+  .project-button {
+    max-width: 100%;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+}

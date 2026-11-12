@@ -5,7 +5,6 @@ import { providePrimeNG } from 'primeng/config';
 import { provideTranslateService, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { MonacoEditorModule } from 'ngx-monaco-editor-v2';
-import { provideMarkdown } from 'ngx-markdown';
 import { routes } from './app.routes';
 import { CiderTheme } from './cider-theme';
 import { LocalStorageService } from './data-services/local-storage/local-storage.service';
@@ -27,7 +26,6 @@ export const appConfig: ApplicationConfig = {
     // know who is logged in before the first route is resolved
     provideAppInitializer(() => inject(AuthService).refresh()),
     importProvidersFrom(MonacoEditorModule.forRoot(MonacoExtension.monacoConfig)),
-    provideMarkdown(),
     // injected as services by components that render cards and global styles
     CardToHtmlPipe,
     HandlebarsPipe,

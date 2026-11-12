@@ -122,4 +122,6 @@
 
 <p-confirmDialog [style]="{ width: '450px' }" />
 
+@defer (when versionsVisible) {
 <app-project-versions-dialog [(visible)]="versionsVisible" [project]="versionsProject" (restored)="refreshList()" />
+}

@@ -94,3 +94,19 @@
         fill: none !important;
     }
 }
+
+/* phones: the two panels one above the other (the splitter handle is for a mouse) */
+@media (max-width: 768px) {
+    :host ::ng-deep .markdown-panel {
+        flex-direction: column;
+
+        >.p-splitterpanel {
+            min-width: 0;
+            min-height: 0;
+        }
+
+        >.p-splitter-gutter {
+            display: none;
+        }
+    }
+}

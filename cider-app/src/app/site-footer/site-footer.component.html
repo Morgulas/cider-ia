@@ -1,5 +1,5 @@
 <div class="footer">
-    <span>CIDEr IA {{appVersion}} · modified fork of Oatear Cider (AGPL-3.0)</span>
+    <span class="about">CIDEr IA {{appVersion}} · modified fork of Oatear Cider (AGPL-3.0)</span>
     <span class="fill save-state" [class]="'save-state state-' + currentProject.saveState()" aria-live="polite"
         [title]="saveStatsText()">
         @switch (currentProject.saveState()) {
@@ -20,7 +20,7 @@
             @case ('conflict') { <i class="pi pi-exclamation-triangle"></i> {{ 'server.save.conflict-title' | translate }} }
         }
     </span>
-    <span class="p-mr-2">Copyright Ⓒ 2026 Oatear LLC</span>
+    <span class="p-mr-2 copyright">Copyright Ⓒ 2026 Oatear LLC</span>
     <p-button icon="pi pi-discord" [rounded]="true" [text]="true" (onClick)="navigateToDiscord()" />
     <p-button icon="pi pi-github" [rounded]="true" [text]="true" (onClick)="navigateToGithub()"
         pTooltip="Source code of this version" />

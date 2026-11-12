@@ -37,3 +37,16 @@
         color: var(--p-text-muted-color);
     }
 }
+
+/* phones: only the save state and the links */
+@media (max-width: 768px) {
+    .footer {
+        height: 36px;
+        padding: 2px 8px;
+    }
+
+    .footer .about,
+    .footer .copyright {
+        display: none;
+    }
+}

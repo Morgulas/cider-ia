@@ -732,3 +732,36 @@ textarea {
         background: var(--p-content-hover-background);
     }
 }
+
+/* phones: the two panels one above the other (the splitter handle is for a mouse) */
+@media (max-width: 768px) {
+    :host ::ng-deep .template-panel {
+        flex-direction: column;
+
+        >.p-splitterpanel {
+            min-width: 0;
+            min-height: 0;
+        }
+
+        >.p-splitter-gutter {
+            display: none;
+        }
+    }
+}
+
+/* phones: the insert panel below the code, over its whole width */
+@media (max-width: 768px) {
+    .code-body {
+        flex-direction: column;
+    }
+
+    .insert-panel {
+        width: auto;
+        max-height: 45%;
+        padding-left: 0;
+        padding-top: 8px;
+        border-left: none;
+        border-top: 1px solid var(--p-content-border-color);
+    }
+}
+

@@ -316,3 +316,23 @@ $preview-individual-scale: 0.08;
   height: 800px;
   pointer-events: none;
 }
+
+/* phones: preview above the settings, the page scrolls */
+@media (max-width: 768px) {
+    :host {
+        margin-right: 0;
+        overflow-y: auto;
+    }
+
+    :host ::ng-deep .page-wrapper {
+        flex-direction: column;
+        height: auto;
+        gap: 12px;
+
+        >div,
+        >div:not(:only-child) {
+            flex-basis: auto;
+            max-width: 100%;
+        }
+    }
+}

@@ -12,7 +12,10 @@
     </div>
 </app-topbar>
 <p-confirmDialog [style]="{width: '450px'}"></p-confirmDialog>
+<!-- loaded the first time it is opened (its table is heavy) -->
+@defer (when versionsVisible) {
 <app-project-versions-dialog [(visible)]="versionsVisible" [project]="currentProject.project()" />
+}
 <p-dialog header="Import Database" [(visible)]="importVisible" [style]="{width: '450px'}" [modal]="true">
     <ng-template pTemplate="content">
         <div class="p-field">

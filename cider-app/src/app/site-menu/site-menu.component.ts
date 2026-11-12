@@ -1,5 +1,5 @@
 import type { FileSelectEvent } from 'primeng/types/fileupload';
-import { Component, NgZone, OnInit, DestroyRef, inject } from '@angular/core';
+import { Component, NgZone, OnInit, DestroyRef, Injector, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmationService, MenuItem, MessageService, PrimeTemplate } from 'primeng/api';
 import { NavigationEnd, Router } from '@angular/router';
@@ -25,7 +25,6 @@ import { TopbarComponent } from '../server/topbar/topbar.component';
 import { ProjectVersionsDialogComponent } from '../server/project-versions/project-versions-dialog.component';
 import { CurrentProjectService } from '../server/current-project.service';
 import { SessionActionsService } from '../server/session-actions.service';
-import { DesktopProjectExporter } from '../server/project-import/desktop-project-exporter.service';
 
 @Component({
     selector: 'app-site-menu',
@@ -38,7 +37,7 @@ export class SiteMenuComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly currentProject = inject(CurrentProjectService);
   private readonly sessionActions = inject(SessionActionsService);
-  private readonly desktopExporter = inject(DesktopProjectExporter);
+  private readonly injector = inject(Injector);
 
   selectedDeck$: Observable<Deck | undefined>;
   items: MenuItem[];
@@ -220,7 +219,10 @@ export class SiteMenuComponent implements OnInit {
     this.loadingHeader = this.translate.instant('menu.export-project-folder');
     this.loadingInfo = '';
     try {
-      FileUtils.saveAs(await this.desktopExporter.exportZip(project.name), `${project.name}.zip`);
+      // loaded on demand: it brings the spreadsheet (xlsx) and ZIP libraries
+      const { DesktopProjectExporter } = await import('../server/project-import/desktop-project-exporter.service');
+      const exporter = this.injector.get(DesktopProjectExporter);
+      FileUtils.saveAs(await exporter.exportZip(project.name), `${project.name}.zip`);
     } finally {
       this.displayLoading = false;
     }

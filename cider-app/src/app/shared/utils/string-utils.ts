@@ -1,4 +1,23 @@
-import { mimeTypes } from "mime-wrapper";
+/**
+ * File types of a card project (images, fonts, documents, sounds), by extension. Replaces the
+ * full mime database (36 kB loaded at start-up) with the types a project actually holds; for
+ * other files the browser's own type is used.
+ */
+const MIME_BY_EXTENSION: Record<string, string> = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
+    avif: 'image/avif', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/vnd.microsoft.icon',
+    tif: 'image/tiff', tiff: 'image/tiff',
+    ttf: 'font/ttf', otf: 'font/otf', woff: 'font/woff', woff2: 'font/woff2', eot: 'application/vnd.ms-fontobject',
+    md: 'text/markdown', markdown: 'text/markdown', txt: 'text/plain', css: 'text/css', html: 'text/html', htm: 'text/html',
+    csv: 'text/csv', json: 'application/json', js: 'text/javascript', xml: 'application/xml', pdf: 'application/pdf',
+    zip: 'application/zip', mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', mp4: 'video/mp4', webm: 'video/webm',
+};
+/** preferred extension of each type (the first one listed above, except these) */
+const EXTENSION_BY_MIME: Record<string, string> = {
+    ...Object.fromEntries(Object.entries(MIME_BY_EXTENSION).reverse().map(([ext, mime]) => [mime, ext])),
+    'image/jpeg': 'jpeg', 'image/tiff': 'tif', 'text/markdown': 'md', 'text/html': 'html',
+    'image/x-icon': 'ico', 'audio/mp3': 'mp3', 'audio/x-wav': 'wav', 'application/x-font-ttf': 'ttf',
+};
 
 export default class StringUtils {
 
@@ -90,11 +109,7 @@ export default class StringUtils {
         if (!mime) {
             return '';
         }
-        const extension = mimeTypes.getExtension(mime);
-        if (extension == 'markdown') {
-            return 'md';
-        }
-        return extension;
+        return EXTENSION_BY_MIME[mime.split(';')[0].trim().toLowerCase()] ?? '';
     }
 
     /**
@@ -107,7 +122,7 @@ export default class StringUtils {
         if (!ext) {
             return '';
         }
-        return mimeTypes.getType(ext);
+        return MIME_BY_EXTENSION[ext.replace(/^\./, '').toLowerCase()] ?? '';
     }
 
     /**

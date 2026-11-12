@@ -20,6 +20,10 @@
       [text]="true" styleClass="back-button" (onClick)="backToProject()" />
   }
   <span class="user" [title]="auth.user()?.username ?? ''"><i class="pi pi-user"></i> {{ auth.user()?.username }}</span>
-  <p-button [label]="'server.topbar.logout' | translate" icon="pi pi-sign-out" severity="secondary" [text]="true"
+  <p-button class="logout" [label]="'server.topbar.logout' | translate" icon="pi pi-sign-out" severity="secondary" [text]="true"
     (onClick)="logout()" />
+  <!-- small screens: links and logout in a menu -->
+  <p-button class="menu-button" icon="pi pi-bars" severity="secondary" [text]="true"
+    [ariaLabel]="'server.topbar.menu' | translate" (onClick)="menu.toggle($event)" />
+  <p-menu #menu [model]="menuItems()" [popup]="true" appendTo="body" />
 </header>

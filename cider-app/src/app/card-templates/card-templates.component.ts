@@ -343,7 +343,9 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => void this.flushTemplateSave());
 
     this.layout = localStorage.getItem(LAYOUT_KEY) === 'split' ? 'split' : 'tabs';
-    this.insertPanelVisible = localStorage.getItem(INSERT_PANEL_KEY) !== 'hidden';
+    // on a phone the code needs the width: the insert panel starts closed (its button opens it)
+    this.insertPanelVisible = localStorage.getItem(INSERT_PANEL_KEY) !== 'hidden'
+      && !window.matchMedia('(max-width: 768px)').matches;
     this.checks.pipe(debounceTime(CHECK_DELAY_MS), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.runCheck());
     this.cardAttributesService.getAll().then(attributes => {
       this.attributes = attributes;

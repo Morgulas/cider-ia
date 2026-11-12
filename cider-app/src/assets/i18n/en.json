@@ -532,7 +532,8 @@
             "account": "My account",
             "logout": "Sign out",
             "back-to-project": "Back to the project",
-            "ai-settings": "AI settings"
+            "ai-settings": "AI settings",
+            "menu": "Menu"
         },
         "projects": {
             "title": "My projects",

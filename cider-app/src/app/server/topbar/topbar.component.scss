@@ -70,3 +70,27 @@
     display: none;
   }
 }
+
+.menu-button {
+  display: none;
+}
+
+/* phones: logo only, links and logout in the menu */
+@media (max-width: 768px) {
+  .topbar {
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .brand span,
+  .links,
+  .logout,
+  :host ::ng-deep .back-button {
+    display: none;
+  }
+
+  .menu-button {
+    display: block;
+    flex-shrink: 0;
+  }
+}

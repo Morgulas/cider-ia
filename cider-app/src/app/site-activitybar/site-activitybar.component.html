@@ -1,3 +1,4 @@
-<p-menubar [model]="menuItems" [styleClass]="'side-menu'">
+<!-- breakpoint 0: always the column of icons, never the collapsed hamburger menu -->
+<p-menubar [model]="menuItems" [styleClass]="'side-menu'" breakpoint="0px">
 </p-menubar>
 <app-settings-dialog [(visible)]="settingsDialogVisible"></app-settings-dialog>

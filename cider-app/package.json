@@ -49,8 +49,6 @@
     "jszip": "^3.10.1",
     "marked": "^17.0.1",
     "mermaid": "^12.3.0",
-    "mime": "^3.0.0",
-    "mime-wrapper": "^2.0.0",
     "monaco-editor": "^0.50.0",
     "ngx-markdown": "^21.0.1",
     "ngx-monaco-editor-v2": "^20.3.0",
