@@ -119,7 +119,13 @@ export class BoostersComponent implements OnInit, OnDestroy {
   editorOptions = { theme: 'vs-dark-extended', language: 'handlebars', automaticLayout: true, minimap: { enabled: false } };
   cssEditorOptions = { theme: 'vs-dark-extended', language: 'css-handlebars', automaticLayout: true, minimap: { enabled: false } };
 
-  private readonly saves = new Subject<Booster>();
+  /** Signale une modification : l'enregistrement part peu après la dernière */
+  private readonly saves = new Subject<void>();
+  /**
+   * Boosters modifiés pas encore enregistrés, par id : un par booster, pour qu'une
+   * modification d'un booster ne fasse pas oublier celle d'un autre.
+   */
+  private readonly pendingSaves = new Map<number, Booster>();
 
   ngOnInit(): void {
     if (!this.localStorage.getDarkMode()) {
@@ -127,17 +133,22 @@ export class BoostersComponent implements OnInit, OnDestroy {
       this.cssEditorOptions.theme = 'vs';
     }
     this.saves.pipe(debounceTime(400), takeUntilDestroyed(this.destroyRef))
-      .subscribe(booster => void this.boostersService.update(booster.id, booster));
+      .subscribe(() => void this.flushSaves());
     this.assetsService.assetUrls.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(urls => this.assetUrls = urls);
     void this.load();
   }
 
   ngOnDestroy(): void {
-    // dernière modification pas encore enregistrée
-    if (this.booster) {
-      void this.boostersService.update(this.booster.id, this.booster);
-    }
+    // dernières modifications pas encore enregistrées
+    void this.flushSaves();
+  }
+
+  /** Enregistre tout de suite les modifications en attente */
+  flushSaves(): Promise<unknown> {
+    const boosters = [...this.pendingSaves.values()];
+    this.pendingSaves.clear();
+    return Promise.all(boosters.map(booster => this.boostersService.update(booster.id, booster)));
   }
 
   private async load(): Promise<void> {
@@ -165,6 +176,8 @@ export class BoostersComponent implements OnInit, OnDestroy {
   }
 
   select(booster: Booster | null): void {
+    // le booster quitté garde ses dernières modifications
+    void this.flushSaves();
     this.booster = booster;
     this.stats = null;
     this.refreshPool();
@@ -200,6 +213,8 @@ export class BoostersComponent implements OnInit, OnDestroy {
       header: this.translate.instant('boosters.delete'),
       message: this.translate.instant('boosters.delete-confirm', { name: booster.name }),
       accept: async () => {
+        // un enregistrement en attente le recréerait (l'enregistrement remplace tout le booster)
+        this.pendingSaves.delete(booster.id);
         await this.boostersService.delete(booster.id);
         this.boosters = this.boosters.filter(b => b.id !== booster.id);
         this.select(this.boosters[0] ?? null);
@@ -218,7 +233,8 @@ export class BoostersComponent implements OnInit, OnDestroy {
     if (refreshPool) {
       this.refreshPool();
     }
-    this.saves.next(this.booster);
+    this.pendingSaves.set(this.booster.id, this.booster);
+    this.saves.next();
   }
 
   // ----- Pool et poids -----
