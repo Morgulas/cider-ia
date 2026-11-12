@@ -1,7 +1,6 @@
 import { ApplicationConfig, importProvidersFrom, inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter, withRouterConfig } from '@angular/router';
 import { HttpClient, provideHttpClient, withInterceptors, withInterceptorsFromDi } from '@angular/common/http';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { providePrimeNG } from 'primeng/config';
 import { provideTranslateService, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
@@ -27,7 +26,6 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withInterceptorsFromDi(), withInterceptors([apiInterceptor])),
     // know who is logged in before the first route is resolved
     provideAppInitializer(() => inject(AuthService).refresh()),
-    provideAnimationsAsync(),
     importProvidersFrom(MonacoEditorModule.forRoot(MonacoExtension.monacoConfig)),
     provideMarkdown(),
     // injected as services by components that render cards and global styles

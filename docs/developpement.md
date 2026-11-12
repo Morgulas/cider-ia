@@ -124,6 +124,13 @@ CIDER_DATA_DIR=/tmp/ciderdata CIDER_SETUP_TOKEN=setup123 CIDER_COOKIE_SECURE=fal
 
 Le déploiement télécharge ces images ([docker/README.md](../docker/README.md)) : **une erreur de lint ou un test en échec bloque la mise en production**. Lancer `npm run lint` et les tests avant de pousser.
 
+## Dépendances : versions bloquées
+
+- **PrimeNG reste en 21.x** : à partir de la 22, PrimeNG n'est plus sous licence MIT mais sous licence PrimeUI (clé de licence exigée, redistribution restreinte), peu compatible avec un fork AGPL dont les images Docker sont publiques. Or **Angular 22 exige PrimeNG 22** : l'application reste donc en **Angular 21**, maintenu jusqu'en mai 2027. D'ici là, envisager une autre bibliothèque de composants ou un fork communautaire resté sous MIT.
+- **Thème** : `@primeuix/themes` en 2.x (MIT, même moteur `@primeuix/styled` 0.7 que PrimeNG 21). La 3.x est sous licence PrimeUI.
+- **Dexie reste en 3.x** (et `dexie-export-import` en 4.1.x, la 4.4 exigeant Dexie 4) : passer à Dexie 4 touche aux données gardées dans le navigateur, à faire avec précaution.
+- **monaco-editor** est fixé par `ngx-monaco-editor-v2` (`overrides` du `package.json`).
+
 ## Pièges connus (rendu 3D des sachets et cartes)
 
 Les effets d'inclinaison et de foil (classeur, sachets de booster) ont buté sur des comportements de Chrome :

@@ -1,7 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { EnvironmentProviders, importProvidersFrom, Provider } from '@angular/core';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -14,14 +13,13 @@ import { HandlebarsPipe } from '../shared/pipes/handlebars.pipe';
 
 /**
  * What the application provides at start-up (app.config.ts), for component
- * tests: HTTP (mocked), router, translations, animations, PrimeNG services.
+ * tests: HTTP (mocked), router, translations, PrimeNG services.
  */
 export const appTestProviders: (Provider | EnvironmentProviders)[] = [
   provideHttpClient(),
   provideHttpClientTesting(),
   provideRouter([]),
   provideTranslateService({ defaultLanguage: 'en' }),
-  provideNoopAnimations(),
   providePrimeNG(),
   importProvidersFrom(MonacoEditorModule.forRoot(MonacoExtension.monacoConfig)),
   provideMarkdown(),
