@@ -1,6 +1,6 @@
 import { Booster } from '../data-services/types/booster.type';
 import { Card } from '../data-services/types/card.type';
-import { backOf, edgeClipPath, edgeOf, isToothed, newBooster, openBooster, pickChance, poolOf, simulate } from './booster-logic';
+import { backOf, edgeClipPath, edgeOf, effectiveDesign, isToothed, newBooster, openBooster, pickChance, poolOf, simulate } from './booster-logic';
 
 function card(id: number, extra: Record<string, unknown> = {}): Card {
   return { id, deckId: 1, name: `C${id}`, count: 1, frontCardTemplateId: 1, backCardTemplateId: 1, ...extra } as Card;
@@ -93,5 +93,30 @@ describe('booster-logic', () => {
     for (const edge of ['dentele-fin', 'crenele', 'vague'] as const) {
       expect(edgeClipPath(edge, true)).not.toContain('NaN');
     }
+  });
+
+  it('dessine un sachet complet sans fond, bords ni bandes, au recto comme au verso', () => {
+    const design = { ...newBooster('b', []).design, art: 'dragon', crimped: true, edge: 'vague' as const, notches: true,
+      background: 'radial' as const, artFit: 'contain' as const, fullArt: true };
+    const drawn = effectiveDesign(design);
+    expect(drawn.artFit).toBe('fill');
+    expect(drawn.background).toBe('aucun');
+    expect(drawn.seals).toBeFalse();
+    expect(edgeOf(drawn)).toBe('droit');
+    expect(drawn.notches).toBeFalse();
+    // verso automatique : la même illustration, pleine, sans texte
+    const auto = backOf(design);
+    expect(auto.art).toBe('dragon');
+    expect(auto.artOpacity).toBe(100);
+    expect(auto.artFit).toBe('fill');
+    expect(auto.showTitle).toBeFalse();
+    expect(auto.barcode).toBeFalse();
+    // verso réglé : son illustration, pleine et étirée
+    const set = backOf({ ...design, back: { ...auto, mode: 'form', art: 'dos', artOpacity: 30, background: 'uni' } });
+    expect(set.art).toBe('dos');
+    expect(set.artOpacity).toBe(100);
+    expect(set.background).toBe('aucun');
+    // sans sachet complet : rien ne change
+    expect(effectiveDesign({ ...design, fullArt: false }).artFit).toBe('contain');
   });
 });

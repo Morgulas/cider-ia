@@ -10,7 +10,8 @@ export type BoosterBackground = 'degrade' | 'radial' | 'rayures' | 'uni' | 'aucu
 export type BoosterEdge = 'lisse' | 'droit' | 'dentele' | 'dentele-fin' | 'crenele' | 'vague';
 
 /** Cadrage de l'illustration : remplir le sachet (rognée) ou la montrer en entier. */
-export type BoosterArtFit = 'cover' | 'contain';
+/** cover : remplit (recadre) ; contain : image entière ; fill : étirée au format du sachet (sachet complet). */
+export type BoosterArtFit = 'cover' | 'contain' | 'fill';
 
 /** Police des textes du sachet. */
 export type BoosterFont = 'classique' | 'moderne' | 'impact' | 'manuscrite';
@@ -35,6 +36,12 @@ export interface BoosterDesign {
     edge?: BoosterEdge;
     /** Encoches de déchirure sur les côtés, sous la soudure du haut. */
     notches?: boolean;
+    /**
+     * Sachet complet : chaque illustration (recto, verso) est le sachet entier, forme comprise. Elle est étirée
+     * sur tout le sachet, sa silhouette (transparence ou fond uni) en devient la découpe ; l'appli ne dessine plus
+     * ni fond, ni bords, ni bandes scellées.
+     */
+    fullArt?: boolean;
     /** Calques affichés (absents : affichés) : bandeau sombre derrière le titre, titre et sous-titre,
      *  nombre de cartes, bandes scellées en haut et en bas. */
     band?: boolean;

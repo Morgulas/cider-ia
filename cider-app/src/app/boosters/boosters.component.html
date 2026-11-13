@@ -195,7 +195,7 @@
 
           <span>{{ 'boosters.design.show' | translate }}</span>
           <div class="inline toggles">
-            @for (t of frontToggles; track t.key) {
+            @for (t of visibleFrontToggles; track t.key) {
             <span class="toggle">
               <p-toggleswitch [inputId]="'d-show-' + t.key" [ngModel]="booster.design[t.key] !== false" (ngModelChange)="setFrontToggle(t.key, $event)" />
               <label [for]="'d-show-' + t.key">{{ t.label | translate }}</label>
@@ -220,15 +220,23 @@
           </p-select>
 
           <span class="grid-section">{{ 'boosters.design.sec-art' | translate }}</span>
+          <label for="d-full">{{ 'boosters.design.full-art' | translate }}</label>
+          <div class="inline">
+            <p-toggleswitch inputId="d-full" [ngModel]="!!booster.design.fullArt" (ngModelChange)="setFullArt($event)" />
+            <span class="field-hint">{{ 'boosters.design.full-art-hint' | translate }}</span>
+          </div>
+
+          @if (!booster.design.fullArt) {
           <label for="d-bg">{{ 'boosters.design.background' | translate }}</label>
           <p-select inputId="d-bg" [options]="backgrounds" [(ngModel)]="booster.design.background" (ngModelChange)="changed()">
             <ng-template #selectedItem let-v>{{ 'boosters.design.bg.' + v | translate }}</ng-template>
             <ng-template #item let-v>{{ 'boosters.design.bg.' + v | translate }}</ng-template>
           </p-select>
+          }
 
-          <span>{{ 'boosters.design.colors' | translate }}</span>
+          <span>{{ (booster.design.background === 'aucun' || booster.design.fullArt ? 'boosters.design.color-text' : 'boosters.design.colors') | translate }}</span>
           <div class="inline colors">
-            @if (booster.design.background !== 'aucun') {
+            @if (booster.design.background !== 'aucun' && !booster.design.fullArt) {
             <input type="color" [(ngModel)]="booster.design.colorA" (ngModelChange)="changed()"
               [attr.aria-label]="'boosters.design.color-a' | translate" [title]="'boosters.design.color-a' | translate" />
             <input type="color" [(ngModel)]="booster.design.colorB" (ngModelChange)="changed()"
@@ -242,7 +250,11 @@
           <p-select inputId="d-art" [options]="assets" optionLabel="label" optionValue="path" [(ngModel)]="booster.design.art"
             (ngModelChange)="changed()" [filter]="true" [showClear]="true" [placeholder]="'boosters.design.no-image' | translate" />
 
-          @if (booster.design.art) {
+          @if (booster.design.fullArt) {
+          @for (note of frontArtNotes; track note) {
+          <div class="art-note"><i class="pi pi-info-circle"></i>{{ note }}</div>
+          }
+          } @else if (booster.design.art) {
           <span>{{ 'boosters.design.art-fit' | translate }}</span>
           <div class="inline">
             <p-selectButton [options]="artFits" [ngModel]="booster.design.artFit || 'cover'" (ngModelChange)="booster.design.artFit = $event; changed()"
@@ -266,6 +278,7 @@
             <ng-template #item let-v>{{ (v === 'mat' || v === 'brillant' ? 'boosters.design.finish-' + v : 'binder.foil-effects.' + v) | translate }}</ng-template>
           </p-select>
 
+          @if (!booster.design.fullArt) {
           <label for="d-edge">{{ 'boosters.design.edge' | translate }}</label>
           <p-select inputId="d-edge" [options]="edges" [ngModel]="edge" (ngModelChange)="setEdge($event)">
             <ng-template #selectedItem let-v>{{ 'boosters.design.edges.' + v | translate }}</ng-template>
@@ -274,6 +287,7 @@
 
           <label for="d-notch">{{ 'boosters.design.notches' | translate }}</label>
           <p-toggleswitch inputId="d-notch" [(ngModel)]="booster.design.notches" (ngModelChange)="changed()" />
+          }
         </div>
         } @else {
         <div class="template-editors">
@@ -299,6 +313,7 @@
               <ng-template #selectedItem let-v>{{ (v === 'mat' || v === 'brillant' ? 'boosters.design.finish-' + v : 'binder.foil-effects.' + v) | translate }}</ng-template>
               <ng-template #item let-v>{{ (v === 'mat' || v === 'brillant' ? 'boosters.design.finish-' + v : 'binder.foil-effects.' + v) | translate }}</ng-template>
             </p-select>
+            @if (!booster.design.fullArt) {
             <label for="t-edge">{{ 'boosters.design.edge' | translate }}</label>
             <p-select inputId="t-edge" [options]="edges" [ngModel]="edge" (ngModelChange)="setEdge($event)">
               <ng-template #selectedItem let-v>{{ 'boosters.design.edges.' + v | translate }}</ng-template>
@@ -306,6 +321,7 @@
             </p-select>
             <label for="t-notch">{{ 'boosters.design.notches' | translate }}</label>
             <p-toggleswitch inputId="t-notch" [(ngModel)]="booster.design.notches" (ngModelChange)="changed()" />
+            }
           </div>
         </div>
         }
@@ -325,14 +341,16 @@
           <label for="b-text">{{ 'boosters.design.back-text' | translate }}</label>
           <textarea pTextarea id="b-text" rows="5" [(ngModel)]="booster.design.back.text" (ngModelChange)="changed()"
             [placeholder]="'boosters.design.back-text-placeholder' | translate"></textarea>
+          @if (!booster.design.fullArt) {
           <label for="b-bg">{{ 'boosters.design.background' | translate }}</label>
           <p-select inputId="b-bg" [options]="backgrounds" [(ngModel)]="booster.design.back.background" (ngModelChange)="changed()">
             <ng-template #selectedItem let-v>{{ 'boosters.design.bg.' + v | translate }}</ng-template>
             <ng-template #item let-v>{{ 'boosters.design.bg.' + v | translate }}</ng-template>
           </p-select>
-          <span>{{ (booster.design.back.background === 'aucun' ? 'boosters.design.color-text' : 'boosters.design.colors') | translate }}</span>
+          }
+          <span>{{ (booster.design.back.background === 'aucun' || booster.design.fullArt ? 'boosters.design.color-text' : 'boosters.design.colors') | translate }}</span>
           <div class="colors">
-            @if (booster.design.back.background !== 'aucun') {
+            @if (booster.design.back.background !== 'aucun' && !booster.design.fullArt) {
             <input type="color" [(ngModel)]="booster.design.back.colorA" (ngModelChange)="changed()"
               [attr.aria-label]="'boosters.design.color-a' | translate" [title]="'boosters.design.color-a' | translate" />
             <input type="color" [(ngModel)]="booster.design.back.colorB" (ngModelChange)="changed()"
@@ -344,7 +362,11 @@
           <label for="b-art">{{ 'boosters.design.art' | translate }}</label>
           <p-select inputId="b-art" [options]="assets" optionLabel="label" optionValue="path" [(ngModel)]="booster.design.back.art"
             (ngModelChange)="changed()" [filter]="true" [showClear]="true" [placeholder]="'boosters.design.no-image' | translate" />
-          @if (booster.design.back.art) {
+          @if (booster.design.fullArt) {
+          @for (note of backArtNotes; track note) {
+          <div class="art-note"><i class="pi pi-info-circle"></i>{{ note }}</div>
+          }
+          } @else if (booster.design.back.art) {
           <span>{{ 'boosters.design.art-fit' | translate }}</span>
           <div class="inline">
             <p-selectButton [options]="artFits" [ngModel]="booster.design.back.artFit || 'cover'" (ngModelChange)="booster.design.back.artFit = $event; changed()"
@@ -356,9 +378,11 @@
               [pTooltip]="'boosters.design.art-pos' | translate" [ariaLabel]="'boosters.design.art-pos' | translate" />
           </div>
           }
+          @if (!booster.design.fullArt) {
           <label for="b-art-opacity">{{ 'boosters.design.art-opacity' | translate }}</label>
           <p-inputNumber inputId="b-art-opacity" [(ngModel)]="booster.design.back.artOpacity" (ngModelChange)="changed()"
             [min]="0" [max]="100" suffix=" %" [showButtons]="true" [step]="5" />
+          }
           <label for="b-logo">{{ 'boosters.design.logo' | translate }}</label>
           <p-select inputId="b-logo" [options]="assets" optionLabel="label" optionValue="path" [(ngModel)]="booster.design.back.logo"
             (ngModelChange)="changed()" [filter]="true" [showClear]="true" [placeholder]="'boosters.design.no-image' | translate" />

@@ -11,7 +11,7 @@ import JSZip from 'jszip';
 import * as pdfMake from 'pdfmake/build/pdfmake';
 import pLimit from 'p-limit';
 import FileUtils from '../shared/utils/file-utils';
-import { lastValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom } from 'rxjs';
 import StringUtils from '../shared/utils/string-utils';
 import GeneralUtils from '../shared/utils/general-utils';
 import { ConfirmationService } from 'primeng/api';
@@ -48,7 +48,9 @@ import { BoostersService } from '../data-services/services/boosters.service';
 import { AssetsService } from '../data-services/services/assets.service';
 import { Booster, BoosterDesign } from '../data-services/types/booster.type';
 import { BoosterPackComponent } from '../boosters/booster-pack.component';
-import { edgeOf, isToothed } from '../boosters/booster-logic';
+import { backOf, edgeOf, effectiveDesign, isToothed } from '../boosters/booster-logic';
+import { packImageInfo } from '../boosters/booster-outline';
+import { resolveAsset } from '../boosters/booster-assets';
 
 @Component({
     selector: 'app-export-cards',
@@ -191,6 +193,14 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
 
   /** le sachet est rendu sans finition, à bords droits et sans encoche : l'appli ajoute elle-même finition et bords,
    *  en relief */
+  /** Silhouettes (clip-path) du recto et du verso d'un sachet complet. */
+  private async packContours(design: BoosterDesign): Promise<{ front?: string; back?: string }> {
+    const urls = await firstValueFrom(this.assetsService.assetUrls);
+    const front = await packImageInfo(resolveAsset(urls, design.art));
+    const back = await packImageInfo(resolveAsset(urls, backOf(design).art));
+    return { front: front?.outline ?? undefined, back: back?.outline ?? undefined };
+  }
+
   get collectorPackDesign(): BoosterDesign | undefined {
     const booster = this.collectorBooster;
     return booster ? { ...booster.design, finish: 'mat', crimped: false, edge: 'droit', notches: false } : undefined;
@@ -954,13 +964,18 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     const ids = this.cards.map(card => card.id);
     const exported = await this.cardTransfer.export(this.deckId, this.deckName, 'json', ids);
     const booster = this.collectorBooster;
-    const extra: CollectorBooster | undefined = booster ? {
+    // sachet complet : la silhouette de chaque face, pour que l'appli découpe le sachet 3D de la même façon
+    const shape = booster?.design.fullArt ? await this.packContours(booster.design) : undefined;
+    const drawn = booster ? effectiveDesign(booster.design) : undefined;
+    const extra: CollectorBooster | undefined = booster && drawn ? {
       image: 'pack.png',
       imageBack: 'pack-back.png',
       finition: booster.design.finish,
-      dentele: isToothed(edgeOf(booster.design)),
-      bord: edgeOf(booster.design),
-      encoches: !!booster.design.notches,
+      dentele: isToothed(edgeOf(drawn)),
+      bord: shape ? 'image' : edgeOf(drawn),
+      encoches: !!drawn.notches,
+      ...(shape?.front ? { contour: shape.front } : {}),
+      ...(shape?.back ? { contourDos: shape.back } : {}),
       tirage: this.collector.boosterWeights ? {
         cardsPerPack: booster.cardsPerPack,
         weights: ids.map(id => booster.weights?.[id] ?? booster.defaultWeight),

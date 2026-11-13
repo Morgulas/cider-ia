@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, OnChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TranslatePipe } from '@ngx-translate/core';
 import * as Handlebars from 'handlebars';
@@ -7,7 +7,8 @@ import { AssetUrls } from '../data-services/types/asset.type';
 import HtmlSanitizer from '../shared/utils/html-sanitizer';
 import { registerHandlebarsHelpers } from '../shared/utils/handlebars-helpers';
 import { resolveAsset } from './booster-assets';
-import { backOf, BOOSTER_FONTS, edgeClipPath, edgeOf } from './booster-logic';
+import { backOf, BOOSTER_FONTS, edgeClipPath, edgeOf, effectiveDesign } from './booster-logic';
+import { packImageInfo } from './booster-outline';
 
 /** Contexte des modèles HTML/CSS de booster. */
 export interface BoosterTemplateContext {
@@ -41,6 +42,8 @@ export class BoosterPackComponent implements OnChanges {
   @Input() side: 'front' | 'back' = 'front';
 
   readonly uid = `pack-${++packCounter}`;
+  /** design tel qu'il est dessiné (sachet complet : illustration étirée, sans fond ni bords) */
+  d!: BoosterDesign;
   artUrl?: string;
   logoUrl?: string;
   /** verso effectif (réglé ou tiré du recto) */
@@ -53,22 +56,51 @@ export class BoosterPackComponent implements OnChanges {
   edge: BoosterEdge = 'lisse';
   clipPath: string | null = null;
 
-  constructor(private sanitizer: DomSanitizer) {
+  constructor(private sanitizer: DomSanitizer, private cdr: ChangeDetectorRef) {
     registerHandlebarsHelpers();
   }
 
   ngOnChanges(): void {
+    this.d = effectiveDesign(this.design);
     this.artUrl = resolveAsset(this.assetUrls, this.design.art);
     this.logoUrl = resolveAsset(this.assetUrls, this.design.logo);
     this.back = backOf(this.design);
     this.backArtUrl = resolveAsset(this.assetUrls, this.back.art);
     this.backLogoUrl = resolveAsset(this.assetUrls, this.back.logo);
-    this.edge = edgeOf(this.design);
-    this.clipPath = edgeClipPath(this.edge, !!this.design.notches);
+    this.edge = edgeOf(this.d);
+    this.clipPath = edgeClipPath(this.edge, !!this.d.notches);
+    if (this.d.fullArt) {
+      this.outlineFrom(this.side === 'back' ? this.backArtUrl : this.artUrl);
+    }
     if (this.templateMode) {
       this.renderTemplate();
     }
   }
+
+  /** Sachet complet : la silhouette de l'illustration de la face devient la découpe du sachet. */
+  private outlineFrom(url: string | undefined): void {
+    // même illustration : même découpe (ngOnChanges repasse à chaque nouvel objet design, sans rien relancer)
+    if (url === this.outlineUrl) {
+      this.clipPath = this.outline;
+      return;
+    }
+    this.outlineUrl = url;
+    this.outline = null;
+    this.clipPath = null;
+    void packImageInfo(url).then(info => {
+      // l'illustration a pu changer entre-temps
+      if (url !== this.outlineUrl) {
+        return;
+      }
+      this.outline = info?.outline ?? null;
+      if (this.d.fullArt) {
+        this.clipPath = this.outline;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+  private outlineUrl?: string | null = null;
+  private outline: string | null = null;
 
   /** La face dessinée est-elle un modèle HTML/CSS ? */
   get templateMode(): boolean {
@@ -89,7 +121,7 @@ export class BoosterPackComponent implements OnChanges {
   }
 
   get backgroundStyle(): string {
-    return BoosterPackComponent.background(this.design);
+    return BoosterPackComponent.background(this.d);
   }
 
   get backBackgroundStyle(): string {
@@ -109,7 +141,7 @@ export class BoosterPackComponent implements OnChanges {
 
   /** Effet foil de l'emballage (classe foil-<effet>), ou rien pour mat/brillant. */
   get foilClass(): string | null {
-    const finish = this.design.finish;
+    const finish = this.d.finish;
     return finish === 'mat' || finish === 'brillant' ? null : `foil foil-${finish}`;
   }
 

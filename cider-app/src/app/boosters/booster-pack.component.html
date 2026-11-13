@@ -1,4 +1,4 @@
-<div class="pack" [class]="uid" [class.square]="edge !== 'lisse'" [class.glossy]="design.finish !== 'mat'" [style.clip-path]="clipPath">
+<div class="pack" [class]="uid" [class.square]="edge !== 'lisse'" [class.full-art]="!!d.fullArt" [class.glossy]="d.finish !== 'mat'" [style.clip-path]="clipPath">
   @if (templateMode) {
   <div class="pack-template" [innerHTML]="templateHtml"></div>
   } @else if (side === 'back') {
@@ -26,26 +26,26 @@
     }
   </div>
   } @else {
-  <div class="pack-form" [class]="'text-' + (design.textPos || 'bas')" [style.background]="backgroundStyle" [style.color]="design.textColor"
-    [style.font-family]="fontFamily" [style.--title-scale]="(design.titleSize ?? 100) / 100">
+  <div class="pack-form" [class]="'text-' + (d.textPos || 'bas')" [style.background]="backgroundStyle" [style.color]="d.textColor"
+    [style.font-family]="fontFamily" [style.--title-scale]="(d.titleSize ?? 100) / 100">
     @if (artUrl) {
     <img class="pack-art" [src]="artUrl" alt="" draggable="false"
-      [style.object-fit]="design.artFit || 'cover'" [style.object-position]="'50% ' + (design.artPos ?? 50) + '%'">
+      [style.object-fit]="d.artFit || 'cover'" [style.object-position]="'50% ' + (d.artPos ?? 50) + '%'">
     }
     @if (logoUrl || showTitle) {
-    <div class="pack-band" [class.no-band]="design.band === false">
+    <div class="pack-band" [class.no-band]="d.band === false">
       @if (logoUrl) {
       <img class="pack-logo" [src]="logoUrl" alt="" draggable="false">
       }
       @if (showTitle) {
-      <div class="pack-title">{{ design.title || name }}</div>
-      @if (design.subtitle) {
-      <div class="pack-subtitle">{{ design.subtitle }}</div>
+      <div class="pack-title">{{ d.title || name }}</div>
+      @if (d.subtitle) {
+      <div class="pack-subtitle">{{ d.subtitle }}</div>
       }
       }
     </div>
     }
-    @if (cardsPerPack && design.showCount !== false) {
+    @if (cardsPerPack && d.showCount !== false) {
     <div class="pack-count">{{ 'boosters.pack-count' | translate: { n: cardsPerPack } }}</div>
     }
   </div>
@@ -54,7 +54,7 @@
   <span [class]="foilClass" aria-hidden="true"></span>
   }
   <span class="pack-gloss" aria-hidden="true"></span>
-  @if (design.seals !== false) {
+  @if (d.seals !== false) {
   <span class="pack-seal top" aria-hidden="true"></span>
   <span class="pack-seal bottom" aria-hidden="true"></span>
   }

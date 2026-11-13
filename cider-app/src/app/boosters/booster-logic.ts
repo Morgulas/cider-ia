@@ -85,7 +85,31 @@ export function edgeClipPath(edge: BoosterEdge, notches = false): string | null 
 }
 
 /** Verso tiré du recto : couleurs inversées, illustration estompée. */
+/**
+ * Design tel qu'il est dessiné : en sachet complet, l'illustration étirée sur tout le sachet, sans fond, bords
+ * droits (la découpe vient de l'image), sans bandes scellées.
+ */
+export function effectiveDesign(design: BoosterDesign): BoosterDesign {
+  if (!design.fullArt) {
+    return design;
+  }
+  return { ...design, artFit: 'fill', artPos: 50, background: 'aucun', seals: false, edge: 'droit', notches: false, crimped: false };
+}
+
+/** Verso en sachet complet : son illustration, pleine et étirée, sans fond. */
+export function fullArtBack(back: BoosterBackDesign): BoosterBackDesign {
+  return { ...back, artFit: 'fill', artPos: 50, artOpacity: 100, background: 'aucun' };
+}
+
 export function autoBack(design: BoosterDesign): BoosterBackDesign {
+  if (design.fullArt) {
+    // verso automatique d'un sachet complet : la même illustration, sans texte
+    return fullArtBack({ ...autoBackOf(design), showTitle: false, showCount: false, barcode: false });
+  }
+  return autoBackOf(design);
+}
+
+function autoBackOf(design: BoosterDesign): BoosterBackDesign {
   return {
     mode: 'auto',
     background: design.background,
@@ -110,7 +134,8 @@ export function backOf(design: BoosterDesign): BoosterBackDesign {
   if (!back || back.mode === 'auto') {
     return autoBack(design);
   }
-  return { ...autoBack(design), ...back };
+  const merged = { ...autoBack(design), ...back };
+  return design.fullArt ? fullArtBack(merged) : merged;
 }
 
 /** Un booster neuf : tout le pool à poids 1. */

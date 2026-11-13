@@ -31,7 +31,8 @@ import { FOIL_EFFECTS, findFoilField } from '../card-binder/foil';
 import { CardTiltDirective } from '../card-binder/card-tilt.directive';
 import { BoosterPackComponent } from './booster-pack.component';
 import { BoosterOpeningComponent } from './booster-opening.component';
-import { AssetChoice, assetChoices } from './booster-assets';
+import { AssetChoice, assetChoices, resolveAsset } from './booster-assets';
+import { packImageInfo, ratioGap } from './booster-outline';
 import { BOOSTER_FONTS, BoosterStats, PoolEntry, PulledCard, autoBack, edgeOf, isToothed, newBooster, openBooster, pickChance, poolOf, simulate, valueText, weightOf } from './booster-logic';
 import { backToTemplate, designToTemplate, syncTemplate, templateSignature } from './booster-template';
 
@@ -145,7 +146,11 @@ export class BoostersComponent implements OnInit, OnDestroy {
     this.saves.pipe(debounceTime(400), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => void this.flushSaves());
     this.assetsService.assetUrls.pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(urls => this.assetUrls = urls);
+      .subscribe(urls => {
+        this.assetUrls = urls;
+        this.artNotesKey = '';
+        this.refreshArtNotes();
+      });
     void this.load();
   }
 
@@ -190,6 +195,7 @@ export class BoostersComponent implements OnInit, OnDestroy {
     void this.flushSaves();
     this.booster = booster;
     this.frontTemplateStale = this.backTemplateStale = false;
+    this.refreshArtNotes();
     this.stats = null;
     this.refreshPool();
   }
@@ -246,6 +252,7 @@ export class BoostersComponent implements OnInit, OnDestroy {
     }
     this.pendingSaves.set(this.booster.id, this.booster);
     this.saves.next();
+    this.refreshArtNotes();
   }
 
   // ----- Pool et poids -----
@@ -413,6 +420,65 @@ export class BoostersComponent implements OnInit, OnDestroy {
   // ----- Design -----
 
   /** Bords du sachet (« crimped » suit, pour les designs d'avant et l'export). */
+  /** Calques du recto proposés : en sachet complet, pas de bandes scellées (celles de l'image). */
+  get visibleFrontToggles(): typeof this.frontToggles {
+    return this.booster?.design.fullArt ? this.frontToggles.filter(t => t.key !== 'seals') : this.frontToggles;
+  }
+
+  /** Sachet complet : l'illustration est tout le sachet ; textes et bandeau masqués (réactivables). */
+  setFullArt(on: boolean): void {
+    if (!this.booster) {
+      return;
+    }
+    const design = this.booster.design;
+    design.fullArt = on;
+    if (on) {
+      Object.assign(design, { showTitle: false, showCount: false, band: false });
+      if (design.back && design.back.mode === 'form') {
+        Object.assign(design.back, { showTitle: false, showCount: false, barcode: false });
+      }
+    }
+    this.changed();
+  }
+
+  /** Remarques sur les illustrations d'un sachet complet : format, transparence. */
+  frontArtNotes: string[] = [];
+  backArtNotes: string[] = [];
+  private artNotesKey = '';
+
+  private refreshArtNotes(): void {
+    const design = this.booster?.design;
+    const front = design?.fullArt ? resolveAsset(this.assetUrls, design.art) : undefined;
+    const back = design?.fullArt && design.back?.mode === 'form' ? resolveAsset(this.assetUrls, design.back.art) : undefined;
+    const key = `${front}|${back}`;
+    if (key === this.artNotesKey) {
+      return;
+    }
+    this.artNotesKey = key;
+    const notes = async (url: string | undefined): Promise<string[]> => {
+      const info = await packImageInfo(url);
+      if (!info) {
+        return [];
+      }
+      const out: string[] = [];
+      const gap = ratioGap(info);
+      if (gap > 0.02) {
+        out.push(this.translate.instant('boosters.design.full-art-ratio',
+          { w: info.width, h: info.height, pct: Math.round(gap * 100) }));
+      }
+      if (!info.transparent) {
+        out.push(this.translate.instant(info.plainBackground ? 'boosters.design.full-art-plain' : 'boosters.design.full-art-opaque'));
+      }
+      return out;
+    };
+    void Promise.all([notes(front), notes(back)]).then(([f, b]) => {
+      if (key === this.artNotesKey) {
+        this.frontArtNotes = f;
+        this.backArtNotes = b;
+      }
+    });
+  }
+
   get edge(): BoosterEdge {
     return this.booster ? edgeOf(this.booster.design) : 'lisse';
   }
@@ -462,7 +528,7 @@ export class BoostersComponent implements OnInit, OnDestroy {
     // en quittant l'automatique, on part du verso automatique actuel
     const back = design.back && design.back.mode !== 'auto' ? design.back : { ...autoBack(design), ...(design.back ?? {}) };
     if (mode === 'template') {
-      this.backTemplateStale = syncTemplate(back, backToTemplate({ ...back, mode: 'form' }, this.booster.design.font)).stale;
+      this.backTemplateStale = syncTemplate(back, backToTemplate({ ...back, mode: 'form' }, this.booster.design.font, !!this.booster.design.fullArt)).stale;
     }
     design.back = { ...back, mode };
     this.changed();
@@ -473,7 +539,7 @@ export class BoostersComponent implements OnInit, OnDestroy {
     if (!this.booster?.design.back) {
       return;
     }
-    const generated = backToTemplate({ ...this.booster.design.back, mode: 'form' }, this.booster.design.font);
+    const generated = backToTemplate({ ...this.booster.design.back, mode: 'form' }, this.booster.design.font, !!this.booster.design.fullArt);
     Object.assign(this.booster.design.back, generated, { templateFrom: templateSignature(generated) });
     this.backTemplateStale = false;
     this.changed();

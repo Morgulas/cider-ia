@@ -27,6 +27,12 @@
   &.square {
     border-radius: 0;
   }
+
+  // sachet complet : la forme et le liseré sont ceux de l'illustration
+  &.full-art {
+    border-radius: 0;
+    box-shadow: none;
+  }
 }
 
 .pack-form,

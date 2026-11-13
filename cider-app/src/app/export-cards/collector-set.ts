@@ -35,6 +35,9 @@ export interface CollectorBooster {
   bord?: string;
   /** encoches de déchirure sur les côtés */
   encoches?: boolean;
+  /** bord « image » (sachet complet) : silhouettes du recto et du verso, en clip-path polygon */
+  contour?: string;
+  contourDos?: string;
   /** tirages repris du booster : cartes par booster et poids de chaque carte (même ordre que les cartes) */
   tirage?: { cardsPerPack: number; weights: number[] };
 }
@@ -179,7 +182,8 @@ export function buildCollectorSet(exportJson: string, settings: CollectorSetSett
       ...(booster?.image ? { paquet: booster.image } : {}),
       ...(booster?.imageBack ? { paquet_dos: booster.imageBack } : {}),
       ...(booster ? { paquet_style: { finition: booster.finition, dentele: booster.dentele,
-        ...(booster.bord ? { bord: booster.bord } : {}), ...(booster.encoches ? { encoches: true } : {}) } } : {}),
+        ...(booster.bord ? { bord: booster.bord } : {}), ...(booster.encoches ? { encoches: true } : {}),
+        ...(booster.contour ? { contour: booster.contour } : {}), ...(booster.contourDos ? { contour_dos: booster.contourDos } : {}) } } : {}),
       ...(rules ? { booster: rules } : {}),
     },
     champs,

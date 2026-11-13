@@ -1,5 +1,5 @@
 import { BoosterBackDesign, BoosterDesign } from '../data-services/types/booster.type';
-import { BOOSTER_FONTS } from './booster-logic';
+import { BOOSTER_FONTS, effectiveDesign, fullArtBack } from './booster-logic';
 
 /** Fond CSS correspondant aux réglages du formulaire. */
 function backgroundCss(design: Pick<BoosterDesign, 'background'>): string {
@@ -16,7 +16,8 @@ function backgroundCss(design: Pick<BoosterDesign, 'background'>): string {
  * Point de départ du mode modèle : le HTML et le CSS qui redonnent le booster des
  * réglages du formulaire. Les couleurs sont des variables CSS, en tête du CSS.
  */
-export function designToTemplate(design: BoosterDesign): { html: string; css: string } {
+export function designToTemplate(source: BoosterDesign): { html: string; css: string } {
+  const design = effectiveDesign(source);
   const art = design.art ? `\n  <img class="illustration" src="{{assets.${design.art}}}" alt="">` : '';
   const logo = design.logo ? `\n    <img class="logo" src="{{assets.${design.logo}}}" alt="">` : '';
   const title = design.showTitle === false ? '' : `
@@ -102,7 +103,8 @@ export function designToTemplate(design: BoosterDesign): { html: string; css: st
  * Point de départ du modèle du verso : le HTML et le CSS qui redonnent le verso des réglages.
  * Contexte en plus du recto : {{booster.backTitle}}, {{booster.backText}}.
  */
-export function backToTemplate(back: BoosterBackDesign, font?: BoosterDesign['font']): { html: string; css: string } {
+export function backToTemplate(source: BoosterBackDesign, font?: BoosterDesign['font'], fullArt = false): { html: string; css: string } {
+  const back = fullArt ? fullArtBack(source) : source;
   const art = back.art ? `\n  <img class="illustration" src="{{assets.${back.art}}}" alt="">` : '';
   const logo = back.logo ? `\n    <img class="logo" src="{{assets.${back.logo}}}" alt="">` : '';
   const count = back.showCount ? '\n    <div class="nombre">{{booster.cardsPerPack}} cartes</div>' : '';
