@@ -185,3 +185,30 @@ ${back.showTitle === false ? '' : '    <div class="titre">{{booster.backTitle}}<
 `;
   return { html, css };
 }
+
+/** Empreinte d'un modèle HTML/CSS : sert à savoir s'il a été retouché depuis sa génération. */
+export function templateSignature(template: { html?: string; css?: string }): string {
+  const text = `${template.html ?? ''}\u0000${template.css ?? ''}`;
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+  }
+  return `${text.length.toString(36)}-${(hash >>> 0).toString(36)}`;
+}
+
+/**
+ * Modèle à afficher en passant en mode HTML/CSS : un modèle absent ou jamais retouché depuis sa génération
+ * suit les réglages actuels ; un modèle retouché à la main est conservé (stale : les réglages ne s'y
+ * retrouvent plus, l'écran le signale).
+ */
+export function syncTemplate(target: { html?: string; css?: string; templateFrom?: string },
+                             generated: { html: string; css: string }): { stale: boolean } {
+  const untouched = !target.html || target.templateFrom === templateSignature(target);
+  if (untouched) {
+    target.html = generated.html;
+    target.css = generated.css;
+    target.templateFrom = templateSignature(generated);
+    return { stale: false };
+  }
+  return { stale: target.html !== generated.html || (target.css ?? '') !== generated.css };
+}

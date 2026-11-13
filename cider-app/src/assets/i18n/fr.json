@@ -1014,6 +1014,7 @@
             "crimped": "Bords dentelés",
             "template-help": "Handlebars : <code>{{booster.title}}</code>, <code>{{booster.subtitle}}</code>, <code>{{booster.cardsPerPack}}</code>, <code>{{assets.nom}}</code>. Unités <code>cqw</code>/<code>cqh</code> : % de la largeur/hauteur du booster.",
             "from-form": "Repartir des réglages",
+            "template-stale": "Ce modèle a été retouché à la main : il est conservé, mais ne reprend pas les derniers réglages. « Repartir des réglages » le remplace par une version à jour.",
             "preview-hint": "Survole ou fais glisser le booster pour l'incliner.",
             "side-front": "Recto",
             "side-back": "Verso",

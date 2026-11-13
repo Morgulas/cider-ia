@@ -1014,6 +1014,7 @@
             "crimped": "Crimped edges",
             "template-help": "Handlebars: <code>{{booster.title}}</code>, <code>{{booster.subtitle}}</code>, <code>{{booster.cardsPerPack}}</code>, <code>{{assets.name}}</code>. <code>cqw</code>/<code>cqh</code> units: % of the booster width/height.",
             "from-form": "Start again from the settings",
+            "template-stale": "This template was edited by hand: it is kept, but does not follow the latest settings. “Start again from the settings” replaces it with an up-to-date version.",
             "preview-hint": "Hover or drag the booster to tilt it.",
             "side-front": "Front",
             "side-back": "Back",

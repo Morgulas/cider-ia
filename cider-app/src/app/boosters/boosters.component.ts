@@ -33,7 +33,7 @@ import { BoosterPackComponent } from './booster-pack.component';
 import { BoosterOpeningComponent } from './booster-opening.component';
 import { AssetChoice, assetChoices } from './booster-assets';
 import { BOOSTER_FONTS, BoosterStats, PoolEntry, PulledCard, autoBack, edgeOf, isToothed, newBooster, openBooster, pickChance, poolOf, simulate, valueText, weightOf } from './booster-logic';
-import { backToTemplate, designToTemplate } from './booster-template';
+import { backToTemplate, designToTemplate, syncTemplate, templateSignature } from './booster-template';
 
 type Section = 'open' | 'pool' | 'design' | 'stats';
 
@@ -189,6 +189,7 @@ export class BoostersComponent implements OnInit, OnDestroy {
     // le booster quitté garde ses dernières modifications
     void this.flushSaves();
     this.booster = booster;
+    this.frontTemplateStale = this.backTemplateStale = false;
     this.stats = null;
     this.refreshPool();
   }
@@ -437,12 +438,16 @@ export class BoostersComponent implements OnInit, OnDestroy {
     return BOOSTER_FONTS[font];
   }
 
+  /** Le modèle (retouché à la main) ne reflète plus les réglages : l'écran propose d'en repartir. */
+  frontTemplateStale = false;
+  backTemplateStale = false;
+
   setDesignMode(mode: 'form' | 'template'): void {
     if (!this.booster) {
       return;
     }
-    if (mode === 'template' && !this.booster.design.html) {
-      Object.assign(this.booster.design, designToTemplate(this.booster.design));
+    if (mode === 'template') {
+      this.frontTemplateStale = syncTemplate(this.booster.design, designToTemplate(this.booster.design)).stale;
     }
     this.booster.design.mode = mode;
     this.changed();
@@ -456,8 +461,8 @@ export class BoostersComponent implements OnInit, OnDestroy {
     const design = this.booster.design;
     // en quittant l'automatique, on part du verso automatique actuel
     const back = design.back && design.back.mode !== 'auto' ? design.back : { ...autoBack(design), ...(design.back ?? {}) };
-    if (mode === 'template' && !back.html) {
-      Object.assign(back, backToTemplate({ ...back, mode: 'form' }, this.booster.design.font));
+    if (mode === 'template') {
+      this.backTemplateStale = syncTemplate(back, backToTemplate({ ...back, mode: 'form' }, this.booster.design.font)).stale;
     }
     design.back = { ...back, mode };
     this.changed();
@@ -468,7 +473,9 @@ export class BoostersComponent implements OnInit, OnDestroy {
     if (!this.booster?.design.back) {
       return;
     }
-    Object.assign(this.booster.design.back, backToTemplate(this.booster.design.back, this.booster.design.font));
+    const generated = backToTemplate({ ...this.booster.design.back, mode: 'form' }, this.booster.design.font);
+    Object.assign(this.booster.design.back, generated, { templateFrom: templateSignature(generated) });
+    this.backTemplateStale = false;
     this.changed();
   }
 
@@ -477,7 +484,9 @@ export class BoostersComponent implements OnInit, OnDestroy {
     if (!this.booster) {
       return;
     }
-    Object.assign(this.booster.design, designToTemplate(this.booster.design));
+    const generated = designToTemplate(this.booster.design);
+    Object.assign(this.booster.design, generated, { templateFrom: templateSignature(generated) });
+    this.frontTemplateStale = false;
     this.changed();
   }
 

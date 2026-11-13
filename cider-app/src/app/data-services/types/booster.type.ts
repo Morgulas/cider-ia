@@ -51,6 +51,9 @@ export interface BoosterDesign {
     /** Mode modèle : HTML et CSS Handlebars (contexte : booster, assets). */
     html?: string;
     css?: string;
+    /** Empreinte du dernier modèle généré depuis les réglages : s'il n'a pas été retouché à la main, il est
+     *  régénéré en repassant en mode modèle. */
+    templateFrom?: string;
     /** Verso du sachet (finition, bords et police : ceux du recto). Absent = automatique. */
     back?: BoosterBackDesign;
 }
@@ -83,6 +86,7 @@ export interface BoosterBackDesign {
     barcode: boolean;
     html?: string;
     css?: string;
+    templateFrom?: string;
 }
 
 /**

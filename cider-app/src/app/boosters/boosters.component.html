@@ -282,6 +282,9 @@
             <p-button [label]="'boosters.design.from-form' | translate" icon="pi pi-replay" [text]="true" size="small"
               (onClick)="templateFromForm()" />
           </div>
+          @if (frontTemplateStale) {
+          <div class="template-stale"><i class="pi pi-exclamation-triangle"></i>{{ 'boosters.design.template-stale' | translate }}</div>
+          }
           <div class="editor-block">
             <span class="editor-label">HTML</span>
             <ngx-monaco-editor class="code" [options]="editorOptions" [(ngModel)]="booster.design.html" (ngModelChange)="changed()" />
@@ -373,6 +376,9 @@
             <p-button [label]="'boosters.design.from-form' | translate" icon="pi pi-replay" [text]="true" size="small"
               (onClick)="backTemplateFromForm()" />
           </div>
+          @if (backTemplateStale) {
+          <div class="template-stale"><i class="pi pi-exclamation-triangle"></i>{{ 'boosters.design.template-stale' | translate }}</div>
+          }
           <div class="editor-block">
             <span class="editor-label">HTML</span>
             <ngx-monaco-editor class="code" [options]="editorOptions" [(ngModel)]="booster.design.back.html" (ngModelChange)="changed()" />
