@@ -2,22 +2,6 @@
 @use 'sass:list';
 @use '../card-binder/foil';
 
-// contour d'un sachet dentelé : $n dents en haut et en bas, de hauteur var(--tooth)
-@function crimped-polygon($n) {
-  $w: math.div(100%, $n);
-  $points: list.append((), 0 var(--tooth), comma);
-  @for $i from 0 to $n {
-    $points: list.append($points, ($w * $i + math.div($w, 2)) 0, comma);
-    $points: list.append($points, ($w * ($i + 1)) var(--tooth), comma);
-  }
-  $points: list.append($points, 100% calc(100% - var(--tooth)), comma);
-  @for $i from $n through 1 {
-    $points: list.append($points, ($w * $i - math.div($w, 2)) 100%, comma);
-    $points: list.append($points, ($w * ($i - 1)) calc(100% - var(--tooth)), comma);
-  }
-  @return polygon($points);
-}
-
 :host {
   display: block;
   width: 100%;
@@ -38,13 +22,10 @@
   border-radius: 2.5cqw;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 
-  // bords dentelés en haut et en bas (sachet thermoscellé) : dents triangulaires.
-  // Découpe par clip-path et non par mask : un masque met le sachet sur un calque à part et,
-  // une fois incliné en 3D, Chrome dessine les calques foil/reflet à plat, décalés du sachet.
-  &.crimped {
-    --tooth: 2.6cqw;
+  // bords autres que lisses : angles vifs ; la découpe (dents, créneaux, vagues, encoches) est un clip-path
+  // calculé (edgeClipPath dans booster-logic.ts)
+  &.square {
     border-radius: 0;
-    clip-path: crimped-polygon(19);
   }
 }
 
@@ -55,11 +36,31 @@
 }
 
 .pack-form {
+  --title-scale: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
   font-family: Georgia, 'Times New Roman', serif;
+
+  // position du bloc titre
+  &.text-haut {
+    justify-content: flex-start;
+
+    .pack-band {
+      margin: 9cqh 0 0;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+    }
+  }
+
+  &.text-milieu {
+    justify-content: center;
+
+    .pack-band {
+      margin: 0;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5) 30%, rgba(0, 0, 0, 0.5) 70%, rgba(0, 0, 0, 0));
+    }
+  }
 }
 
 .pack-art {
@@ -88,8 +89,12 @@
   object-fit: contain;
 }
 
+.pack-band.no-band {
+  background: none !important;
+}
+
 .pack-title {
-  font-size: 11cqw;
+  font-size: calc(11cqw * var(--title-scale));
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: 0.02em;
@@ -99,7 +104,7 @@
 
 .pack-subtitle {
   margin-top: 1.5cqh;
-  font-size: 5cqw;
+  font-size: calc(5cqw * var(--title-scale));
   font-style: italic;
   opacity: 0.9;
 }

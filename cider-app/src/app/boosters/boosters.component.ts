@@ -21,7 +21,7 @@ import { DecksService } from '../data-services/services/decks.service';
 import { AssetsService } from '../data-services/services/assets.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { LocalStorageService } from '../data-services/local-storage/local-storage.service';
-import { Booster, BoosterBackground, BoosterFinish } from '../data-services/types/booster.type';
+import { Booster, BoosterArtFit, BoosterBackground, BoosterDesign, BoosterEdge, BoosterFinish, BoosterFont } from '../data-services/types/booster.type';
 import { Card } from '../data-services/types/card.type';
 import { Deck } from '../data-services/types/deck.type';
 import { AssetUrls } from '../data-services/types/asset.type';
@@ -32,7 +32,7 @@ import { CardTiltDirective } from '../card-binder/card-tilt.directive';
 import { BoosterPackComponent } from './booster-pack.component';
 import { BoosterOpeningComponent } from './booster-opening.component';
 import { AssetChoice, assetChoices } from './booster-assets';
-import { BoosterStats, PoolEntry, PulledCard, autoBack, newBooster, openBooster, pickChance, poolOf, simulate, valueText, weightOf } from './booster-logic';
+import { BOOSTER_FONTS, BoosterStats, PoolEntry, PulledCard, autoBack, edgeOf, isToothed, newBooster, openBooster, pickChance, poolOf, simulate, valueText, weightOf } from './booster-logic';
 import { backToTemplate, designToTemplate } from './booster-template';
 
 type Section = 'open' | 'pool' | 'design' | 'stats';
@@ -90,7 +90,17 @@ export class BoostersComponent implements OnInit, OnDestroy {
     { value: 'stats', key: 'boosters.section.stats', icon: 'pi pi-chart-bar' },
   ];
   readonly finishes: BoosterFinish[] = ['mat', 'brillant', ...FOIL_EFFECTS];
-  readonly backgrounds: BoosterBackground[] = ['degrade', 'radial', 'rayures', 'uni'];
+  readonly backgrounds: BoosterBackground[] = ['degrade', 'radial', 'rayures', 'uni', 'aucun'];
+  readonly edges: BoosterEdge[] = ['lisse', 'droit', 'dentele', 'dentele-fin', 'crenele', 'vague'];
+  readonly fonts = Object.keys(BOOSTER_FONTS) as BoosterFont[];
+  readonly textPositions = [{ v: 'haut', k: 'boosters.design.pos-haut' }, { v: 'milieu', k: 'boosters.design.pos-milieu' },
+    { v: 'bas', k: 'boosters.design.pos-bas' }];
+  readonly artFits: { v: BoosterArtFit; k: string }[] = [{ v: 'cover', k: 'boosters.design.fit-cover' },
+    { v: 'contain', k: 'boosters.design.fit-contain' }];
+  /** Calques du recto qu'on peut masquer (absents du design : affichés). */
+  readonly frontToggles: { key: 'showTitle' | 'showCount' | 'band' | 'seals'; label: string }[] = [
+    { key: 'showTitle', label: 'boosters.design.show-title' }, { key: 'showCount', label: 'boosters.design.show-count' },
+    { key: 'band', label: 'boosters.design.band' }, { key: 'seals', label: 'boosters.design.seals' }];
   readonly foilEffects: string[] = [...FOIL_EFFECTS];
 
   // pool et poids
@@ -401,6 +411,32 @@ export class BoostersComponent implements OnInit, OnDestroy {
 
   // ----- Design -----
 
+  /** Bords du sachet (« crimped » suit, pour les designs d'avant et l'export). */
+  get edge(): BoosterEdge {
+    return this.booster ? edgeOf(this.booster.design) : 'lisse';
+  }
+
+  setEdge(edge: BoosterEdge): void {
+    if (!this.booster) {
+      return;
+    }
+    this.booster.design.edge = edge;
+    this.booster.design.crimped = isToothed(edge);
+    this.changed();
+  }
+
+  setFrontToggle(key: keyof Pick<BoosterDesign, 'showTitle' | 'showCount' | 'band' | 'seals'>, on: boolean): void {
+    if (!this.booster) {
+      return;
+    }
+    this.booster.design[key] = on;
+    this.changed();
+  }
+
+  fontFamily(font: BoosterFont): string {
+    return BOOSTER_FONTS[font];
+  }
+
   setDesignMode(mode: 'form' | 'template'): void {
     if (!this.booster) {
       return;
@@ -421,7 +457,7 @@ export class BoostersComponent implements OnInit, OnDestroy {
     // en quittant l'automatique, on part du verso automatique actuel
     const back = design.back && design.back.mode !== 'auto' ? design.back : { ...autoBack(design), ...(design.back ?? {}) };
     if (mode === 'template' && !back.html) {
-      Object.assign(back, backToTemplate({ ...back, mode: 'form' }));
+      Object.assign(back, backToTemplate({ ...back, mode: 'form' }, this.booster.design.font));
     }
     design.back = { ...back, mode };
     this.changed();
@@ -432,7 +468,7 @@ export class BoostersComponent implements OnInit, OnDestroy {
     if (!this.booster?.design.back) {
       return;
     }
-    Object.assign(this.booster.design.back, backToTemplate(this.booster.design.back));
+    Object.assign(this.booster.design.back, backToTemplate(this.booster.design.back, this.booster.design.font));
     this.changed();
   }
 

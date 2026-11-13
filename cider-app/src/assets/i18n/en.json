@@ -998,7 +998,8 @@
                 "degrade": "Gradient",
                 "radial": "Glow",
                 "rayures": "Stripes",
-                "uni": "Plain"
+                "uni": "Plain",
+                "aucun": "None (transparent)"
             },
             "colors": "Colors",
             "color-a": "Main color",
@@ -1026,8 +1027,41 @@
             "art-opacity": "Art opacity",
             "show-count": "Card count",
             "barcode": "Barcode",
-            "back-shared": "Finish and crimped edges are the front ones.",
-            "back-template-help": "Handlebars: same as the front, plus <code>{{booster.backTitle}}</code> and <code>{{booster.backText}}</code>. <code>cqw</code>/<code>cqh</code> units: % of the booster width/height."
+            "back-shared": "Finish, edges and font are those of the front.",
+            "back-template-help": "Handlebars: same as the front, plus <code>{{booster.backTitle}}</code> and <code>{{booster.backText}}</code>. <code>cqw</code>/<code>cqh</code> units: % of the booster width/height.",
+            "sec-text": "Text",
+            "sec-art": "Background and art",
+            "sec-pack": "Pack",
+            "show": "Show",
+            "show-title": "Title",
+            "band": "Dark band",
+            "seals": "Sealed strips",
+            "text-pos": "Text position",
+            "pos-haut": "Top",
+            "pos-milieu": "Middle",
+            "pos-bas": "Bottom",
+            "title-size": "Title size",
+            "font": "Font",
+            "fonts": {
+                "classique": "Classic",
+                "moderne": "Modern",
+                "impact": "Impact",
+                "manuscrite": "Handwritten"
+            },
+            "art-fit": "Framing",
+            "fit-cover": "Fill",
+            "fit-contain": "Whole",
+            "art-pos": "Vertical position (0 %: top, 100 %: bottom)",
+            "edge": "Edges",
+            "edges": {
+                "lisse": "Smooth (rounded)",
+                "droit": "Straight",
+                "dentele": "Crimped",
+                "dentele-fin": "Fine crimped",
+                "crenele": "Crenellated",
+                "vague": "Wavy"
+            },
+            "notches": "Tear notches"
         },
         "stats": {
             "full-set": "boosters on average to get every card",

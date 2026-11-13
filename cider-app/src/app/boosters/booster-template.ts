@@ -1,4 +1,5 @@
 import { BoosterBackDesign, BoosterDesign } from '../data-services/types/booster.type';
+import { BOOSTER_FONTS } from './booster-logic';
 
 /** Fond CSS correspondant aux réglages du formulaire. */
 function backgroundCss(design: Pick<BoosterDesign, 'background'>): string {
@@ -6,6 +7,7 @@ function backgroundCss(design: Pick<BoosterDesign, 'background'>): string {
     case 'radial': return 'radial-gradient(circle at 50% 40%, var(--couleur-b) 0%, var(--couleur-a) 75%)';
     case 'rayures': return 'repeating-linear-gradient(135deg, var(--couleur-a) 0 22px, var(--couleur-b) 22px 44px)';
     case 'uni': return 'var(--couleur-a)';
+    case 'aucun': return 'transparent';
     default: return 'linear-gradient(160deg, var(--couleur-a) 0%, var(--couleur-b) 100%)';
   }
 }
@@ -17,13 +19,19 @@ function backgroundCss(design: Pick<BoosterDesign, 'background'>): string {
 export function designToTemplate(design: BoosterDesign): { html: string; css: string } {
   const art = design.art ? `\n  <img class="illustration" src="{{assets.${design.art}}}" alt="">` : '';
   const logo = design.logo ? `\n    <img class="logo" src="{{assets.${design.logo}}}" alt="">` : '';
-  const html = `<div class="booster">${art}
-  <div class="bandeau">${logo}
+  const title = design.showTitle === false ? '' : `
     <div class="titre">{{booster.title}}</div>
-    {{#if booster.subtitle}}<div class="sous-titre">{{booster.subtitle}}</div>{{/if}}
-  </div>
-  <div class="nombre">{{booster.cardsPerPack}} cartes</div>
+    {{#if booster.subtitle}}<div class="sous-titre">{{booster.subtitle}}</div>{{/if}}`;
+  const band = logo || title ? `\n  <div class="bandeau">${logo}${title}\n  </div>` : '';
+  const count = design.showCount === false ? '' : '\n  <div class="nombre">{{booster.cardsPerPack}} cartes</div>';
+  const html = `<div class="booster">${art}${band}${count}
 </div>`;
+  const pos = design.textPos || 'bas';
+  const scale = (design.titleSize ?? 100) / 100;
+  const bandBg = design.band === false ? 'none'
+    : pos === 'haut' ? 'linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0))'
+      : pos === 'milieu' ? 'linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5) 30%, rgba(0, 0, 0, 0.5) 70%, rgba(0, 0, 0, 0))'
+        : 'linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0))';
   const css = `.booster {
   --couleur-a: ${design.colorA};
   --couleur-b: ${design.colorB};
@@ -33,10 +41,10 @@ export function designToTemplate(design: BoosterDesign): { html: string; css: st
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: ${pos === 'haut' ? 'flex-start' : pos === 'milieu' ? 'center' : 'flex-end'};
   background: ${backgroundCss(design)};
   color: var(--couleur-texte);
-  font-family: Georgia, serif;
+  font-family: ${BOOSTER_FONTS[design.font || 'classique']};
 }
 
 .illustration {
@@ -44,7 +52,8 @@ export function designToTemplate(design: BoosterDesign): { html: string; css: st
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: ${design.artFit || 'cover'};
+  object-position: 50% ${design.artPos ?? 50}%;
 }
 
 .bandeau {
@@ -52,9 +61,9 @@ export function designToTemplate(design: BoosterDesign): { html: string; css: st
   width: 100%;
   padding: 5cqh 6cqw 4cqh;
   box-sizing: border-box;
-  margin-bottom: 9cqh;
+  margin: ${pos === 'haut' ? '9cqh 0 0' : pos === 'milieu' ? '0' : '0 0 9cqh'};
   text-align: center;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  background: ${bandBg};
 }
 
 .logo {
@@ -65,7 +74,7 @@ export function designToTemplate(design: BoosterDesign): { html: string; css: st
 }
 
 .titre {
-  font-size: 11cqw;
+  font-size: ${+(11 * scale).toFixed(2)}cqw;
   font-weight: bold;
   line-height: 1.05;
   text-shadow: 0 0.6cqw 1.5cqw rgba(0, 0, 0, 0.6);
@@ -73,7 +82,7 @@ export function designToTemplate(design: BoosterDesign): { html: string; css: st
 
 .sous-titre {
   margin-top: 1.5cqh;
-  font-size: 5cqw;
+  font-size: ${+(5 * scale).toFixed(2)}cqw;
   font-style: italic;
 }
 
@@ -93,15 +102,14 @@ export function designToTemplate(design: BoosterDesign): { html: string; css: st
  * Point de départ du modèle du verso : le HTML et le CSS qui redonnent le verso des réglages.
  * Contexte en plus du recto : {{booster.backTitle}}, {{booster.backText}}.
  */
-export function backToTemplate(back: BoosterBackDesign): { html: string; css: string } {
+export function backToTemplate(back: BoosterBackDesign, font?: BoosterDesign['font']): { html: string; css: string } {
   const art = back.art ? `\n  <img class="illustration" src="{{assets.${back.art}}}" alt="">` : '';
   const logo = back.logo ? `\n    <img class="logo" src="{{assets.${back.logo}}}" alt="">` : '';
   const count = back.showCount ? '\n    <div class="nombre">{{booster.cardsPerPack}} cartes</div>' : '';
   const barcode = back.barcode ? '\n  <div class="code-barres"></div>' : '';
   const html = `<div class="verso">${art}
   <div class="contenu">${logo}
-    <div class="titre">{{booster.backTitle}}</div>
-    {{#if booster.backText}}<div class="texte">{{booster.backText}}</div>{{/if}}${count}
+${back.showTitle === false ? '' : '    <div class="titre">{{booster.backTitle}}</div>\n'}    {{#if booster.backText}}<div class="texte">{{booster.backText}}</div>{{/if}}${count}
   </div>${barcode}
 </div>`;
   const css = `.verso {
@@ -115,7 +123,7 @@ export function backToTemplate(back: BoosterBackDesign): { html: string; css: st
   justify-content: center;
   background: ${backgroundCss(back)};
   color: var(--couleur-texte);
-  font-family: Georgia, serif;
+  font-family: ${BOOSTER_FONTS[font || 'classique']};
 }
 
 .illustration {
@@ -123,7 +131,8 @@ export function backToTemplate(back: BoosterBackDesign): { html: string; css: st
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: ${back.artFit || 'cover'};
+  object-position: 50% ${back.artPos ?? 50}%;
   opacity: ${(back.artOpacity ?? 25) / 100};
 }
 

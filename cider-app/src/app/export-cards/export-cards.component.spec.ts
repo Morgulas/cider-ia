@@ -196,7 +196,7 @@ describe('ExportCardsComponent', () => {
     expect(renderer.toPng).toHaveBeenCalledTimes(2);
     expect(setJson.set.paquet).toBe('pack.png');
     expect(setJson.set.paquet_dos).toBe('pack-back.png');
-    expect(setJson.set.paquet_style).toEqual({ finition: 'holo', dentele: true });
+    expect(setJson.set.paquet_style).toEqual({ finition: 'holo', dentele: true, bord: 'dentele' });
     // card 11 has no weight of its own (default 2), card 12 weighs 10
     expect(setJson.cartes.map((c: Record<string, unknown>) => c['Poids'])).toEqual([2, 10]);
     expect(setJson.set.booster).toEqual({ slots: [{ nom: 'Cartes', nombre: 5, raretes: { Rare: 2, Commune: 10 } }] });
@@ -215,7 +215,7 @@ describe('ExportCardsComponent', () => {
     const { setJson } = await zipContent();
     expect(setJson.set.booster).toBeUndefined();
     expect(setJson.cartes[0]['Poids']).toBeUndefined();
-    expect(setJson.set.paquet_style).toEqual({ finition: 'mat', dentele: false });
+    expect(setJson.set.paquet_style).toEqual({ finition: 'mat', dentele: false, bord: 'lisse' });
   });
 
   describe('rendering of the card images', () => {

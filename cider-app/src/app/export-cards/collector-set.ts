@@ -29,8 +29,12 @@ export interface CollectorBooster {
   imageBack?: string;
   /** finition de l'emballage : mat, brillant ou un effet foil */
   finition: string;
-  /** bords dentelés en haut et en bas */
+  /** bords dentelés en haut et en bas (toute forme à dents : pour les versions de l'appli qui ne lisent que ça) */
   dentele: boolean;
+  /** forme des bords : lisse, droit, dentele, dentele-fin, crenele, vague */
+  bord?: string;
+  /** encoches de déchirure sur les côtés */
+  encoches?: boolean;
   /** tirages repris du booster : cartes par booster et poids de chaque carte (même ordre que les cartes) */
   tirage?: { cardsPerPack: number; weights: number[] };
 }
@@ -174,7 +178,8 @@ export function buildCollectorSet(exportJson: string, settings: CollectorSetSett
       publication: settings.publication,
       ...(booster?.image ? { paquet: booster.image } : {}),
       ...(booster?.imageBack ? { paquet_dos: booster.imageBack } : {}),
-      ...(booster ? { paquet_style: { finition: booster.finition, dentele: booster.dentele } } : {}),
+      ...(booster ? { paquet_style: { finition: booster.finition, dentele: booster.dentele,
+        ...(booster.bord ? { bord: booster.bord } : {}), ...(booster.encoches ? { encoches: true } : {}) } } : {}),
       ...(rules ? { booster: rules } : {}),
     },
     champs,

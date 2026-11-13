@@ -3,8 +3,17 @@ import { FoilEffect } from '../../card-binder/foil';
 /** Finition de l'emballage du booster. */
 export type BoosterFinish = 'mat' | 'brillant' | FoilEffect;
 
-/** Fond de l'emballage. */
-export type BoosterBackground = 'degrade' | 'radial' | 'rayures' | 'uni';
+/** Fond de l'emballage ; « aucun » : transparent (l'illustration seule). */
+export type BoosterBackground = 'degrade' | 'radial' | 'rayures' | 'uni' | 'aucun';
+
+/** Bords du sachet. */
+export type BoosterEdge = 'lisse' | 'droit' | 'dentele' | 'dentele-fin' | 'crenele' | 'vague';
+
+/** Cadrage de l'illustration : remplir le sachet (rognée) ou la montrer en entier. */
+export type BoosterArtFit = 'cover' | 'contain';
+
+/** Police des textes du sachet. */
+export type BoosterFont = 'classique' | 'moderne' | 'impact' | 'manuscrite';
 
 /** Apparence du booster scellé : réglages du formulaire, ou modèle HTML/CSS. */
 export interface BoosterDesign {
@@ -20,12 +29,29 @@ export interface BoosterDesign {
     /** Logo au-dessus du titre : chemin d'une image du projet. */
     logo?: string;
     finish: BoosterFinish;
-    /** Bords dentelés en haut et en bas, comme un sachet scellé. */
+    /** Bords dentelés en haut et en bas (ancien réglage : remplacé par `edge`, gardé pour les designs d'avant). */
     crimped: boolean;
+    /** Bords du sachet ; absent : « dentele » si crimped, sinon « lisse ». */
+    edge?: BoosterEdge;
+    /** Encoches de déchirure sur les côtés, sous la soudure du haut. */
+    notches?: boolean;
+    /** Calques affichés (absents : affichés) : bandeau sombre derrière le titre, titre et sous-titre,
+     *  nombre de cartes, bandes scellées en haut et en bas. */
+    band?: boolean;
+    showTitle?: boolean;
+    showCount?: boolean;
+    seals?: boolean;
+    /** Illustration : cadrage et position verticale (0 : haut, 100 : bas). */
+    artFit?: BoosterArtFit;
+    artPos?: number;
+    /** Textes : position du bloc titre, taille du titre (% de la taille normale), police. */
+    textPos?: 'haut' | 'milieu' | 'bas';
+    titleSize?: number;
+    font?: BoosterFont;
     /** Mode modèle : HTML et CSS Handlebars (contexte : booster, assets). */
     html?: string;
     css?: string;
-    /** Verso du sachet (finition et bords dentelés : ceux du recto). Absent = automatique. */
+    /** Verso du sachet (finition, bords et police : ceux du recto). Absent = automatique. */
     back?: BoosterBackDesign;
 }
 
@@ -46,6 +72,11 @@ export interface BoosterBackDesign {
     logo?: string;
     /** Titre ; vide = nom du booster. */
     title: string;
+    /** Afficher le titre (absent : oui). */
+    showTitle?: boolean;
+    /** Illustration : cadrage et position verticale (0 : haut, 100 : bas). */
+    artFit?: BoosterArtFit;
+    artPos?: number;
     /** Texte libre (contenu, règles, mentions…), sur plusieurs lignes. */
     text: string;
     showCount: boolean;

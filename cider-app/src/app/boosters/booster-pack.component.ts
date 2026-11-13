@@ -2,12 +2,12 @@ import { ChangeDetectionStrategy, Component, Input, OnChanges } from '@angular/c
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TranslatePipe } from '@ngx-translate/core';
 import * as Handlebars from 'handlebars';
-import { BoosterBackDesign, BoosterDesign } from '../data-services/types/booster.type';
+import { BoosterBackDesign, BoosterDesign, BoosterEdge } from '../data-services/types/booster.type';
 import { AssetUrls } from '../data-services/types/asset.type';
 import HtmlSanitizer from '../shared/utils/html-sanitizer';
 import { registerHandlebarsHelpers } from '../shared/utils/handlebars-helpers';
 import { resolveAsset } from './booster-assets';
-import { backOf } from './booster-logic';
+import { backOf, BOOSTER_FONTS, edgeClipPath, edgeOf } from './booster-logic';
 
 /** Contexte des modèles HTML/CSS de booster. */
 export interface BoosterTemplateContext {
@@ -49,6 +49,9 @@ export class BoosterPackComponent implements OnChanges {
   backLogoUrl?: string;
   templateHtml: SafeHtml = '';
   templateError = false;
+  /** bords et découpe du sachet (clip-path), communs au recto et au verso */
+  edge: BoosterEdge = 'lisse';
+  clipPath: string | null = null;
 
   constructor(private sanitizer: DomSanitizer) {
     registerHandlebarsHelpers();
@@ -60,6 +63,8 @@ export class BoosterPackComponent implements OnChanges {
     this.back = backOf(this.design);
     this.backArtUrl = resolveAsset(this.assetUrls, this.back.art);
     this.backLogoUrl = resolveAsset(this.assetUrls, this.back.logo);
+    this.edge = edgeOf(this.design);
+    this.clipPath = edgeClipPath(this.edge, !!this.design.notches);
     if (this.templateMode) {
       this.renderTemplate();
     }
@@ -68,6 +73,15 @@ export class BoosterPackComponent implements OnChanges {
   /** La face dessinée est-elle un modèle HTML/CSS ? */
   get templateMode(): boolean {
     return this.side === 'back' ? this.back?.mode === 'template' : this.design.mode === 'template';
+  }
+
+  /** Titre (et sous-titre) affichés au recto. */
+  get showTitle(): boolean {
+    return this.design.showTitle !== false;
+  }
+
+  get fontFamily(): string {
+    return BOOSTER_FONTS[this.design.font || 'classique'];
   }
 
   get backTitle(): string {
@@ -88,6 +102,7 @@ export class BoosterPackComponent implements OnChanges {
       case 'radial': return `radial-gradient(circle at 50% 40%, ${b} 0%, ${a} 75%)`;
       case 'rayures': return `repeating-linear-gradient(135deg, ${a} 0 22px, ${b} 22px 44px)`;
       case 'uni': return a;
+      case 'aucun': return 'transparent';
       default: return `linear-gradient(160deg, ${a} 0%, ${b} 100%)`;
     }
   }

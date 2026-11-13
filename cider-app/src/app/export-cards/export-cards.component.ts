@@ -48,6 +48,7 @@ import { BoostersService } from '../data-services/services/boosters.service';
 import { AssetsService } from '../data-services/services/assets.service';
 import { Booster, BoosterDesign } from '../data-services/types/booster.type';
 import { BoosterPackComponent } from '../boosters/booster-pack.component';
+import { edgeOf, isToothed } from '../boosters/booster-logic';
 
 @Component({
     selector: 'app-export-cards',
@@ -188,10 +189,11 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     return this.boosters.find(b => b.id === this.collector.boosterId);
   }
 
-  /** le sachet est rendu sans finition ni dents : l'appli les ajoute elle-même, en relief */
+  /** le sachet est rendu sans finition, à bords droits et sans encoche : l'appli ajoute elle-même finition et bords,
+   *  en relief */
   get collectorPackDesign(): BoosterDesign | undefined {
     const booster = this.collectorBooster;
-    return booster ? { ...booster.design, finish: 'mat', crimped: false } : undefined;
+    return booster ? { ...booster.design, finish: 'mat', crimped: false, edge: 'droit', notches: false } : undefined;
   }
   public collectorDone = '';
 
@@ -956,7 +958,9 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       image: 'pack.png',
       imageBack: 'pack-back.png',
       finition: booster.design.finish,
-      dentele: booster.design.crimped,
+      dentele: isToothed(edgeOf(booster.design)),
+      bord: edgeOf(booster.design),
+      encoches: !!booster.design.notches,
       tirage: this.collector.boosterWeights ? {
         cardsPerPack: booster.cardsPerPack,
         weights: ids.map(id => booster.weights?.[id] ?? booster.defaultWeight),

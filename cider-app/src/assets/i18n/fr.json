@@ -998,7 +998,8 @@
                 "degrade": "Dégradé",
                 "radial": "Halo",
                 "rayures": "Rayures",
-                "uni": "Uni"
+                "uni": "Uni",
+                "aucun": "Aucun (transparent)"
             },
             "colors": "Couleurs",
             "color-a": "Couleur principale",
@@ -1026,8 +1027,41 @@
             "art-opacity": "Opacité de l'illustration",
             "show-count": "Nombre de cartes",
             "barcode": "Code-barres",
-            "back-shared": "La finition et les bords dentelés sont ceux du recto.",
-            "back-template-help": "Handlebars : comme le recto, plus <code>{{booster.backTitle}}</code> et <code>{{booster.backText}}</code>. Unités <code>cqw</code>/<code>cqh</code> : % de la largeur/hauteur du booster."
+            "back-shared": "La finition, les bords et la police sont ceux du recto.",
+            "back-template-help": "Handlebars : comme le recto, plus <code>{{booster.backTitle}}</code> et <code>{{booster.backText}}</code>. Unités <code>cqw</code>/<code>cqh</code> : % de la largeur/hauteur du booster.",
+            "sec-text": "Textes",
+            "sec-art": "Fond et illustration",
+            "sec-pack": "Sachet",
+            "show": "Afficher",
+            "show-title": "Titre",
+            "band": "Bandeau sombre",
+            "seals": "Bandes scellées",
+            "text-pos": "Position du texte",
+            "pos-haut": "Haut",
+            "pos-milieu": "Milieu",
+            "pos-bas": "Bas",
+            "title-size": "Taille du titre",
+            "font": "Police",
+            "fonts": {
+                "classique": "Classique",
+                "moderne": "Moderne",
+                "impact": "Impact",
+                "manuscrite": "Manuscrite"
+            },
+            "art-fit": "Cadrage",
+            "fit-cover": "Remplir",
+            "fit-contain": "Entière",
+            "art-pos": "Position verticale (0 % : haut, 100 % : bas)",
+            "edge": "Bords",
+            "edges": {
+                "lisse": "Lisses (arrondis)",
+                "droit": "Droits",
+                "dentele": "Dentelés",
+                "dentele-fin": "Dentelés fins",
+                "crenele": "Crénelés",
+                "vague": "Ondulés"
+            },
+            "notches": "Encoches de déchirure"
         },
         "stats": {
             "full-set": "boosters en moyenne pour avoir toutes les cartes",

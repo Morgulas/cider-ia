@@ -142,6 +142,33 @@
   }
 }
 
+.grid-section {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--p-content-border-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--p-text-muted-color);
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.toggles {
+  gap: 6px 16px;
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+}
+
 .colors input[type='color'] {
   width: 42px;
   height: 32px;

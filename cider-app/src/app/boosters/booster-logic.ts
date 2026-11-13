@@ -1,4 +1,4 @@
-import { Booster, BoosterBackDesign, BoosterDesign } from '../data-services/types/booster.type';
+import { Booster, BoosterBackDesign, BoosterDesign, BoosterEdge, BoosterFont } from '../data-services/types/booster.type';
 import { Card } from '../data-services/types/card.type';
 import { FoilEffect, foilOf } from '../card-binder/foil';
 
@@ -27,6 +27,63 @@ export const DEFAULT_DESIGN: BoosterDesign = {
   crimped: true,
 };
 
+/** Polices proposées pour les textes du sachet (polices du système : rien à télécharger). */
+export const BOOSTER_FONTS: Record<BoosterFont, string> = {
+  classique: "Georgia, 'Times New Roman', serif",
+  moderne: "'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+  impact: "Impact, 'Arial Black', 'Franklin Gothic Heavy', sans-serif",
+  manuscrite: "'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive",
+};
+
+/** Bords effectifs d'un design (les designs d'avant n'ont que « crimped »). */
+export function edgeOf(design: Pick<BoosterDesign, 'edge' | 'crimped'>): BoosterEdge {
+  return design.edge ?? (design.crimped ? 'dentele' : 'lisse');
+}
+
+/** Bords à dents (pour l'appli de collection, qui ne connaît que « dentelé ou non »). */
+export function isToothed(edge: BoosterEdge): boolean {
+  return edge !== 'lisse' && edge !== 'droit';
+}
+
+const pct = (n: number) => `${+n.toFixed(3)}%`;
+
+/**
+ * Contour du sachet en clip-path (polygon), d'après ses bords et ses encoches de déchirure ; null : pas de découpe
+ * (bords lisses ou droits sans encoche). Hauteurs en cqw : le sachet est un conteneur (container-type: size).
+ * Découpe par clip-path et non par mask : un masque met le sachet sur un calque à part et, une fois incliné en 3D,
+ * Chrome dessine les calques foil/reflet à plat, décalés du sachet.
+ */
+export function edgeClipPath(edge: BoosterEdge, notches = false): string | null {
+  // profil d'un bord, de gauche à droite : [x en %, profondeur en cqw depuis le bord du sachet]
+  const profile: [number, number][] = [];
+  if (edge === 'dentele' || edge === 'dentele-fin') {
+    const n = edge === 'dentele' ? 19 : 34, t = edge === 'dentele' ? 2.6 : 1.6, w = 100 / n;
+    profile.push([0, t]);
+    for (let i = 0; i < n; i++) profile.push([w * i + w / 2, 0], [w * (i + 1), t]);
+  } else if (edge === 'crenele') {
+    const n = 14, t = 2.2, w = 100 / n;
+    for (let i = 0; i < n; i++) profile.push([w * i, t], [w * i, 0], [w * i + w / 2, 0], [w * i + w / 2, t]);
+    profile.push([100, t]);
+  } else if (edge === 'vague') {
+    const n = 9, t = 2.4, steps = 10, w = 100 / n;
+    for (let i = 0; i <= n * steps; i++) {
+      const x = (i / steps) * w;
+      profile.push([x, (t / 2) * (1 + Math.cos((2 * Math.PI * i) / steps))]);
+    }
+  } else if (!notches) {
+    return null;
+  } else {
+    profile.push([0, 0], [100, 0]);
+  }
+  const top = profile.map(([x, d]) => `${pct(x)} ${+d.toFixed(3)}cqw`);
+  const bottom = [...profile].reverse().map(([x, d]) => `${pct(x)} calc(100% - ${+d.toFixed(3)}cqw)`);
+  // encoches : un V sur chaque côté, sous la soudure du haut
+  const depth = 2.4, half = 1.6, at = 9;
+  const right = notches ? [`100% calc(${at}% - ${half}cqw)`, `calc(100% - ${depth}cqw) ${at}%`, `100% calc(${at}% + ${half}cqw)`] : [];
+  const left = notches ? [`0% calc(${at}% + ${half}cqw)`, `${depth}cqw ${at}%`, `0% calc(${at}% - ${half}cqw)`] : [];
+  return `polygon(${[...top, ...right, ...bottom, ...left].join(', ')})`;
+}
+
 /** Verso tiré du recto : couleurs inversées, illustration estompée. */
 export function autoBack(design: BoosterDesign): BoosterBackDesign {
   return {
@@ -37,6 +94,8 @@ export function autoBack(design: BoosterDesign): BoosterBackDesign {
     textColor: design.textColor,
     art: design.art,
     artOpacity: 25,
+    artFit: design.artFit,
+    artPos: design.artPos,
     logo: design.logo,
     title: '',
     text: '',

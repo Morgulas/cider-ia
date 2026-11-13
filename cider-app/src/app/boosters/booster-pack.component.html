@@ -1,16 +1,19 @@
-<div class="pack" [class]="uid" [class.crimped]="design.crimped" [class.glossy]="design.finish !== 'mat'">
+<div class="pack" [class]="uid" [class.square]="edge !== 'lisse'" [class.glossy]="design.finish !== 'mat'" [style.clip-path]="clipPath">
   @if (templateMode) {
   <div class="pack-template" [innerHTML]="templateHtml"></div>
   } @else if (side === 'back') {
-  <div class="pack-form pack-back" [style.background]="backBackgroundStyle" [style.color]="back.textColor">
+  <div class="pack-form pack-back" [style.background]="backBackgroundStyle" [style.color]="back.textColor" [style.font-family]="fontFamily">
     @if (backArtUrl) {
-    <img class="pack-art" [src]="backArtUrl" alt="" draggable="false" [style.opacity]="back.artOpacity / 100">
+    <img class="pack-art" [src]="backArtUrl" alt="" draggable="false" [style.opacity]="back.artOpacity / 100"
+      [style.object-fit]="back.artFit || 'cover'" [style.object-position]="'50% ' + (back.artPos ?? 50) + '%'">
     }
     <div class="back-content">
       @if (backLogoUrl) {
       <img class="back-logo" [src]="backLogoUrl" alt="" draggable="false">
       }
+      @if (back.showTitle !== false) {
       <div class="back-title">{{ backTitle }}</div>
+      }
       @if (back.text) {
       <div class="back-text">{{ back.text }}</div>
       }
@@ -23,20 +26,26 @@
     }
   </div>
   } @else {
-  <div class="pack-form" [style.background]="backgroundStyle" [style.color]="design.textColor">
+  <div class="pack-form" [class]="'text-' + (design.textPos || 'bas')" [style.background]="backgroundStyle" [style.color]="design.textColor"
+    [style.font-family]="fontFamily" [style.--title-scale]="(design.titleSize ?? 100) / 100">
     @if (artUrl) {
-    <img class="pack-art" [src]="artUrl" alt="" draggable="false">
+    <img class="pack-art" [src]="artUrl" alt="" draggable="false"
+      [style.object-fit]="design.artFit || 'cover'" [style.object-position]="'50% ' + (design.artPos ?? 50) + '%'">
     }
-    <div class="pack-band">
+    @if (logoUrl || showTitle) {
+    <div class="pack-band" [class.no-band]="design.band === false">
       @if (logoUrl) {
       <img class="pack-logo" [src]="logoUrl" alt="" draggable="false">
       }
+      @if (showTitle) {
       <div class="pack-title">{{ design.title || name }}</div>
       @if (design.subtitle) {
       <div class="pack-subtitle">{{ design.subtitle }}</div>
       }
+      }
     </div>
-    @if (cardsPerPack) {
+    }
+    @if (cardsPerPack && design.showCount !== false) {
     <div class="pack-count">{{ 'boosters.pack-count' | translate: { n: cardsPerPack } }}</div>
     }
   </div>
@@ -45,6 +54,8 @@
   <span [class]="foilClass" aria-hidden="true"></span>
   }
   <span class="pack-gloss" aria-hidden="true"></span>
+  @if (design.seals !== false) {
   <span class="pack-seal top" aria-hidden="true"></span>
   <span class="pack-seal bottom" aria-hidden="true"></span>
+  }
 </div>

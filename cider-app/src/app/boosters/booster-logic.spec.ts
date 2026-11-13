@@ -1,6 +1,6 @@
 import { Booster } from '../data-services/types/booster.type';
 import { Card } from '../data-services/types/card.type';
-import { backOf, newBooster, openBooster, pickChance, poolOf, simulate } from './booster-logic';
+import { backOf, edgeClipPath, edgeOf, isToothed, newBooster, openBooster, pickChance, poolOf, simulate } from './booster-logic';
 
 function card(id: number, extra: Record<string, unknown> = {}): Card {
   return { id, deckId: 1, name: `C${id}`, count: 1, frontCardTemplateId: 1, backCardTemplateId: 1, ...extra } as Card;
@@ -70,5 +70,28 @@ describe('booster-logic', () => {
     expect(custom.text).toBe('Contenu : 10 cartes');
     // repassé en automatique : on retrouve le verso tiré du recto
     expect(backOf({ ...design, back: { ...auto, mode: 'auto', text: 'ancien' } }).text).toBe('');
+  });
+
+  it('déduit la forme des bords, y compris pour les anciens sachets', () => {
+    const design = newBooster('b', []).design;
+    expect(edgeOf({ ...design, crimped: true, edge: undefined })).toBe('dentele');
+    expect(edgeOf({ ...design, crimped: false, edge: undefined })).toBe('lisse');
+    expect(edgeOf({ ...design, crimped: true, edge: 'vague' })).toBe('vague');
+    expect(isToothed('crenele')).toBeTrue();
+    expect(isToothed('droit')).toBeFalse();
+  });
+
+  it('découpe les bords en polygone, encoches comprises', () => {
+    expect(edgeClipPath('lisse', false)).toBeNull();
+    expect(edgeClipPath('droit', false)).toBeNull();
+    const teeth = edgeClipPath('dentele', false)!;
+    expect(teeth).toMatch(/^polygon\(/);
+    expect(teeth).not.toContain('NaN');
+    const notched = edgeClipPath('droit', true)!;
+    expect(notched).toMatch(/^polygon\(/);
+    expect(notched.split(',').length).toBeGreaterThan(4);
+    for (const edge of ['dentele-fin', 'crenele', 'vague'] as const) {
+      expect(edgeClipPath(edge, true)).not.toContain('NaN');
+    }
   });
 });

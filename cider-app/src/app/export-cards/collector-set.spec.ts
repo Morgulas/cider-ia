@@ -59,13 +59,13 @@ describe('collector set', () => {
       { name: 'C', cardid: 'C1', rarete: 'Commune', foil: '' },
     ], templates);
     const plan = buildCollectorSet(text, settings, {
-      image: 'pack.png', imageBack: 'pack-back.png', finition: 'holo', dentele: true, tirage: { cardsPerPack: 5, weights: [1, 10, 0] },
+      image: 'pack.png', imageBack: 'pack-back.png', finition: 'holo', dentele: true, bord: 'crenele', encoches: true, tirage: { cardsPerPack: 5, weights: [1, 10, 0] },
     });
     expect(plan.errors).toEqual([]);
     const doc = JSON.parse(plan.setJson);
     expect(doc.set.paquet).toBe('pack.png');
     expect(doc.set.paquet_dos).toBe('pack-back.png');
-    expect(doc.set.paquet_style).toEqual({ finition: 'holo', dentele: true });
+    expect(doc.set.paquet_style).toEqual({ finition: 'holo', dentele: true, bord: 'crenele', encoches: true });
     expect(doc.set.booster).toEqual({ slots: [{ nom: 'Cartes', nombre: 5, raretes: { Rare: 1, Commune: 10 } }] });
     expect(doc.cartes[0]['Foil']).toBe('or');
     expect(doc.cartes[1]['Foil']).toBeUndefined();
