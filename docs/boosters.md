@@ -1,14 +1,17 @@
 # Simulateur de boosters
 
-Entrée **Boosters** dans les pages du deck (panneau Explorateur). Un booster décrit un paquet scellé : les cartes qui peuvent en sortir, avec quelle fréquence, et à quoi ressemble le sachet. Les boosters sont enregistrés dans le projet.
+Entrées **Boosters** dans les pages du deck et sous le projet (panneau Explorateur). Un booster décrit un paquet scellé : les cartes qui peuvent en sortir, avec quelle fréquence, et à quoi ressemble le sachet. Les boosters sont enregistrés dans le projet.
 
 ## Rangement
 
-La liste des boosters est rangée par deck : un booster qui ne pioche que dans un deck est rangé avec ce deck ; un booster qui mélange plusieurs decks est dans **Communs**. Le rangement suit le pool : ajouter un deck au pool d'un booster le fait passer dans les communs.
+Les boosters sont rangés comme les illustrations, avec deux entrées dans l'Explorateur (et un onglet **Boosters** en haut des pages du deck) :
 
-- Le lien **Boosters** d'un deck (panneau latéral) ouvre la page sur les boosters de ce deck, puis les communs, puis les autres decks.
-- Le **+** d'un groupe crée un booster dans ce deck (ou, pour les communs, sur tous les decks) ; le **+** du titre le crée dans le deck en cours.
-- Les images du sachet viennent de la bibliothèque du booster : celle de son deck et la bibliothèque commune pour un booster de deck, la commune seule pour un booster commun ([interface.md](interface.md#bibliothèques)).
+- **Boosters** dans les pages du deck : les boosters qui ne piochent que dans ce deck.
+- **Boosters** sous le projet : les boosters **communs**, qui mélangent plusieurs decks.
+
+Le rangement suit le pool : ajouter un deck au pool d'un booster le fait passer dans les communs (et l'inverse). Il reste affiché sur la page tant qu'il est choisi, avec une note qui dit où il est maintenant rangé. Le **+** crée un booster qui pioche dans le deck de la page, ou dans tous les decks sur la page des communs.
+
+Les images du sachet viennent de la bibliothèque du booster : celle de son deck et la bibliothèque commune pour un booster de deck, la commune seule pour un booster commun ([interface.md](interface.md#bibliothèques)).
 
 ## Pool et poids
 

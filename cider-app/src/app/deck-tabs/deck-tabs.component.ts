@@ -67,6 +67,7 @@ export class DeckTabsComponent implements OnInit {
       { key: 'sidebar.attributes', icon: 'pi pi-tags', url: `${base}/cards/attributes`, match: /\/cards\/attributes$/ },
       { key: 'sidebar.templates', icon: 'pi pi-id-card', url: templatesUrl, match: /\/templates\// },
       { key: 'sidebar.illustration-prompt', icon: 'pi pi-sparkles', url: `${base}/prompt`, match: /\/prompt$/ },
+      { key: 'sidebar.boosters', icon: 'pi pi-gift', url: `${base}/boosters`, match: /\/boosters$/ },
       { key: 'sidebar.export-cards', icon: 'pi pi-file-export', url: `${base}/export-cards`, match: /\/export-cards$/ },
     ];
   }

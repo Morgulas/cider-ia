@@ -2,12 +2,11 @@ import { Component, Input, OnInit, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmationService, MenuItem, MessageService, TreeDragDropService, TreeNode, PrimeTemplate } from 'primeng/api';
 import { DecksService } from '../data-services/services/decks.service';
-import { AssetFolderError, AssetsService } from '../data-services/services/assets.service';
+import { AssetsService } from '../data-services/services/assets.service';
 import { CardTemplatesService } from '../data-services/services/card-templates.service';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
 import { debounceTime, filter, firstValueFrom } from 'rxjs';
-import StringUtils from '../shared/utils/string-utils';
-import { TreeNodeContextMenuSelectEvent, TreeNodeSelectEvent, TreeNodeDropEvent, Tree } from 'primeng/tree';
+import { TreeNodeContextMenuSelectEvent, TreeNodeSelectEvent, Tree } from 'primeng/tree';
 import { NavigationEnd, Router } from '@angular/router';
 import { AnyEntityService } from '../data-services/types/entity-service.type';
 import { FormsModule } from '@angular/forms';
@@ -31,7 +30,7 @@ export interface DeckOption {
 }
 
 /** What the sidebar shows: the project and the selected deck, or the illustrations */
-export type SidebarActivity = 'explorer' | 'assets';
+export type SidebarActivity = 'explorer';
 
 import { DocumentsService } from '../data-services/services/documents.service';
 import { BoostersService } from '../data-services/services/boosters.service';
@@ -39,7 +38,7 @@ import { boosterLibrary } from '../boosters/booster-logic';
 import { HttpClient } from '@angular/common/http';
 import { AppDB } from '../data-services/indexed-db/db';
 import { TranslateService, TranslatePipe } from '@ngx-translate/core';
-import { Asset, AssetLibrary, AssetUrls, StoredAsset } from '../data-services/types/asset.type';
+import { AssetLibrary } from '../data-services/types/asset.type';
 import { Bind } from 'primeng/bind';
 import { ContextMenu } from 'primeng/contextmenu';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
@@ -57,7 +56,7 @@ const DECK_STORAGE_KEY = 'cider.sidebar.deck.';
 export function deckSwitchUrl(currentUrl: string, deckId: number): string {
   const match = /^\/decks\/\d+(\/[^?#]*)?/.exec(currentUrl);
   const rest = match?.[1] ?? '';
-  const keep = ['/cards/listing', '/cards/thumbnails', '/cards/attributes', '/prompt', '/export-cards', '/templates/generator'];
+  const keep = ['/cards/listing', '/cards/thumbnails', '/illustrations', '/boosters', '/cards/attributes', '/prompt', '/export-cards', '/templates/generator'];
   return `/decks/${deckId}` + (keep.includes(rest) ? rest : '/cards/listing');
 }
 
@@ -81,21 +80,10 @@ export class SiteSidebarComponent implements OnInit {
   projectFiles: TreeNode[] = [];
   /** Pages and templates of the selected deck */
   deckFiles: TreeNode[] = [];
-  /** Illustrations and other assets */
-  assetFiles: TreeNode[] = [];
-
-  /** Illustrations as thumbnails (default) or as a tree */
-  assetView: 'grid' | 'list' = 'grid';
-  /** Folder shown by the thumbnails, '' for the top */
-  assetFolder = '';
-  assetQuery = '';
-  assetUrls: AssetUrls = {};
-  /** Library shown by the Illustrations panel: a deck's (its id) or the common one (null) */
-  assetLibrary: AssetLibrary = null;
   /** Number of illustrations by library (badges of the explorer) */
   private libraryCounts = new Map<AssetLibrary, number>();
-  /** Choices of the library picker (0: the common library) */
-  libraryOptions: { value: number; label: string; icon: string }[] = [];
+  /** Number of boosters by deck (null: the common ones) */
+  private boosterCounts = new Map<number | null, number>();
 
   decks: DeckOption[] = [];
   currentDeckId: number | null = null;
@@ -156,21 +144,6 @@ export class SiteSidebarComponent implements OnInit {
       }
     });
 
-    try {
-      this.assetView = localStorage.getItem('cider.sidebar.assetView') === 'list' ? 'list' : 'grid';
-    } catch { /* no storage */ }
-    this.assetsService.getAssetUrls().pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.assetUrls = this.assetsService.urlsFor(this.assetLibrary));
-    // new images (generator, dialog) go to the library shown here
-    this.assetsService.getCurrentLibrary().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(library => {
-      if (library !== this.assetLibrary) {
-        this.assetLibrary = library;
-        this.assetFolder = '';
-        this.assetUrls = this.assetsService.urlsFor(library);
-        this.updateFiles();
-      }
-    });
-
     // Highlight the page being shown
     this.router.events.pipe(filter(e => e instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.syncSelection());
@@ -186,7 +159,6 @@ export class SiteSidebarComponent implements OnInit {
 
   private setCurrentDeck(deckId: number | null) {
     this.currentDeckId = deckId;
-    this.followDeck();
     try {
       if (deckId != null) localStorage.setItem(this.storageKey(), String(deckId));
     } catch { /* storage unavailable: the picker just forgets */ }
@@ -224,7 +196,6 @@ export class SiteSidebarComponent implements OnInit {
       await this.loadDecks();
       this.deckMenuItems = this.buildDeckMenu();
       this.deckFiles = await this.buildDeckNodes();
-      this.assetFiles = [await this.buildAssetsRoot()];
       this.syncSelection();
     } catch (e) {
       console.error('Error updating sidebar files:', e);
@@ -250,7 +221,7 @@ export class SiteSidebarComponent implements OnInit {
     };
     // /decks/1 and /decks/1/cards show the card list
     const listing = /^\/decks\/\d+(\/cards)?$/.test(url) ? find(this.deckFiles.filter(n => n.styleClass === 'card-listing')) : null;
-    this.selectedFile = listing ?? find(this.projectFiles) ?? find(this.deckFiles) ?? find(this.assetFiles);
+    this.selectedFile = listing ?? find(this.projectFiles) ?? find(this.deckFiles);
   }
 
   // -----------------------------------------------
@@ -296,6 +267,23 @@ export class SiteSidebarComponent implements OnInit {
       data: { url: '/illustrations', badge: this.libraryCounts.get(null) ?? 0 },
       icon: 'pi pi-images',
       styleClass: 'project-illustrations',
+      draggable: false,
+      droppable: false
+    });
+
+    // the common boosters (drawing from several decks), on their page
+    const decks = new Set((await this.decksService.getAll().catch(() => [])).map(deck => deck.id));
+    this.boosterCounts = new Map();
+    (await this.boostersService.getAll().catch(() => [])).forEach(booster => {
+      const library = boosterLibrary(booster);
+      const key = library !== null && decks.has(library) ? library : null;
+      this.boosterCounts.set(key, (this.boosterCounts.get(key) ?? 0) + 1);
+    });
+    home.children!.push({
+      label: this.translate.instant('sidebar.boosters'),
+      data: { url: '/boosters', badge: this.boosterCounts.get(null) ?? 0 },
+      icon: 'pi pi-gift',
+      styleClass: 'project-boosters',
       draggable: false,
       droppable: false
     });
@@ -362,44 +350,7 @@ export class SiteSidebarComponent implements OnInit {
       const selected = this.decksService.selectedDeck.getValue()?.id;
       const candidate = [selected, remembered].find(id => this.decks.some(deck => deck.id === id));
       this.currentDeckId = candidate ?? this.decks[0]?.id ?? null;
-      this.followDeck();
     }
-    this.libraryOptions = [
-      { value: 0, label: this.translate.instant('sidebar.library-common'), icon: 'pi pi-globe' },
-      ...this.decks.map(deck => ({ value: deck.id, label: deck.name, icon: 'pi pi-clone' })),
-    ];
-    // the library of a deck that no longer exists: the common one
-    if (this.assetLibrary !== null && !this.decks.some(deck => deck.id === this.assetLibrary)) {
-      this.assetLibrary = null;
-      this.assetsService.setCurrentLibrary(null);
-    }
-  }
-
-  /** The Illustrations panel shows the library of the deck picked in the explorer */
-  private followDeck() {
-    if (this.currentDeckId !== this.assetLibrary) {
-      this.assetLibrary = this.currentDeckId;
-      this.assetFolder = '';
-      this.assetUrls = this.assetsService.urlsFor(this.assetLibrary);
-      this.assetsService.setCurrentLibrary(this.assetLibrary);
-    }
-  }
-
-  /** Library picked in the Illustrations panel (0: the common library) */
-  onLibraryChange(value: number | null) {
-    const library = value ? value : null;
-    this.assetLibrary = library;
-    this.assetFolder = '';
-    this.assetQuery = '';
-    this.assetUrls = this.assetsService.urlsFor(library);
-    this.assetsService.setCurrentLibrary(library);
-    this.updateFiles();
-  }
-
-  /** Name of a library, for the messages and the crumbs */
-  libraryName(library: AssetLibrary): string {
-    return library === null ? this.translate.instant('sidebar.library-common')
-      : this.decks.find(deck => deck.id === library)?.name ?? '';
   }
 
   private buildDeckMenu(): MenuItem[] {
@@ -460,11 +411,10 @@ export class SiteSidebarComponent implements OnInit {
       page('sidebar.export-cards', '/export-cards', 'pi pi-file-export', 'card-export'),
     ];
 
-    // the boosters of the deck (those drawing from it alone); the page also shows the common ones
-    const boosters = await this.boostersService.getAll().catch(() => []);
+    // the boosters of the deck (those drawing from it alone)
     nodes.push({
       label: this.translate.instant('sidebar.boosters'),
-      data: { url: `/boosters?deck=${deck.id}`, badge: boosters.filter(booster => boosterLibrary(booster) === deck.id).length },
+      data: { url: `${base}/boosters`, badge: this.boosterCounts.get(deck.id) ?? 0 },
       icon: 'pi pi-gift',
       styleClass: 'deck-boosters',
       draggable: false,
@@ -548,425 +498,6 @@ export class SiteSidebarComponent implements OnInit {
       this.router.navigateByUrl(`/decks/${this.currentDeckId}/cards/listing`);
     }
     this.updateFiles();
-  }
-
-  // -----------------------------------------------
-  // Illustrations as thumbnails
-  // -----------------------------------------------
-  setAssetView(view: 'grid' | 'list') {
-    this.assetView = view;
-    try {
-      localStorage.setItem('cider.sidebar.assetView', view);
-    } catch { /* no storage */ }
-  }
-
-  private findAssetFolder(nodes: TreeNode[], path: string): TreeNode | undefined {
-    for (const node of nodes) {
-      const type = node.data?.type;
-      if ((type === 'asset-root' || type === 'asset-folder') && (node.data.path ?? '') === path) return node;
-      const found = this.findAssetFolder(node.children ?? [], path);
-      if (found) return found;
-    }
-    return undefined;
-  }
-
-  /** The folder the thumbnails show (the top when it was renamed or deleted) */
-  get assetFolderNode(): TreeNode | undefined {
-    return this.findAssetFolder(this.assetFiles, this.assetFolder) ?? this.assetFiles[0];
-  }
-
-  get gridFolders(): TreeNode[] {
-    if (this.assetQuery.trim()) return [];
-    return (this.assetFolderNode?.children ?? []).filter(node => node.data?.type === 'asset-folder');
-  }
-
-  /** Files of the folder, or of every folder matching the search */
-  get gridAssets(): TreeNode[] {
-    const query = this.assetQuery.trim().toLowerCase();
-    if (!query) return (this.assetFolderNode?.children ?? []).filter(node => node.data?.type === 'asset');
-    const found: TreeNode[] = [];
-    const walk = (nodes: TreeNode[]) => nodes.forEach(node => {
-      if (node.data?.type === 'asset' && (node.label ?? '').toLowerCase().includes(query)) found.push(node);
-      walk(node.children ?? []);
-    });
-    walk(this.assetFiles);
-    return found;
-  }
-
-  get assetCrumbs(): { label: string; path: string }[] {
-    const crumbs = [{ label: this.libraryName(this.assetLibrary), path: '' }];
-    const node = this.assetFolderNode;
-    const path: string = node?.data?.path ?? '';
-    if (!path) return crumbs;
-    const parts = path.split('/');
-    parts.forEach((part, i) => crumbs.push({ label: part, path: parts.slice(0, i + 1).join('/') }));
-    return crumbs;
-  }
-
-  /** Object URL of an asset, from its folders and name like {{assets.dossier.nom}} */
-  assetUrl(node: TreeNode): string | null {
-    let level: string | AssetUrls | undefined = this.assetUrls;
-    const keys = [...(node.data?.path ? String(node.data.path).split('/') : []), node.label ?? ''];
-    for (const key of keys) {
-      if (!level || typeof level === 'string') return null;
-      level = level[StringUtils.toKebabCase(key)];
-    }
-    return typeof level === 'string' ? level : null;
-  }
-
-  folderCount(node: TreeNode): number {
-    return (node.children ?? []).length;
-  }
-
-  openAsset(node: TreeNode) {
-    this.selectedFile = node;
-    if (node.data?.url) this.router.navigateByUrl(node.data.url);
-  }
-
-  showTileMenu(event: MouseEvent, node: TreeNode, cm: ContextMenu) {
-    event.preventDefault();
-    this.menuItems = node.data?.contextMenu ?? [];
-    cm.show(event);
-  }
-
-  onTileDragStart(event: DragEvent, node: TreeNode) {
-    event.dataTransfer?.setData('application/x-cider-asset', String(node.data.id));
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-  }
-
-  onTileDragOver(event: DragEvent) {
-    if (event.dataTransfer?.types.includes('application/x-cider-asset')) {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-    }
-  }
-
-  /** An asset thumbnail dropped on a folder or a crumb: move it there */
-  async onTileDrop(event: DragEvent, path: string) {
-    const id = Number(event.dataTransfer?.getData('application/x-cider-asset'));
-    if (!id) return;
-    event.preventDefault();
-    const asset = await this.assetsService.get(id);
-    if (!asset || (asset.path || '') === path) return;
-    try {
-      await this.assetsService.moveAsset(asset, path);
-      this.assetMoved(asset.name, path);
-    } catch (error) {
-      this.folderError(error);
-    }
-    // a move is an update: the database watcher does not rebuild for it
-    this.updateFiles();
-  }
-
-  private assetMoved(name: string, folder: string) {
-    this.messageService.add({
-      severity: 'success', summary: this.translate.instant('sidebar.moved'), life: 2500,
-      detail: this.translate.instant('sidebar.asset-moved', { name, folder: folder || this.translate.instant('sidebar.top-level') }),
-    });
-  }
-
-  /** A refused folder or asset operation (name taken, folder exists...), explained */
-  private folderError(error: unknown) {
-    const problem = error instanceof AssetFolderError ? error.problem : 'failed';
-    const name = error instanceof AssetFolderError ? error.target : '';
-    this.messageService.add({
-      severity: 'warn', summary: this.translate.instant('sidebar.not-done'), life: 5000,
-      detail: this.translate.instant(`sidebar.folder-error.${problem}`, { name }),
-    });
-  }
-
-  // -----------------------------------------------
-  // Illustrations: assets tree (folders + files)
-  // -----------------------------------------------
-  private async buildAssetsRoot(): Promise<TreeNode> {
-    const library = this.assetLibrary;
-    const assets = (await this.assetsService.getAllMetadata()).filter(asset => this.assetsService.inLibrary(asset, library));
-    const folders = await this.assetsService.getFolders(library);
-    // new images of this library: in its deck, or common (no deckId)
-    const inLibrary = library === null ? {} : { deckId: library };
-
-    const assetsRoot: TreeNode = {
-      label: this.libraryName(library),
-      data: {
-        url: '/assets',
-        type: 'asset-root',
-        path: '',
-        // shown on the node itself, so folders can be created without a right click
-        actions: [
-          {
-            label: this.translate.instant('sidebar.create-new-folder'),
-            icon: 'pi pi-folder-plus',
-            command: () => this.openCreateFolderDialog('')
-          },
-          {
-            label: this.translate.instant('sidebar.add-new-asset'),
-            icon: 'pi pi-plus',
-            command: () => this.openCreateDialog(this.assetsService,
-              this.translate.instant('sidebar.create-new-asset'), {
-              name: `asset-${Math.random().toString(36).substr(2, 9)}`, ...inLibrary
-            })
-          }
-        ],
-        contextMenu: [
-          {
-            label: this.translate.instant('sidebar.add-new-asset'),
-            icon: 'pi pi-plus',
-            command: () => {
-              this.openCreateDialog(this.assetsService,
-                this.translate.instant('sidebar.create-new-asset'), {
-                name: `asset-${Math.random().toString(36).substr(2, 9)}`, ...inLibrary
-              });
-            }
-          },
-          {
-            label: this.translate.instant('sidebar.create-new-folder'),
-            icon: 'pi pi-folder',
-            command: () => {
-              this.openCreateFolderDialog('');
-            }
-          },
-          {
-            label: this.translate.instant('sidebar.generate-new-asset'),
-            icon: 'pi pi-sparkles',
-            command: () => {
-              this.router.navigateByUrl(`/assets/generator`);
-            }
-          }
-        ],
-      },
-      icon: 'pi pi-images',
-      expanded: true,
-      children: [],
-      droppable: true,
-      draggable: false,
-      selectable: true
-    };
-    // Helper to find or create folder nodes
-    const folderNodes = new Map<string, TreeNode>();
-
-    // 1. Create nodes for all folders
-    // Sort folders by length so we create parents first? 
-    // Actually getFolders returns recursive traversal, so parents come first usually? 
-    // But better be safe: sort by path segments length.
-    folders.sort((a, b) => a.split('/').length - b.split('/').length);
-
-    folders.forEach(folderPath => {
-      const parts = folderPath.split('/');
-      const folderName = parts[parts.length - 1];
-      const parentPath = parts.slice(0, -1).join('/');
-
-      const folderNode: TreeNode = {
-        label: folderName,
-        data: {
-          type: 'asset-folder',
-          path: folderPath,
-          actions: [
-            {
-              label: this.translate.instant('sidebar.create-new-folder'),
-              icon: 'pi pi-folder-plus',
-              command: () => this.openCreateFolderDialog(folderPath)
-            },
-            {
-              label: this.translate.instant('sidebar.add-new-asset'),
-              icon: 'pi pi-plus',
-              command: () => this.openCreateDialog(this.assetsService,
-                this.translate.instant('sidebar.create-new-asset'), {
-                name: `asset-${Math.random().toString(36).substr(2, 9)}`,
-                path: folderPath, ...inLibrary
-              })
-            }
-          ],
-          contextMenu: [
-            {
-              label: this.translate.instant('sidebar.add-new-asset'),
-              icon: 'pi pi-plus',
-              command: () => {
-                this.openCreateDialog(this.assetsService,
-                  this.translate.instant('sidebar.create-new-asset'), {
-                  name: `asset-${Math.random().toString(36).substr(2, 9)}`,
-                  path: folderPath, ...inLibrary
-                });
-              }
-            },
-            {
-              label: this.translate.instant('sidebar.create-new-folder'),
-              icon: 'pi pi-folder',
-              command: () => {
-                this.openCreateFolderDialog(folderPath);
-              }
-            },
-            {
-              label: this.translate.instant('sidebar.edit-rename-folder'),
-              icon: 'pi pi-pencil',
-              command: () => {
-                this.openRenameFolderDialog(folderPath);
-              }
-            },
-            this.moveToLibraryMenu(target => this.moveFolderToLibrary(folderPath, target)),
-            {
-              label: this.translate.instant('sidebar.delete-folder'),
-              icon: 'pi pi-trash',
-              command: () => {
-                this.openDeleteFolderDialog(folderPath);
-              }
-            }
-          ]
-        },
-        icon: 'pi pi-folder',
-        expanded: true,
-        children: [],
-        droppable: true,
-        draggable: true
-      };
-
-      folderNodes.set(folderPath, folderNode);
-
-      if (parentPath === '') {
-        assetsRoot.children?.push(folderNode);
-      } else {
-        const parentNode = folderNodes.get(parentPath);
-        if (parentNode) {
-          parentNode.children?.push(folderNode);
-        } else {
-          // Should not happen if sorted correctly and getFolders is consistent
-          console.warn('Parent folder not found for', folderPath);
-          assetsRoot.children?.push(folderNode); // Fallback
-        }
-      }
-    });
-
-    // 2. Add assets to their folders
-    assets.forEach(asset => {
-      const assetNode: TreeNode = {
-        label: asset.name,
-        data: {
-          url: '/assets/' + asset.id,
-          id: asset.id,
-          type: 'asset',
-          path: asset.path,
-          contextMenu: [
-            // ... same context menu as before but maybe 'Move'? 
-            // Drag and drop covers move. 
-            {
-              label: this.translate.instant('sidebar.edit-rename-asset'),
-              icon: 'pi pi-pencil',
-              command: () => {
-                this.openEditDialog(this.assetsService, asset.id,
-                  this.translate.instant('sidebar.edit-rename-asset'));
-              }
-            },
-            {
-              label: this.translate.instant('sidebar.generate-new-asset'),
-              icon: 'pi pi-sparkles',
-              command: () => {
-                this.router.navigateByUrl(`/assets/generator`);
-              }
-            },
-            this.moveToLibraryMenu(target => this.moveAssetToLibrary(asset.id, target)),
-            {
-              label: this.translate.instant('sidebar.delete-asset'),
-              icon: 'pi pi-trash',
-              command: () => {
-                this.openDeleteDialog(asset.id, this.assetsService);
-              }
-            }
-          ],
-        },
-        icon: this.getAssetIcon(asset),
-        styleClass: 'asset-file',
-        draggable: true,
-        droppable: false,
-      };
-
-      if (asset.path && folderNodes.has(asset.path)) {
-        folderNodes.get(asset.path)?.children?.push(assetNode);
-      } else {
-        assetsRoot.children?.push(assetNode);
-      }
-    });
-
-    // Sort children: Folders first, then Files. Alphabetical.
-    const sortNodes = (nodes: TreeNode[] | undefined) => {
-      if (!nodes) return;
-      nodes.sort((a, b) => {
-        const typeA = a.data.type === 'asset-folder' ? 0 : 1;
-        const typeB = b.data.type === 'asset-folder' ? 0 : 1;
-        if (typeA !== typeB) return typeA - typeB;
-        return (a.label || '').localeCompare(b.label || '');
-      });
-      nodes.forEach(n => sortNodes(n.children));
-    };
-    sortNodes(assetsRoot.children);
-
-    return assetsRoot;
-  }
-
-  /** « Move to » submenu: the other libraries (common one, then the decks) */
-  private moveToLibraryMenu(move: (target: AssetLibrary) => void): MenuItem {
-    const targets: AssetLibrary[] = [null, ...this.decks.map(deck => deck.id)].filter(target => target !== this.assetLibrary);
-    return {
-      label: this.translate.instant('sidebar.move-to-library'),
-      icon: 'pi pi-arrow-right-arrow-left',
-      disabled: targets.length === 0,
-      items: targets.map(target => ({
-        label: this.libraryName(target),
-        icon: target === null ? 'pi pi-globe' : 'pi pi-clone',
-        command: () => move(target)
-      }))
-    };
-  }
-
-  /** An image moved to another library, in the same folder */
-  async moveAssetToLibrary(assetId: number, target: AssetLibrary) {
-    const asset = await this.assetsService.get(assetId);
-    if (!asset) return;
-    try {
-      await this.assetsService.moveAsset(asset, asset.path || '', target);
-      this.movedToLibrary(asset.name, target);
-    } catch (error) {
-      this.folderError(error);
-    }
-    this.updateFiles();
-  }
-
-  /** A folder moved to the same place in another library, with its images */
-  async moveFolderToLibrary(path: string, target: AssetLibrary) {
-    try {
-      await this.assetsService.moveFolderToLibrary(path, this.assetLibrary, target);
-      this.movedToLibrary(path, target);
-      if (this.assetFolder === path || this.assetFolder.startsWith(path + '/')) this.assetFolder = '';
-    } catch (error) {
-      this.folderError(error);
-    }
-    this.updateFiles();
-  }
-
-  private movedToLibrary(name: string, target: AssetLibrary) {
-    this.messageService.add({
-      severity: 'success', summary: this.translate.instant('sidebar.moved'), life: 2500,
-      detail: this.translate.instant('sidebar.moved-to-library', { name, library: this.libraryName(target) }),
-    });
-  }
-
-  getAssetIcon(asset: Asset | StoredAsset): string {
-    const rawType = ('type' in asset ? asset.type : undefined) || asset.file?.type || '';
-    const fileType = StringUtils.mimeToTypeCategory(rawType);
-    switch (fileType) {
-      case 'image':
-        return 'pi pi-image';
-      case 'font':
-        return 'pi pi-language';
-      case 'audio':
-        return 'pi pi-volume-up';
-      case 'video':
-        return 'pi pi-video';
-      case 'document':
-        return 'pi pi-file';
-      case 'archive':
-        return 'pi pi-folder';
-      default:
-        return 'pi pi-file';
-    }
   }
 
   onNodeContextMenuSelect(event: TreeNodeContextMenuSelectEvent) {
@@ -1089,179 +620,6 @@ export class SiteSidebarComponent implements OnInit {
       }
     });
     this.dialogVisible = true;
-  }
-
-  validateDrop(dragNode: TreeNode, dropNode: TreeNode): boolean {
-    if (!dragNode.data || !dropNode.data) return false;
-
-    if (dragNode.data.type === 'asset') {
-      // Assets can go to folders, root, or other assets (sibling drop)
-      return ['asset-folder', 'asset-root', 'asset'].includes(dropNode.data.type);
-    }
-    if (dragNode.data.type === 'asset-folder') {
-      // Folders can go to other folders, root, or sibling assets
-      return ['asset-folder', 'asset-root', 'asset'].includes(dropNode.data.type);
-    }
-    return false;
-  }
-
-  async onNodeDrop(event: TreeNodeDropEvent) {
-    const dragNode = event.dragNode;
-    const dropNode = event.dropNode;
-
-    if (!dragNode || !dropNode) return;
-
-    if (!this.validateDrop(dragNode, dropNode)) {
-      console.warn('Invalid drop, reverting');
-      this.updateFiles(); // Revert UI
-      return;
-    }
-
-    // 1. Handle Asset Move
-    if (dragNode.data.type === 'asset') {
-      const asset = await this.assetsService.get(dragNode.data.id);
-      let targetPath = '';
-
-      if (dropNode.data.type === 'asset-root') {
-        targetPath = '';
-      } else if (dropNode.data.type === 'asset-folder') {
-        targetPath = dropNode.data.path;
-      } else if (dropNode.data.type === 'asset') {
-        // Dropped on sibling asset -> same folder
-        targetPath = dropNode.data.path || '';
-      }
-
-      if (asset) {
-        // Prevent moving to same location (reordering)
-        if ((asset.path || '') === targetPath) {
-          this.updateFiles(); // Revert any UI reordering
-          return;
-        }
-
-        try {
-          await this.assetsService.moveAsset(asset, targetPath);
-          this.assetMoved(asset.name, targetPath);
-        } catch (error) {
-          this.folderError(error);
-        }
-        this.updateFiles();
-      }
-    }
-
-    // 3. Handle Asset Folder Move
-    if (dragNode.data.type === 'asset-folder') {
-      const folderPath = dragNode.data.path;
-      const folderName = folderPath.split('/').pop();
-      let targetParentPath = '';
-
-      if (dropNode.data.type === 'asset-root') {
-        targetParentPath = '';
-      } else if (dropNode.data.type === 'asset-folder') {
-        targetParentPath = dropNode.data.path;
-      } else if (dropNode.data.type === 'asset') {
-        // Dropped on sibling asset -> same parent folder
-        targetParentPath = dropNode.data.path || '';
-      }
-
-      const newPath = targetParentPath ? targetParentPath + '/' + folderName : folderName;
-
-      // dropped where it already is: nothing to do
-      if (newPath === folderPath) {
-        this.updateFiles();
-        return;
-      }
-
-      try {
-        await this.assetsService.renameFolder(folderPath, newPath, this.assetLibrary);
-        this.messageService.add({
-          severity: 'success', summary: this.translate.instant('sidebar.moved'), life: 2500,
-          detail: this.translate.instant('sidebar.folder-moved', { folder: newPath }),
-        });
-      } catch (error) {
-        this.folderError(error);
-      }
-      this.updateFiles();
-    }
-  }
-
-  public openCreateFolderDialog(parentPath: string) {
-    // We repurpose the entity dialog but we need to supply a "Service" that has a create method.
-    // Or we create a dummy service / override the behavior.
-    // Simplified: Just use prompt() for now? No, better UX.
-    // Use openCreateDialog with a proxy object having a create method.
-    // only what the entity dialog calls
-    const folderService = {
-      create: async (entity: DialogEntity) => {
-        try {
-          const folderName = AssetsService.checkFolderName(entity.name ?? '');
-          const fullPath = parentPath ? parentPath + '/' + folderName : folderName;
-          return await this.assetsService.createFolder(fullPath, this.assetLibrary);
-        } catch (error) {
-          // the dialog stays open to correct the name
-          this.folderError(error);
-          throw error;
-        }
-      },
-      getFields: () => Promise.resolve([
-        { field: 'name', header: 'Name', type: 'text' }
-      ]),
-      getLookups: () => Promise.resolve([]),
-      getIdField: () => 'id',
-    } as unknown as AnyEntityService;
-
-    this.openCreateDialog(folderService, this.translate.instant('sidebar.create-new-folder'), { name: 'New Folder' });
-  }
-
-  public openRenameFolderDialog(currentPath: string) {
-    const currentName = currentPath.split('/').pop() || '';
-    const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
-
-    // Proxy service for rename
-    const renameService = {
-      create: async (entity: DialogEntity) => { // we hijack create to mean "save rename"
-        try {
-          const newName = AssetsService.checkFolderName(entity.name ?? '');
-          const newPath = parentPath ? parentPath + '/' + newName : newName;
-          return await this.assetsService.renameFolder(currentPath, newPath, this.assetLibrary);
-        } catch (error) {
-          // the dialog stays open to correct the name
-          this.folderError(error);
-          throw error;
-        }
-      },
-      getFields: () => Promise.resolve([
-        { field: 'name', header: 'Name', type: 'text' }
-      ]),
-      getLookups: () => Promise.resolve([]),
-      getIdField: () => 'id'
-    } as unknown as AnyEntityService;
-
-    this.openCreateDialog(renameService, this.translate.instant('sidebar.edit-rename-folder'), { name: currentName });
-  }
-
-  public openDeleteFolderDialog(folderPath: string) {
-    this.confirmationService.confirm({
-      message: this.translate.instant('sidebar.confirm-folder-delete-message', { folderPath }),
-      header: this.translate.instant('sidebar.delete-folder'),
-      icon: 'pi pi-exclamation-triangle',
-      accept: () => {
-        this.assetsService.deleteFolder(folderPath, this.assetLibrary).then(success => {
-          if (success) {
-            this.messageService.add({
-              severity: 'success', summary: 'Successful',
-              detail: this.translate.instant('sidebar.folder-deleted'), life: 3000
-            });
-            // Update files is automatic via DB sub? Or manual?
-            // DB change triggers updateFiles, so we should be good.
-          } else {
-            this.messageService.add({
-              severity: 'error', summary: 'Error',
-              detail: 'Failed to delete folder', life: 3000
-            });
-          }
-        });
-      }
-    });
   }
 
 }

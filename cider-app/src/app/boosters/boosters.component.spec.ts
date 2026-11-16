@@ -1,5 +1,6 @@
+import { ActivatedRoute, ParamMap, convertToParamMap } from '@angular/router';
 import { ComponentFixture, TestBed, fakeAsync, flushMicrotasks, tick } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { ConfirmationService } from 'primeng/api';
 import { appTestProviders } from '../testing/test-providers';
 import { BoostersComponent } from './boosters.component';
@@ -21,6 +22,8 @@ describe('BoostersComponent', () => {
   let stored: Map<number, Booster>;
   let boostersService: jasmine.SpyObj<BoostersService>;
   let nextId: number;
+  /** Route of the page: the boosters of the deck 10 */
+  let page: BehaviorSubject<ParamMap>;
 
   const cards = [
     card(1, 10, 'Grimoire', 'Rare'),
@@ -35,6 +38,7 @@ describe('BoostersComponent', () => {
   }) as unknown as Booster;
 
   beforeEach(async () => {
+    page = new BehaviorSubject(convertToParamMap({ deckId: '10' }));
     nextId = 100;
     stored = new Map([[1, booster(1, 'Booster A')], [2, booster(2, 'Booster B')]]);
     boostersService = jasmine.createSpyObj<BoostersService>('BoostersService', ['getAll', 'create', 'update', 'delete']);
@@ -71,6 +75,7 @@ describe('BoostersComponent', () => {
             getSelectedDeck: () => of(undefined),
           },
         },
+        { provide: ActivatedRoute, useValue: { paramMap: page } },
         {
           provide: AssetsService, useValue: {
             assetUrls: of({}), getAllMetadata: async () => [], urlsFor: () => ({}), libraryOf: () => null,
@@ -159,7 +164,7 @@ describe('BoostersComponent', () => {
     expect(stored.get(1)!.weights).toEqual({ 1: 3 });
   }));
 
-  it('creates a booster over every deck, and duplicates one with its weights', fakeAsync(() => {
+  it('creates a booster in the deck of the page, and duplicates one with its weights', fakeAsync(() => {
     start();
     component.applyGroupWeight({ value: 'Rare', weight: 4 });
     component.duplicate();
@@ -171,30 +176,31 @@ describe('BoostersComponent', () => {
 
     component.create();
     flushMicrotasks();
-    expect(component.booster!.deckIds).toEqual([10, 20]);
-    expect(component.rows.length).toBe(4);
+    expect(component.booster!.deckIds).toEqual([10]);
+    expect(component.rows.length).toBe(3);
     tick(400);
   }));
 
-  it('ranges the boosters with their deck, the common ones apart, and creates one in a group', fakeAsync(() => {
+  it('shows the boosters of the deck of the page, or the common ones, and keeps one that leaves while selected', fakeAsync(() => {
     stored.set(3, booster(3, 'Mélange', { deckIds: [10, 20] }));
     stored.set(4, booster(4, 'Autre deck', { deckIds: [20] }));
-    component.currentDeckId = 20;
-    component.ngOnInit();
-    component.currentDeckId = 20;
-    flushMicrotasks();
-    component.regroup();
-    expect(component.groups.map(group => [group.library, group.boosters.map(b => b.name)])).toEqual([
-      [20, ['Autre deck']],
-      [null, ['Mélange']],
-      [10, ['Booster A', 'Booster B']],
-    ]);
+    start();
+    expect(component.shown.map(b => b.name)).toEqual(['Booster A', 'Booster B']);
 
-    component.create(10);
+    // a second deck in its pool: the booster becomes common, still shown while selected
+    component.booster!.deckIds = [10, 20];
+    component.changed(true);
+    expect(component.movedOut).toBeTrue();
+    expect(component.shown.map(b => b.name)).toEqual(['Booster A', 'Booster B']);
+    component.select(component.shown[1]);
+    expect(component.shown.map(b => b.name)).toEqual(['Booster B']);
+    tick(400);
+
+    page.next(convertToParamMap({}));
     flushMicrotasks();
-    expect(component.booster!.deckIds).toEqual([10]);
-    expect(component.groups.find(group => group.library === 10)!.boosters.length).toBe(3);
-    component.create(null);
+    expect(component.library).toBeNull();
+    expect(component.shown.map(b => b.name)).toEqual(['Booster A', 'Mélange']);
+    component.create();
     flushMicrotasks();
     expect(component.booster!.deckIds).toEqual([10, 20]);
     tick(400);

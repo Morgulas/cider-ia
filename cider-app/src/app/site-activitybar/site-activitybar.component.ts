@@ -49,7 +49,6 @@ export class SiteActivitybarComponent {
     });
     return [
       panel('explorer', t('activity.explorer'), 'pi pi-fw pi-folder'),
-      panel('assets', t('activity.illustrations'), 'pi pi-fw pi-images'),
       page(t('activity.simulator'), 'pi pi-fw pi-crown', '/simulator'),
       {
         label: t('activity.settings'),

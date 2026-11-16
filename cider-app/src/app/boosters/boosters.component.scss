@@ -26,10 +26,6 @@
 
 // ----- Liste des boosters -----
 
-.list-header + .booster-group {
-  border-top: none;
-  padding-top: 0;
-}
 
 .booster-list {
   flex: 0 0 230px;
@@ -51,44 +47,25 @@
   }
 }
 
-/* Boosters rangés par deck, puis les communs (plusieurs decks) */
-.booster-group {
+.list-library {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: 6px;
-  border-top: 1px solid var(--p-content-border-color);
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--p-primary-color);
+}
 
-
-  .group-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    opacity: 0.75;
-  }
-
-  &.current .group-header {
-    color: var(--p-primary-color);
-    opacity: 1;
-  }
-
-  .group-name {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .group-empty {
-    margin: 0 0 4px;
-    font-size: 0.8rem;
-    opacity: 0.6;
-  }
+.moved-out {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--p-highlight-background);
+  font-size: 0.85rem;
 }
 
 .list-empty {

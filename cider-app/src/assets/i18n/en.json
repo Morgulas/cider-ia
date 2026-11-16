@@ -969,6 +969,7 @@
         "folder-name": "Folder name"
     },
     "boosters": {
+        "moved-out": "This booster now draws elsewhere: it is now under \"{{library}}\" (it stays here while selected).",
         "common": "Common",
         "common-help": "Boosters drawing from several decks",
         "create-common": "New common booster (all decks)",

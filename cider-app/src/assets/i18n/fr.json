@@ -969,6 +969,7 @@
         "folder-name": "Nom du dossier"
     },
     "boosters": {
+        "moved-out": "Ce booster pioche maintenant ailleurs : il est rangé dans « {{library}} » (il reste ici tant qu'il est choisi).",
         "common": "Communs",
         "common-help": "Boosters qui tirent dans plusieurs decks",
         "create-common": "Nouveau booster commun (tous les decks)",
