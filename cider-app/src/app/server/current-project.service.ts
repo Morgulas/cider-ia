@@ -63,7 +63,8 @@ export class CurrentProjectService {
   static readonly SAVE_DELAY_MS = 1500;
   static readonly RETRY_DELAY_MS = 10000;
   /** project files downloaded or sent at the same time */
-  static readonly BLOB_CONCURRENCY = 4;
+  /** Files downloaded or sent at once (the browser keeps up to 6 connections per server over HTTP/1.1) */
+  static readonly BLOB_CONCURRENCY = 6;
 
   private readonly db = inject(AppDB);
   private readonly api = inject(ProjectsApiService);
@@ -164,15 +165,23 @@ export class CurrentProjectService {
     if (this.project()?.id === projectId && this.ownerUserId === user.id) {
       return;
     }
-    if (this.project() && !(await this.close())) {
+    // the copy is replaced just below: no need to empty it first
+    if (this.project() && !(await this.close(false, false))) {
       throw new Error(this.translate.instant('server.save.close-failed'));
     }
-    if (await this.tabs.projectOpenInOtherTab()) {
-      throw new Error(this.translate.instant('server.projects.other-tab'));
-    }
+    // asked to the other tabs while the project downloads (they answer within a short delay)
+    const otherTab = this.tabs.projectOpenInOtherTab();
     this.loading = true;
     try {
-      const meta = await this.api.get(projectId);
+      const [meta, ownerBefore] = await Promise.all([this.api.get(projectId), this.db.getOwner()]);
+      // nothing to send first and no reusable copy: the download starts while the tabs answer
+      const reusable = ownerBefore?.userId === user.id && ownerBefore.projectId === projectId
+        && ownerBefore.revision === meta.revision;
+      const early = !this.readPendingMarker() && !reusable ? this.download(projectId) : null;
+      early?.catch(() => undefined);
+      if (await otherTab) {
+        throw new Error(this.translate.instant('server.projects.other-tab'));
+      }
       const pending = this.readPendingMarker();
       if (pending) {
         const owner = await this.db.getOwner();
@@ -199,8 +208,7 @@ export class CurrentProjectService {
         this.saveState.set('saved');
         return;
       }
-      const { data, revision } = await this.api.loadData(projectId);
-      const blobs = data ? await this.downloadBlobs(data) : undefined;
+      const { data, revision, blobs } = await (early ?? this.download(projectId));
       await this.db.loadProject(data, { userId: user.id, projectId, revision }, blobs);
       this.setOpened(meta, user.id, revision);
       this.saveState.set('saved');
@@ -248,8 +256,10 @@ export class CurrentProjectService {
   /**
    * Saves pending changes, then empties the local working copy.
    * Returns false (and keeps the project open) if the changes could not be saved.
+   * emptyCopy false: another project is opened right after, which replaces the copy
+   * (emptying it first would only cost time). Discarded changes always empty it.
    */
-  async close(discardUnsaved = false): Promise<boolean> {
+  async close(discardUnsaved = false, emptyCopy = true): Promise<boolean> {
     if (!this.project()) {
       return true;
     }
@@ -262,6 +272,10 @@ export class CurrentProjectService {
     this.clearPendingMarker();
     this.forgetLastProject();
     this.resetState();
+    if (!emptyCopy && !discardUnsaved) {
+      // saved: the copy matches its revision on the server, the next opening replaces it
+      return true;
+    }
     this.loading = true;
     try {
       await this.db.loadProject(null);
@@ -474,6 +488,12 @@ export class CurrentProjectService {
    *********************************************************************/
 
   /** Downloads the files referenced by project data (the browser cache serves those already seen) */
+  /** The project data saved on the server, with its files */
+  private async download(projectId: string): Promise<{ data: Blob | null; revision: number; blobs?: Map<string, Blob> }> {
+    const { data, revision } = await this.api.loadData(projectId);
+    return { data, revision, blobs: data ? await this.downloadBlobs(data) : undefined };
+  }
+
   private async downloadBlobs(data: Blob): Promise<Map<string, Blob>> {
     const blobs = new Map<string, Blob>();
     await runLimited(findBlobRefs(await data.text()), CurrentProjectService.BLOB_CONCURRENCY, async hash => {

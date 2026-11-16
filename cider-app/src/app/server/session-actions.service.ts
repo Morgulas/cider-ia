@@ -24,9 +24,12 @@ export class SessionActionsService {
     await this.router.navigateByUrl('/login');
   }
 
-  /** Saves and closes the open project; asks before losing unsaved changes */
-  async closeProject(): Promise<boolean> {
-    if (await this.currentProject.close()) {
+  /**
+   * Saves and closes the open project; asks before losing unsaved changes.
+   * emptyCopy false: another project is opened right after (it replaces the local copy).
+   */
+  async closeProject(emptyCopy = true): Promise<boolean> {
+    if (await this.currentProject.close(false, emptyCopy)) {
       return true;
     }
     const leave = window.confirm(this.translate.instant('server.save.unsaved-message'));

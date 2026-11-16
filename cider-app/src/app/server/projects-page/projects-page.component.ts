@@ -103,7 +103,7 @@ export class ProjectsPageComponent implements OnInit {
 
   protected async open(project: ProjectMeta): Promise<void> {
     await this.run(async () => {
-      if (this.currentProject.project()?.id !== project.id && !(await this.sessionActions.closeProject())) {
+      if (this.currentProject.project()?.id !== project.id && !(await this.sessionActions.closeProject(false))) {
         return;
       }
       await this.currentProject.open(project.id);

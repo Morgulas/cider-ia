@@ -360,11 +360,12 @@ export class AppDB extends Dexie {
             await this.transaction('rw', this.tables, async () => {
                 await Promise.all(this.tables.map(table => table.clear()));
             });
-            // files stored as ArrayBuffer (assets): read once before the import (transforms are synchronous)
+            // files stored as ArrayBuffer outside the assets (assets keep them as files, see resolveBlobRefs):
+            // read before the import (transforms are synchronous)
             const buffers = new Map<string, ArrayBuffer>();
-            for (const [hash, blob] of blobs ?? []) {
-                buffers.set(hash, await blob.arrayBuffer());
-            }
+            const wanted = data && blobs?.size ? AppDB.bufferRefsOutsideAssets(await data.text()) : new Set<string>();
+            await Promise.all([...wanted].filter(hash => blobs?.has(hash))
+                .map(async hash => buffers.set(hash, await blobs!.get(hash)!.arrayBuffer())));
             if (data) {
                 await importInto(this, data, {
                     clearTablesBeforeImport: true,
@@ -408,6 +409,21 @@ export class AppDB extends Dexie {
                 continue;
             }
             const hash = fieldValue.$ciderBlob;
+            if (table === AppDB.ASSETS_TABLE && (field === 'buffer' || field === 'file')) {
+                // an image is kept as a file: the database then reads it only when it is shown,
+                // not each time the list of images is read (names, folders...)
+                const blob = blobs?.get(hash);
+                if (!blob) {
+                    throw new Error(`missing project file ${hash}`);
+                }
+                const type = fieldValue.type || value.type || blob.type;
+                row = { ...row, file: blob.type === type ? blob : blob.slice(0, blob.size, type), type };
+                delete row.buffer;
+                if (typeof value.id === 'number') {
+                    this.assetRefs.set(value.id, { ...fieldValue, encoding: 'arraybuffer' });
+                }
+                continue;
+            }
             let resolved: Blob | ArrayBuffer | undefined;
             if (fieldValue.encoding === 'arraybuffer') {
                 resolved = buffers?.get(hash);
@@ -448,10 +464,11 @@ export class AppDB extends Dexie {
                 }
                 let ref = this.assetRefs.get(asset.id);
                 if (!ref || !AppDB.refMatches(ref, binary)) {
-                    ref = { $ciderBlob: await sha256Hex(binary.data), type: binary.type, size: binary.size };
-                    if (binary.field === 'buffer') {
-                        ref.encoding = 'arraybuffer';
-                    }
+                    // saved as before ("buffer" + type), however the copy keeps it
+                    ref = { $ciderBlob: await sha256Hex(binary.data), type: binary.type, size: binary.size, encoding: 'arraybuffer' };
+                    this.assetRefs.set(asset.id, ref);
+                } else if (ref.encoding !== 'arraybuffer') {
+                    ref = { ...ref, encoding: 'arraybuffer' };
                     this.assetRefs.set(asset.id, ref);
                 }
                 refs.set(asset.id, { field: binary.field, ref });
@@ -465,7 +482,10 @@ export class AppDB extends Dexie {
                     const binary = entry ? AppDB.assetBinary(value) : undefined;
                     // data not hashed above (added meanwhile) stays inline: the server takes it out
                     if (entry && binary && binary.field === entry.field && AppDB.refMatches(entry.ref, binary)) {
-                        return { value: { ...value, [entry.field]: entry.ref }, key };
+                        // always saved as "buffer" + type (the format of the server and of the downloads)
+                        const saved = { ...value, buffer: entry.ref, type: entry.ref.type };
+                        delete saved.file;
+                        return { value: saved, key };
                     }
                     return { value, key };
                 },
@@ -493,8 +513,39 @@ export class AppDB extends Dexie {
         return undefined;
     }
 
+    /** The reference still describes the data (same size and type, whether kept as a file or an ArrayBuffer) */
     private static refMatches(ref: BlobRef, binary: { field: 'file' | 'buffer'; size: number; type: string }): boolean {
-        return ref.size === binary.size && ref.type === binary.type && (ref.encoding === 'arraybuffer') === (binary.field === 'buffer');
+        return ref.size === binary.size && ref.type === binary.type;
+    }
+
+    /**
+     * Files of the project data saved as ArrayBuffer outside the assets: the only ones
+     * the import must read beforehand (none in a usual project).
+     */
+    private static bufferRefsOutsideAssets(text: string): Set<string> {
+        const hashes = new Set<string>();
+        if (!text.includes('"arraybuffer"')) {
+            return hashes;
+        }
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const dump = JSON.parse(text) as { data?: { data?: { tableName: string; rows: any[] }[] } };
+            for (const table of dump.data?.data ?? []) {
+                if (table.tableName === AppDB.ASSETS_TABLE) {
+                    continue;
+                }
+                for (const row of table.rows ?? []) {
+                    for (const value of Object.values(row ?? {})) {
+                        if (isBlobRef(value) && value.encoding === 'arraybuffer') {
+                            hashes.add(value.$ciderBlob);
+                        }
+                    }
+                }
+            }
+        } catch {
+            // not a readable export: the import reports it
+        }
+        return hashes;
     }
 
     /**

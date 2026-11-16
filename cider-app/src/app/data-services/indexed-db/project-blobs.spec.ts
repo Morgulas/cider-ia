@@ -63,10 +63,33 @@ describe('project files', () => {
 
       await db.loadProject(null);
       await db.loadProject(data, undefined, new Map([[hash, new Blob([bytes])]]));
+      // kept as a file in the copy: the database reads it only when it is used
       const asset = await db.table(AppDB.ASSETS_TABLE).get(id);
-      expect(asset.buffer instanceof ArrayBuffer).toBeTrue();
-      expect(new TextDecoder().decode(asset.buffer)).toBe('image bytes');
+      expect(asset.buffer).toBeUndefined();
+      expect(asset.file instanceof Blob).toBeTrue();
+      expect(await asset.file.text()).toBe('image bytes');
+      expect(asset.file.type).toBe('image/png');
       expect(asset.type).toBe('image/png');
+    });
+
+    it('saves an image kept as a file in the same format ("buffer" + type), without hashing it again', async () => {
+      const bytes = new TextEncoder().encode('image bytes').buffer;
+      const hash = await sha256Hex(bytes);
+      const id = await db.table(AppDB.ASSETS_TABLE).add({ name: 'fond', path: '', type: 'image/png', buffer: bytes });
+      const first = await db.exportProjectForServer();
+      await db.loadProject(first.data, undefined, new Map([[hash, new Blob([bytes])]]));
+
+      const again = await db.exportProjectForServer();
+      const json = await again.data.text();
+      expect(json).toContain('"encoding":"arraybuffer"');
+      expect(json).not.toContain('"file"');
+      expect(findBlobRefs(json)).toEqual([hash]);
+      // the reference read at the loading is kept: same file, nothing to read again
+      expect(again.blobs.get(hash) instanceof Blob).toBeTrue();
+
+      // and loads back the same
+      await db.loadProject(again.data, undefined, new Map([[hash, new Blob([bytes])]]));
+      expect(await (await db.table(AppDB.ASSETS_TABLE).get(id)).file.text()).toBe('image bytes');
     });
 
     it('hashes a changed file again', async () => {

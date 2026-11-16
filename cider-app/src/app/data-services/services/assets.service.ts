@@ -76,6 +76,8 @@ export class AssetsService extends IndexedDbService<Asset, number> {
   private objectUrls: string[] = [];
   private deckIds = new Set<number>();
   private readonly currentLibrary = new BehaviorSubject<AssetLibrary>(null);
+  /** getAllMetadata() result, until an asset changes */
+  private metadataCache: Promise<StoredAsset[]> | null = null;
 
   constructor(db: AppDB) {
     super(db, AppDB.ASSETS_TABLE, [
@@ -90,7 +92,11 @@ export class AssetsService extends IndexedDbService<Asset, number> {
     this.updateAssetUrls();
 
     // update asset URLs whenever the database reloads
+    // the assets changed (or another project was loaded): read them again when asked
+    db.onChange().pipe(filter(change => change?.tableName === AppDB.ASSETS_TABLE || change?.tableName === 'all'))
+      .subscribe(() => this.metadataCache = null);
     db.onLoad().subscribe(() => {
+      this.metadataCache = null;
       this.currentLibrary.next(null);
       this.updateAssetUrls();
     });
@@ -227,20 +233,18 @@ export class AssetsService extends IndexedDbService<Asset, number> {
   }
 
   /**
-   * Insert an array buffer and type into the asset
-   * @param entity 
+   * The asset as stored: its file kept as a file (Blob) next to its type. The database
+   * reads a file only when it is used, so reading the list of assets stays fast.
+   * (Older copies kept an ArrayBuffer in "buffer": still read, see insertFile.)
    */
   private static insertArrayBuffer(entity: Asset): Promise<Asset> {
     if (!entity || !entity.file) {
       return Promise.resolve(entity);
     }
-    return entity.file.arrayBuffer().then(buffer => {
-      const stored = entity as StoredAsset;
-      stored.buffer = buffer;
-      stored.type = entity.file.type;
-      stored.file = undefined;
-      return entity;
-    });
+    const stored = entity as StoredAsset;
+    stored.type = entity.file.type;
+    delete stored.buffer;
+    return Promise.resolve(entity);
   }
 
   /**
@@ -275,12 +279,25 @@ export class AssetsService extends IndexedDbService<Asset, number> {
   }
 
   /** The assets without their data (names, folders, types) */
+  /**
+   * The assets without their data (names, folders, decks...). Reading them means reading
+   * every image from the database, so the list is kept until an asset changes or another
+   * project is loaded: the many callers (explorer, pages, choices) share one read.
+   */
   public getAllMetadata(): Promise<StoredAsset[]> {
-    return this.db.table<StoredAsset>(this.tableName).toArray().then(entities => entities.map(e => {
-      const copy = { ...e };
-      delete copy.buffer; // Free memory immediately
-      return copy;
-    }));
+    if (!this.metadataCache) {
+      const read = this.db.table<StoredAsset>(this.tableName).toArray().then(entities => entities.map(e => {
+        const copy = { ...e };
+        delete copy.buffer; // Free memory immediately
+        return copy;
+      }));
+      this.metadataCache = read;
+      read.catch(() => {
+        if (this.metadataCache === read) this.metadataCache = null;
+      });
+    }
+    // copies: a caller changing one does not change the others'
+    return this.metadataCache.then(assets => assets.map(asset => ({ ...asset })));
   }
 
   public onChange() {
@@ -290,7 +307,9 @@ export class AssetsService extends IndexedDbService<Asset, number> {
   }
 
   override create(entity: Asset, suppressUrlUpdates?: boolean) {
+    this.metadataCache = null;
     return AssetsService.insertArrayBuffer(entity).then(entity => super.create(entity)).then(entity => {
+      this.metadataCache = null;
       if (!suppressUrlUpdates) {
         this.updateAssetUrls();
       }
@@ -299,7 +318,9 @@ export class AssetsService extends IndexedDbService<Asset, number> {
   }
 
   override update(id: number, entity: Asset, suppressUrlUpdates?: boolean) {
+    this.metadataCache = null;
     return AssetsService.insertArrayBuffer(entity).then(entity => super.update(id, entity)).then(entity => {
+      this.metadataCache = null;
       if (!suppressUrlUpdates) {
         this.updateAssetUrls();
       }
@@ -308,7 +329,9 @@ export class AssetsService extends IndexedDbService<Asset, number> {
   }
 
   override delete(id: number, suppressUrlUpdates?: boolean) {
+    this.metadataCache = null;
     return super.delete(id).then(response => {
+      this.metadataCache = null;
       if (!suppressUrlUpdates) {
         this.updateAssetUrls();
       }
