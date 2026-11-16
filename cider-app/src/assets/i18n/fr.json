@@ -138,7 +138,13 @@
         },
         "asset-moved": "« {{name}} » déplacé vers {{folder}}",
         "folder-moved": "Dossier déplacé vers {{folder}}",
-        "top-level": "la racine"
+        "top-level": "la racine",
+        "library-common": "Bibliothèque commune",
+        "choose-library": "Choisir la bibliothèque d'illustrations",
+        "library-help": "Chaque deck a sa bibliothèque ; ses modèles voient aussi la bibliothèque commune",
+        "move-to-library": "Déplacer vers la bibliothèque",
+        "moved-to-library": "« {{name}} » déplacé vers {{library}}",
+        "confirm-deck-delete-message": "Supprimer le deck « {{deck}} » ? Ses illustrations iront dans la bibliothèque commune, dans un dossier à son nom."
     },
     "export": {
         "sheet-export": "Planche de cartes",
@@ -687,7 +693,10 @@
             "no-card": "Aucune carte dans ce deck",
             "template-saved": "Modèle de prompt enregistré pour le deck.",
             "folder": "Dossier",
-            "folder-root": "Ressources (racine)"
+            "folder-root": "Ressources (racine)",
+            "library": "Bibliothèque",
+            "library-deck": "Deck {{deck}}",
+            "library-common": "Bibliothèque commune"
         },
         "ai-settings": {
             "title": "Paramètres IA",
@@ -942,6 +951,12 @@
         }
     },
     "boosters": {
+        "common": "Communs",
+        "common-help": "Boosters qui tirent dans plusieurs decks",
+        "create-common": "Nouveau booster commun (tous les decks)",
+        "create-in-deck": "Nouveau booster du deck {{deck}}",
+        "none-common": "Aucun booster commun.",
+        "none-in-deck": "Aucun booster pour ce deck.",
         "title": "Boosters",
         "create": "Nouveau booster",
         "none": "Aucun booster pour l'instant.",

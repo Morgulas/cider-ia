@@ -225,6 +225,17 @@
     cursor: pointer;
 }
 
+/* Library of the Illustrations panel: common, or a deck's */
+.library-bar {
+    margin: 0.2rem 0.6rem 0.3rem;
+
+    ::ng-deep .library-select {
+        width: 100%;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+}
+
 .deck-option {
     display: flex;
     align-items: center;

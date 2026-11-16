@@ -309,9 +309,12 @@ export class AssetGeneratorComponent {
 
   public saveAsset(_event: Event, popover: Popover) {
     // save the selected asset
+    // in the library shown in the Illustrations panel (a deck's, or the common one)
+    const library = this.assetsService.currentLibraryValue();
     this.assetsService.create({
       name: this.saveName,
       file: FileUtils.svgStringToBlob(this.saveSvg),
+      ...(library === null ? {} : { deckId: library }),
     } as Asset).then(() => {
       popover.hide();
     });

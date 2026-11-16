@@ -35,6 +35,26 @@
             <i class="pi pi-sparkles"></i>
         </button>
     </div>
+    <!-- Library: the common one, or a deck's (its templates see it and the common one) -->
+    <div class="library-bar">
+        <p-select [options]="libraryOptions" optionLabel="label" optionValue="value" [ngModel]="assetLibrary ?? 0"
+            (ngModelChange)="onLibraryChange($event)" [filter]="libraryOptions.length > 7" filterBy="label"
+            styleClass="library-select" appendTo="body" [ariaLabel]="'sidebar.choose-library' | translate"
+            [pTooltip]="'sidebar.library-help' | translate" tooltipPosition="bottom">
+            <ng-template let-option pTemplate="item">
+                <span class="deck-option">
+                    <i [class]="option.icon"></i>
+                    <span class="deck-option-name">{{ option.label }}</span>
+                </span>
+            </ng-template>
+            <ng-template let-option pTemplate="selectedItem">
+                <span class="deck-option">
+                    <i [class]="option.icon"></i>
+                    <span class="deck-option-name">{{ option.label }}</span>
+                </span>
+            </ng-template>
+        </p-select>
+    </div>
     @if (assetView === 'list') {
         <p-tree [value]="assetFiles" styleClass="file-tree asset-tree" [filter]="true"
             [filterPlaceholder]="'controls.search' | translate" [selectionMode]="'single'" [(selection)]="selectedFile"

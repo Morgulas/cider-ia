@@ -35,10 +35,11 @@ export type SidebarActivity = 'explorer' | 'assets';
 
 import { DocumentsService } from '../data-services/services/documents.service';
 import { BoostersService } from '../data-services/services/boosters.service';
+import { boosterLibrary } from '../boosters/booster-logic';
 import { HttpClient } from '@angular/common/http';
 import { AppDB } from '../data-services/indexed-db/db';
 import { TranslateService, TranslatePipe } from '@ngx-translate/core';
-import { Asset, AssetUrls, StoredAsset } from '../data-services/types/asset.type';
+import { Asset, AssetLibrary, AssetUrls, StoredAsset } from '../data-services/types/asset.type';
 import { Bind } from 'primeng/bind';
 import { ContextMenu } from 'primeng/contextmenu';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
@@ -89,6 +90,10 @@ export class SiteSidebarComponent implements OnInit {
   assetFolder = '';
   assetQuery = '';
   assetUrls: AssetUrls = {};
+  /** Library shown by the Illustrations panel: a deck's (its id) or the common one (null) */
+  assetLibrary: AssetLibrary = null;
+  /** Choices of the library picker (0: the common library) */
+  libraryOptions: { value: number; label: string; icon: string }[] = [];
 
   decks: DeckOption[] = [];
   currentDeckId: number | null = null;
@@ -152,7 +157,17 @@ export class SiteSidebarComponent implements OnInit {
     try {
       this.assetView = localStorage.getItem('cider.sidebar.assetView') === 'list' ? 'list' : 'grid';
     } catch { /* no storage */ }
-    this.assetsService.getAssetUrls().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(urls => this.assetUrls = urls);
+    this.assetsService.getAssetUrls().pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.assetUrls = this.assetsService.urlsFor(this.assetLibrary));
+    // new images (generator, dialog) go to the library shown here
+    this.assetsService.getCurrentLibrary().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(library => {
+      if (library !== this.assetLibrary) {
+        this.assetLibrary = library;
+        this.assetFolder = '';
+        this.assetUrls = this.assetsService.urlsFor(library);
+        this.updateFiles();
+      }
+    });
 
     // Highlight the page being shown
     this.router.events.pipe(filter(e => e instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef))
@@ -169,6 +184,7 @@ export class SiteSidebarComponent implements OnInit {
 
   private setCurrentDeck(deckId: number | null) {
     this.currentDeckId = deckId;
+    this.followDeck();
     try {
       if (deckId != null) localStorage.setItem(this.storageKey(), String(deckId));
     } catch { /* storage unavailable: the picker just forgets */ }
@@ -224,7 +240,7 @@ export class SiteSidebarComponent implements OnInit {
     const url = this.router.url.split('?')[0];
     const find = (nodes: TreeNode[]): TreeNode | null => {
       for (const node of nodes) {
-        if (node.data?.url === url) return node;
+        if (typeof node.data?.url === 'string' && node.data.url.split('?')[0] === url) return node;
         const child = find(node.children ?? []);
         if (child) return child;
       }
@@ -328,7 +344,44 @@ export class SiteSidebarComponent implements OnInit {
       const selected = this.decksService.selectedDeck.getValue()?.id;
       const candidate = [selected, remembered].find(id => this.decks.some(deck => deck.id === id));
       this.currentDeckId = candidate ?? this.decks[0]?.id ?? null;
+      this.followDeck();
     }
+    this.libraryOptions = [
+      { value: 0, label: this.translate.instant('sidebar.library-common'), icon: 'pi pi-globe' },
+      ...this.decks.map(deck => ({ value: deck.id, label: deck.name, icon: 'pi pi-clone' })),
+    ];
+    // the library of a deck that no longer exists: the common one
+    if (this.assetLibrary !== null && !this.decks.some(deck => deck.id === this.assetLibrary)) {
+      this.assetLibrary = null;
+      this.assetsService.setCurrentLibrary(null);
+    }
+  }
+
+  /** The Illustrations panel shows the library of the deck picked in the explorer */
+  private followDeck() {
+    if (this.currentDeckId !== this.assetLibrary) {
+      this.assetLibrary = this.currentDeckId;
+      this.assetFolder = '';
+      this.assetUrls = this.assetsService.urlsFor(this.assetLibrary);
+      this.assetsService.setCurrentLibrary(this.assetLibrary);
+    }
+  }
+
+  /** Library picked in the Illustrations panel (0: the common library) */
+  onLibraryChange(value: number | null) {
+    const library = value ? value : null;
+    this.assetLibrary = library;
+    this.assetFolder = '';
+    this.assetQuery = '';
+    this.assetUrls = this.assetsService.urlsFor(library);
+    this.assetsService.setCurrentLibrary(library);
+    this.updateFiles();
+  }
+
+  /** Name of a library, for the messages and the crumbs */
+  libraryName(library: AssetLibrary): string {
+    return library === null ? this.translate.instant('sidebar.library-common')
+      : this.decks.find(deck => deck.id === library)?.name ?? '';
   }
 
   private buildDeckMenu(): MenuItem[] {
@@ -361,7 +414,7 @@ export class SiteSidebarComponent implements OnInit {
         label: this.translate.instant('sidebar.delete-deck'),
         icon: 'pi pi-trash',
         styleClass: 'danger-item',
-        command: () => this.openDeleteDialog(deck.id, this.decksService)
+        command: () => this.openDeleteDeckDialog(deck)
       },
     ];
   }
@@ -387,11 +440,11 @@ export class SiteSidebarComponent implements OnInit {
       page('sidebar.export-cards', '/export-cards', 'pi pi-file-export', 'card-export'),
     ];
 
-    // boosters mix several decks: listed with the decks they draw from
+    // the boosters of the deck (those drawing from it alone); the page also shows the common ones
     const boosters = await this.boostersService.getAll().catch(() => []);
     nodes.push({
       label: this.translate.instant('sidebar.boosters'),
-      data: { url: '/boosters', badge: boosters.filter(booster => (booster.deckIds ?? []).includes(deck.id)).length },
+      data: { url: `/boosters?deck=${deck.id}`, badge: boosters.filter(booster => boosterLibrary(booster) === deck.id).length },
       icon: 'pi pi-gift',
       styleClass: 'deck-boosters',
       draggable: false,
@@ -521,7 +574,7 @@ export class SiteSidebarComponent implements OnInit {
   }
 
   get assetCrumbs(): { label: string; path: string }[] {
-    const crumbs = [{ label: this.translate.instant('sidebar.all-illustrations'), path: '' }];
+    const crumbs = [{ label: this.libraryName(this.assetLibrary), path: '' }];
     const node = this.assetFolderNode;
     const path: string = node?.data?.path ?? '';
     if (!path) return crumbs;
@@ -606,11 +659,14 @@ export class SiteSidebarComponent implements OnInit {
   // Illustrations: assets tree (folders + files)
   // -----------------------------------------------
   private async buildAssetsRoot(): Promise<TreeNode> {
-    const assets = await this.assetsService.getAllMetadata();
-    const folders = await this.assetsService.getFolders();
+    const library = this.assetLibrary;
+    const assets = (await this.assetsService.getAllMetadata()).filter(asset => this.assetsService.inLibrary(asset, library));
+    const folders = await this.assetsService.getFolders(library);
+    // new images of this library: in its deck, or common (no deckId)
+    const inLibrary = library === null ? {} : { deckId: library };
 
     const assetsRoot: TreeNode = {
-      label: this.translate.instant('sidebar.assets'),
+      label: this.libraryName(library),
       data: {
         url: '/assets',
         type: 'asset-root',
@@ -627,7 +683,7 @@ export class SiteSidebarComponent implements OnInit {
             icon: 'pi pi-plus',
             command: () => this.openCreateDialog(this.assetsService,
               this.translate.instant('sidebar.create-new-asset'), {
-              name: `asset-${Math.random().toString(36).substr(2, 9)}`
+              name: `asset-${Math.random().toString(36).substr(2, 9)}`, ...inLibrary
             })
           }
         ],
@@ -638,7 +694,7 @@ export class SiteSidebarComponent implements OnInit {
             command: () => {
               this.openCreateDialog(this.assetsService,
                 this.translate.instant('sidebar.create-new-asset'), {
-                name: `asset-${Math.random().toString(36).substr(2, 9)}`
+                name: `asset-${Math.random().toString(36).substr(2, 9)}`, ...inLibrary
               });
             }
           },
@@ -696,7 +752,7 @@ export class SiteSidebarComponent implements OnInit {
               command: () => this.openCreateDialog(this.assetsService,
                 this.translate.instant('sidebar.create-new-asset'), {
                 name: `asset-${Math.random().toString(36).substr(2, 9)}`,
-                path: folderPath
+                path: folderPath, ...inLibrary
               })
             }
           ],
@@ -708,7 +764,7 @@ export class SiteSidebarComponent implements OnInit {
                 this.openCreateDialog(this.assetsService,
                   this.translate.instant('sidebar.create-new-asset'), {
                   name: `asset-${Math.random().toString(36).substr(2, 9)}`,
-                  path: folderPath
+                  path: folderPath, ...inLibrary
                 });
               }
             },
@@ -726,6 +782,7 @@ export class SiteSidebarComponent implements OnInit {
                 this.openRenameFolderDialog(folderPath);
               }
             },
+            this.moveToLibraryMenu(target => this.moveFolderToLibrary(folderPath, target)),
             {
               label: this.translate.instant('sidebar.delete-folder'),
               icon: 'pi pi-trash',
@@ -785,6 +842,7 @@ export class SiteSidebarComponent implements OnInit {
                 this.router.navigateByUrl(`/assets/generator`);
               }
             },
+            this.moveToLibraryMenu(target => this.moveAssetToLibrary(asset.id, target)),
             {
               label: this.translate.instant('sidebar.delete-asset'),
               icon: 'pi pi-trash',
@@ -821,6 +879,53 @@ export class SiteSidebarComponent implements OnInit {
     sortNodes(assetsRoot.children);
 
     return assetsRoot;
+  }
+
+  /** « Move to » submenu: the other libraries (common one, then the decks) */
+  private moveToLibraryMenu(move: (target: AssetLibrary) => void): MenuItem {
+    const targets: AssetLibrary[] = [null, ...this.decks.map(deck => deck.id)].filter(target => target !== this.assetLibrary);
+    return {
+      label: this.translate.instant('sidebar.move-to-library'),
+      icon: 'pi pi-arrow-right-arrow-left',
+      disabled: targets.length === 0,
+      items: targets.map(target => ({
+        label: this.libraryName(target),
+        icon: target === null ? 'pi pi-globe' : 'pi pi-clone',
+        command: () => move(target)
+      }))
+    };
+  }
+
+  /** An image moved to another library, in the same folder */
+  async moveAssetToLibrary(assetId: number, target: AssetLibrary) {
+    const asset = await this.assetsService.get(assetId);
+    if (!asset) return;
+    try {
+      await this.assetsService.moveAsset(asset, asset.path || '', target);
+      this.movedToLibrary(asset.name, target);
+    } catch (error) {
+      this.folderError(error);
+    }
+    this.updateFiles();
+  }
+
+  /** A folder moved to the same place in another library, with its images */
+  async moveFolderToLibrary(path: string, target: AssetLibrary) {
+    try {
+      await this.assetsService.moveFolderToLibrary(path, this.assetLibrary, target);
+      this.movedToLibrary(path, target);
+      if (this.assetFolder === path || this.assetFolder.startsWith(path + '/')) this.assetFolder = '';
+    } catch (error) {
+      this.folderError(error);
+    }
+    this.updateFiles();
+  }
+
+  private movedToLibrary(name: string, target: AssetLibrary) {
+    this.messageService.add({
+      severity: 'success', summary: this.translate.instant('sidebar.moved'), life: 2500,
+      detail: this.translate.instant('sidebar.moved-to-library', { name, library: this.libraryName(target) }),
+    });
   }
 
   getAssetIcon(asset: Asset | StoredAsset): string {
@@ -866,6 +971,23 @@ export class SiteSidebarComponent implements OnInit {
       // If the node has a URL, open it
       this.router.navigateByUrl(selectedNode.data.url, { skipLocationChange: false });
     }
+  }
+
+  /** Deleting a deck: its illustrations go back to the common library, in a folder named after it */
+  public openDeleteDeckDialog(deck: DeckOption) {
+    this.confirmationService.confirm({
+      message: this.translate.instant('sidebar.confirm-deck-delete-message', { deck: deck.name }),
+      header: this.translate.instant('sidebar.delete-entity'),
+      icon: 'pi pi-exclamation-triangle',
+      accept: async () => {
+        await this.assetsService.releaseDeckLibrary(deck.id, deck.name);
+        await this.decksService.delete(deck.id);
+        this.messageService.add({
+          severity: 'success', summary: 'Successful',
+          detail: this.translate.instant('sidebar.entity-deleted'), life: 3000
+        });
+      }
+    });
   }
 
   public openDeleteDialog(entityId: string | number, service: AnyEntityService) {
@@ -1030,7 +1152,7 @@ export class SiteSidebarComponent implements OnInit {
       }
 
       try {
-        await this.assetsService.renameFolder(folderPath, newPath);
+        await this.assetsService.renameFolder(folderPath, newPath, this.assetLibrary);
         this.messageService.add({
           severity: 'success', summary: this.translate.instant('sidebar.moved'), life: 2500,
           detail: this.translate.instant('sidebar.folder-moved', { folder: newPath }),
@@ -1053,7 +1175,7 @@ export class SiteSidebarComponent implements OnInit {
         try {
           const folderName = AssetsService.checkFolderName(entity.name ?? '');
           const fullPath = parentPath ? parentPath + '/' + folderName : folderName;
-          return await this.assetsService.createFolder(fullPath);
+          return await this.assetsService.createFolder(fullPath, this.assetLibrary);
         } catch (error) {
           // the dialog stays open to correct the name
           this.folderError(error);
@@ -1080,7 +1202,7 @@ export class SiteSidebarComponent implements OnInit {
         try {
           const newName = AssetsService.checkFolderName(entity.name ?? '');
           const newPath = parentPath ? parentPath + '/' + newName : newName;
-          return await this.assetsService.renameFolder(currentPath, newPath);
+          return await this.assetsService.renameFolder(currentPath, newPath, this.assetLibrary);
         } catch (error) {
           // the dialog stays open to correct the name
           this.folderError(error);
@@ -1103,7 +1225,7 @@ export class SiteSidebarComponent implements OnInit {
       header: this.translate.instant('sidebar.delete-folder'),
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.assetsService.deleteFolder(folderPath).then(success => {
+        this.assetsService.deleteFolder(folderPath, this.assetLibrary).then(success => {
           if (success) {
             this.messageService.add({
               severity: 'success', summary: 'Successful',

@@ -412,16 +412,16 @@
           @if (collectorBooster && collectorPackDesign) {
           <div class="p-field collector-pack-preview">
             <app-booster-pack [design]="collectorPackDesign" [name]="collectorBooster.name"
-              [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="(assetsService.assetUrls | async) ?? {}"></app-booster-pack>
+              [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="collectorBoosterUrls"></app-booster-pack>
           </div>
           <!-- rendus en taille réelle, hors de l'écran : recto et verso du sachet -->
           <div #packRender class="collector-pack-render" aria-hidden="true">
             <app-booster-pack [design]="collectorPackDesign" [name]="collectorBooster.name"
-              [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="(assetsService.assetUrls | async) ?? {}"></app-booster-pack>
+              [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="collectorBoosterUrls"></app-booster-pack>
           </div>
           <div #packRender class="collector-pack-render" aria-hidden="true">
             <app-booster-pack [design]="collectorPackDesign" [name]="collectorBooster.name" side="back"
-              [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="(assetsService.assetUrls | async) ?? {}"></app-booster-pack>
+              [cardsPerPack]="collectorBooster.cardsPerPack" [assetUrls]="collectorBoosterUrls"></app-booster-pack>
           </div>
           <div class="p-field p-d-flex p-flex-row">
             <p-checkbox name="boosterWeights" class="p-mr-2" [binary]="true" [(ngModel)]="collector.boosterWeights"

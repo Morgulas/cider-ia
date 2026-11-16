@@ -6,17 +6,32 @@
       <p-button icon="pi pi-plus" [rounded]="true" [text]="true" (onClick)="create()"
         [pTooltip]="'boosters.create' | translate" [ariaLabel]="'boosters.create' | translate" />
     </div>
-    @for (b of boosters; track b.id) {
-    <button type="button" class="booster-item" [class.selected]="b.id === booster?.id" (click)="select(b)">
-      <span class="thumb">
-        <app-booster-pack [design]="b.design" [name]="b.name" [assetUrls]="assetUrls" />
-      </span>
-      <span class="item-text">
-        <span class="item-name">{{ b.name }}</span>
-        <span class="item-sub">{{ 'boosters.cards-per-pack' | translate: { n: b.cardsPerPack } }}</span>
-      </span>
-    </button>
-    } @empty {
+    @for (group of groups; track group.library) {
+    <div class="booster-group" [class.current]="group.library !== null && group.library === currentDeckId">
+      <div class="group-header">
+        <i [class]="group.library === null ? 'pi pi-globe' : 'pi pi-clone'"></i>
+        <span class="group-name" [title]="group.library === null ? ('boosters.common-help' | translate) : group.label">{{ group.label }}</span>
+        <span class="group-count">{{ group.boosters.length }}</span>
+        <p-button icon="pi pi-plus" [rounded]="true" [text]="true" size="small" (onClick)="create(group.library)"
+          [pTooltip]="(group.library === null ? 'boosters.create-common' : 'boosters.create-in-deck') | translate: { deck: group.label }"
+          [ariaLabel]="(group.library === null ? 'boosters.create-common' : 'boosters.create-in-deck') | translate: { deck: group.label }" />
+      </div>
+      @for (b of group.boosters; track b.id) {
+      <button type="button" class="booster-item" [class.selected]="b.id === booster?.id" (click)="select(b)">
+        <span class="thumb">
+          <app-booster-pack [design]="b.design" [name]="b.name" [assetUrls]="urlsOf(b)" />
+        </span>
+        <span class="item-text">
+          <span class="item-name">{{ b.name }}</span>
+          <span class="item-sub">{{ 'boosters.cards-per-pack' | translate: { n: b.cardsPerPack } }}</span>
+        </span>
+      </button>
+      } @empty {
+      <p class="group-empty">{{ (group.library === null ? 'boosters.none-common' : 'boosters.none-in-deck') | translate }}</p>
+      }
+    </div>
+    }
+    @if (!boosters.length) {
     <p class="list-empty">{{ 'boosters.none' | translate }}</p>
     <p-button [label]="'boosters.create' | translate" icon="pi pi-plus" (onClick)="create()" />
     }

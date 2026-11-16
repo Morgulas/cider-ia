@@ -48,7 +48,8 @@ import { BoostersService } from '../data-services/services/boosters.service';
 import { AssetsService } from '../data-services/services/assets.service';
 import { Booster, BoosterDesign } from '../data-services/types/booster.type';
 import { BoosterPackComponent } from '../boosters/booster-pack.component';
-import { backOf, edgeOf, effectiveDesign, isToothed } from '../boosters/booster-logic';
+import { backOf, boosterLibrary, edgeOf, effectiveDesign, isToothed } from '../boosters/booster-logic';
+import { AssetUrls } from '../data-services/types/asset.type';
 import { packImageInfo } from '../boosters/booster-outline';
 import { resolveAsset } from '../boosters/booster-assets';
 
@@ -191,11 +192,17 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     return this.boosters.find(b => b.id === this.collector.boosterId);
   }
 
+  /** Images du sachet : celles du deck du booster et les communes */
+  get collectorBoosterUrls(): AssetUrls {
+    return this.assetsService.urlsFor(boosterLibrary(this.collectorBooster));
+  }
+
   /** le sachet est rendu sans finition, à bords droits et sans encoche : l'appli ajoute elle-même finition et bords,
    *  en relief */
   /** Silhouettes (clip-path) du recto et du verso d'un sachet complet. */
   private async packContours(design: BoosterDesign): Promise<{ front?: string; back?: string }> {
-    const urls = await firstValueFrom(this.assetsService.assetUrls);
+    await firstValueFrom(this.assetsService.assetUrls);
+    const urls = this.collectorBoosterUrls;
     const front = await packImageInfo(resolveAsset(urls, design.art));
     const back = await packImageInfo(resolveAsset(urls, backOf(design).art));
     return { front: front?.outline ?? undefined, back: back?.outline ?? undefined };

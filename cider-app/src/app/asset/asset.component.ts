@@ -117,7 +117,8 @@ export class AssetComponent {
 
   private updateFileDetails() {
     if (this.asset && this.asset.name && this.assetUrls) {
-      const fileUrl = this.getAssetUrl(this.asset, this.assetUrls);
+      // its deck's images take precedence over the common ones of the same path
+      const fileUrl = this.getAssetUrl(this.asset, this.assetsService.urlsFor(this.assetsService.libraryOf(this.asset)));
       if (fileUrl) {
         this.fileSize = FileUtils.formatFileSize(this.asset.file.size);
         this.fileExtension = StringUtils.mimeToExtension(this.asset.file.type);

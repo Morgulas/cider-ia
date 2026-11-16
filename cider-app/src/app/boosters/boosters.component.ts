@@ -1,6 +1,7 @@
 import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Subject, debounceTime } from 'rxjs';
 import { Button } from 'primeng/button';
@@ -33,10 +34,18 @@ import { BoosterPackComponent } from './booster-pack.component';
 import { BoosterOpeningComponent } from './booster-opening.component';
 import { AssetChoice, assetChoices, resolveAsset } from './booster-assets';
 import { packImageInfo, ratioGap } from './booster-outline';
-import { BOOSTER_FONTS, BoosterStats, PoolEntry, PulledCard, autoBack, edgeOf, isToothed, newBooster, openBooster, pickChance, poolOf, simulate, valueText, weightOf } from './booster-logic';
+import { BOOSTER_FONTS, BoosterStats, boosterLibrary, PoolEntry, PulledCard, autoBack, edgeOf, isToothed, newBooster, openBooster, pickChance, poolOf, simulate, valueText, weightOf } from './booster-logic';
 import { backToTemplate, designToTemplate, syncTemplate, templateSignature } from './booster-template';
 
 type Section = 'open' | 'pool' | 'design' | 'stats';
+
+/** Boosters rangés ensemble : ceux d'un deck (qui ne tirent que dans ce deck), ou les communs. */
+interface BoosterGroup {
+  /** id du deck, ou null : boosters qui mélangent plusieurs decks */
+  library: number | null;
+  label: string;
+  boosters: Booster[];
+}
 
 /** Une ligne du tableau des poids. */
 interface PoolRow {
@@ -72,6 +81,7 @@ export class BoostersComponent implements OnInit, OnDestroy {
   private readonly confirmation = inject(ConfirmationService);
   private readonly localStorage = inject(LocalStorageService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
   readonly templatesService = inject(CardTemplatesService);
 
   boosters: Booster[] = [];
@@ -80,8 +90,15 @@ export class BoostersComponent implements OnInit, OnDestroy {
   cards: Card[] = [];
   fields: EntityField<Card>[] = [];
   foilField: string | undefined;
+  /** Images du booster choisi : celles de son deck et les communes */
   assetUrls: AssetUrls = {};
   assets: AssetChoice[] = [];
+  /** Boosters rangés par deck, puis les communs */
+  groups: BoosterGroup[] = [];
+  /** Deck en cours (lien du panneau latéral, ou deck ouvert) : son groupe vient en premier */
+  currentDeckId: number | null = null;
+  /** Bibliothèque des images proposées (assets) */
+  private assetsLibrary: number | null | undefined = undefined;
 
   section: Section = 'open';
   readonly sectionOptions: { value: Section; key: string; icon: string }[] = [
@@ -146,11 +163,23 @@ export class BoostersComponent implements OnInit, OnDestroy {
     this.saves.pipe(debounceTime(400), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => void this.flushSaves());
     this.assetsService.assetUrls.pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(urls => {
-        this.assetUrls = urls;
+      .subscribe(() => {
+        this.assetUrls = this.urlsOf(this.booster);
         this.artNotesKey = '';
         this.refreshArtNotes();
       });
+    // ?deck=… (lien du panneau latéral), sinon le deck ouvert en dernier
+    const fromLink = Number(this.route.snapshot.queryParamMap.get('deck')) || null;
+    this.currentDeckId = fromLink ?? this.decksService.selectedDeck?.getValue()?.id ?? null;
+    // un autre deck choisi dans le panneau latéral, la page restant ouverte : son groupe en premier
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      const deckId = Number(params.get('deck')) || null;
+      if (deckId !== null && deckId !== this.currentDeckId && this.decks.length) {
+        this.currentDeckId = this.decks.some(deck => deck.id === deckId) ? deckId : null;
+        this.regroup();
+        this.select(this.firstBooster() ?? this.booster);
+      }
+    });
     void this.load();
   }
 
@@ -167,12 +196,11 @@ export class BoostersComponent implements OnInit, OnDestroy {
   }
 
   private async load(): Promise<void> {
-    const [boosters, decks, cards, fields, assets] = await Promise.all([
+    const [boosters, decks, cards, fields] = await Promise.all([
       this.boostersService.getAll(),
       this.decksService.getAll(),
       this.cardsService.getAllUnfiltered(),
       this.cardsService.getFieldsUnfiltered(),
-      assetChoices(this.assetsService),
     ]);
     this.boosters = boosters.map(normalize);
     this.decks = decks;
@@ -186,26 +214,79 @@ export class BoostersComponent implements OnInit, OnDestroy {
     });
     this.foilField = findFoilField(fields);
     this.groupField = String(this.fields.find(field => /rar/i.test(field.header))?.field ?? '');
-    this.assets = assets;
-    this.select(this.boosters[0] ?? null);
+    if (this.currentDeckId !== null && !decks.some(deck => deck.id === this.currentDeckId)) {
+      this.currentDeckId = null;
+    }
+    this.regroup();
+    this.select(this.firstBooster());
+  }
+
+  /** Le premier booster de la liste : celui du deck en cours, sinon des groupes suivants */
+  private firstBooster(): Booster | null {
+    return this.groups.find(group => group.boosters.length)?.boosters[0] ?? null;
+  }
+
+  /** Images vues par un booster : celles de son deck et les communes */
+  urlsOf(booster: Booster | null | undefined): AssetUrls {
+    return this.assetsService.urlsFor(boosterLibrary(booster));
+  }
+
+  /**
+   * Range les boosters : le deck en cours d'abord, les communs (plusieurs decks) ensuite,
+   * puis les autres decks ; un groupe vide n'est montré que pour le deck en cours.
+   */
+  regroup(): void {
+    const byLibrary = new Map<number | null, Booster[]>();
+    this.boosters.forEach(booster => {
+      const library = boosterLibrary(booster);
+      // un booster d'un deck supprimé : avec les communs
+      const key = library !== null && this.decks.some(deck => deck.id === library) ? library : null;
+      byLibrary.set(key, [...(byLibrary.get(key) ?? []), booster]);
+    });
+    const deckGroup = (deck: Deck): BoosterGroup => ({ library: deck.id, label: deck.name, boosters: byLibrary.get(deck.id) ?? [] });
+    const current = this.decks.find(deck => deck.id === this.currentDeckId);
+    const groups: BoosterGroup[] = [];
+    if (current) {
+      groups.push(deckGroup(current));
+    }
+    groups.push({ library: null, label: this.translate.instant('boosters.common'), boosters: byLibrary.get(null) ?? [] });
+    this.decks.filter(deck => deck !== current).map(deckGroup).filter(group => group.boosters.length).forEach(group => groups.push(group));
+    this.groups = groups;
+  }
+
+  /** Images proposées pour le sachet : celles de la bibliothèque du booster */
+  private async refreshAssets(): Promise<void> {
+    const library = boosterLibrary(this.booster);
+    if (library === this.assetsLibrary) {
+      return;
+    }
+    this.assetsLibrary = library;
+    this.assets = await assetChoices(this.assetsService, library);
   }
 
   select(booster: Booster | null): void {
     // le booster quitté garde ses dernières modifications
     void this.flushSaves();
     this.booster = booster;
+    this.assetUrls = this.urlsOf(booster);
+    void this.refreshAssets();
     this.frontTemplateStale = this.backTemplateStale = false;
     this.refreshArtNotes();
     this.stats = null;
     this.refreshPool();
   }
 
-  async create(): Promise<void> {
+  /**
+   * Nouveau booster, rangé dans un groupe : il tire dans ce deck seul, ou dans tous les decks
+   * pour les communs. Sans groupe : le deck en cours s'il y en a un.
+   */
+  async create(library: number | null | undefined = this.currentDeckId): Promise<void> {
     const name = this.translate.instant('boosters.new-name', { n: this.boosters.length + 1 });
-    const deckIds = this.decks.map(deck => deck.id);
-    const created = await this.boostersService.create(newBooster(name, deckIds) as Booster);
-    this.boosters = [...this.boosters, normalize(created)];
-    this.select(this.boosters[this.boosters.length - 1]);
+    const deckIds = library != null ? [library] : this.decks.map(deck => deck.id);
+    const created = normalize(await this.boostersService.create(newBooster(name, deckIds) as Booster));
+    this.boosters = [...this.boosters, created];
+    this.regroup();
+    this.select(created);
     this.section = 'pool';
   }
 
@@ -216,9 +297,10 @@ export class BoostersComponent implements OnInit, OnDestroy {
     const copy = structuredClone(this.booster) as Partial<Booster>;
     delete copy.id;
     copy.name = `${this.booster.name} (2)`;
-    const created = await this.boostersService.create(copy as Booster);
-    this.boosters = [...this.boosters, normalize(created)];
-    this.select(this.boosters[this.boosters.length - 1]);
+    const created = normalize(await this.boostersService.create(copy as Booster));
+    this.boosters = [...this.boosters, created];
+    this.regroup();
+    this.select(created);
   }
 
   remove(): void {
@@ -234,7 +316,8 @@ export class BoostersComponent implements OnInit, OnDestroy {
         this.pendingSaves.delete(booster.id);
         await this.boostersService.delete(booster.id);
         this.boosters = this.boosters.filter(b => b.id !== booster.id);
-        this.select(this.boosters[0] ?? null);
+        this.regroup();
+        this.select(this.firstBooster());
       }
     });
   }
@@ -247,6 +330,10 @@ export class BoostersComponent implements OnInit, OnDestroy {
     // nouvel objet : les composants OnPush (aperçu du booster) voient le changement
     this.booster = { ...this.booster, design: { ...this.booster.design } };
     this.boosters = this.boosters.map(b => b.id === this.booster!.id ? this.booster! : b);
+    // ses decks ont pu changer : il change de groupe, et d'images
+    this.regroup();
+    this.assetUrls = this.urlsOf(this.booster);
+    void this.refreshAssets();
     if (refreshPool) {
       this.refreshPool();
     }

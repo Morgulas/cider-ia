@@ -71,7 +71,11 @@ describe('BoostersComponent', () => {
             getSelectedDeck: () => of(undefined),
           },
         },
-        { provide: AssetsService, useValue: { assetUrls: of({}), getAllMetadata: async () => [] } },
+        {
+          provide: AssetsService, useValue: {
+            assetUrls: of({}), getAllMetadata: async () => [], urlsFor: () => ({}), libraryOf: () => null,
+          },
+        },
       ],
     }).compileComponents();
 
@@ -169,6 +173,30 @@ describe('BoostersComponent', () => {
     flushMicrotasks();
     expect(component.booster!.deckIds).toEqual([10, 20]);
     expect(component.rows.length).toBe(4);
+    tick(400);
+  }));
+
+  it('ranges the boosters with their deck, the common ones apart, and creates one in a group', fakeAsync(() => {
+    stored.set(3, booster(3, 'Mélange', { deckIds: [10, 20] }));
+    stored.set(4, booster(4, 'Autre deck', { deckIds: [20] }));
+    component.currentDeckId = 20;
+    component.ngOnInit();
+    component.currentDeckId = 20;
+    flushMicrotasks();
+    component.regroup();
+    expect(component.groups.map(group => [group.library, group.boosters.map(b => b.name)])).toEqual([
+      [20, ['Autre deck']],
+      [null, ['Mélange']],
+      [10, ['Booster A', 'Booster B']],
+    ]);
+
+    component.create(10);
+    flushMicrotasks();
+    expect(component.booster!.deckIds).toEqual([10]);
+    expect(component.groups.find(group => group.library === 10)!.boosters.length).toBe(3);
+    component.create(null);
+    flushMicrotasks();
+    expect(component.booster!.deckIds).toEqual([10, 20]);
     tick(400);
   }));
 

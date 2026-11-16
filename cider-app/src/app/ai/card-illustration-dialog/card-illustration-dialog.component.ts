@@ -15,7 +15,7 @@ import { CardAttributesService } from '../../data-services/services/card-attribu
 import { CardTemplatesService } from '../../data-services/services/card-templates.service';
 import { CardsService } from '../../data-services/services/cards.service';
 import { DecksService } from '../../data-services/services/decks.service';
-import { Asset } from '../../data-services/types/asset.type';
+import { Asset, AssetLibrary } from '../../data-services/types/asset.type';
 import { Card } from '../../data-services/types/card.type';
 import { CardAttribute } from '../../data-services/types/card-attribute.type';
 import { Deck } from '../../data-services/types/deck.type';
@@ -79,6 +79,9 @@ export class CardIllustrationDialogComponent implements OnDestroy {
   protected provider: string | null = null;
 
   protected assetName = '';
+  /** library the image goes to: the card's deck (default) or the common one, remembered per project */
+  protected library: 'deck' | 'common' = 'deck';
+  protected readonly libraryOptions = signal<{ label: string; value: 'deck' | 'common' }[]>([]);
   /** asset folder the image goes to ('' = top level), remembered per project */
   protected folder = '';
   protected readonly folderOptions = signal<{ label: string; value: string }[]>([]);
@@ -131,14 +134,12 @@ export class CardIllustrationDialogComponent implements OnDestroy {
       this.renderPrompt();
       await this.findImageLink(card, attributes);
     }
-    const folders = await this.assets.getFolders();
-    this.folderOptions.set([
-      { label: this.translate.instant('server.ai.folder-root'), value: '' },
-      ...folders.map(path => ({ label: path, value: path })),
+    this.libraryOptions.set([
+      { label: this.translate.instant('server.ai.library-deck', { deck: this.deck?.name ?? '' }), value: 'deck' },
+      { label: this.translate.instant('server.ai.library-common'), value: 'common' },
     ]);
-    const remembered = this.loadSetting('folder');
-    this.folder = folders.includes(remembered) ? remembered : '';
-    await this.checkExistingAsset();
+    this.library = this.loadSetting('library') === 'common' ? 'common' : 'deck';
+    await this.loadFolders(this.loadSetting('folder'));
     const status = await this.ai.refreshStatus();
     this.provider = status?.defaultImageProvider ?? null;
     this.count = Math.min(this.count, status?.maxImagesPerRequest ?? 1);
@@ -289,10 +290,28 @@ export class CardIllustrationDialogComponent implements OnDestroy {
     this.selected.set(index);
   }
 
+  /** Library chosen for the image: the card's deck (its id) or the common one (null) */
+  private targetLibrary(): AssetLibrary {
+    return this.library === 'deck' && this.card()?.deckId != null ? this.card()!.deckId : null;
+  }
+
+  /** Folders of the chosen library; keeps the wanted folder if it has it */
+  protected async loadFolders(wanted = this.folder): Promise<void> {
+    const folders = await this.assets.getFolders(this.targetLibrary());
+    this.folderOptions.set([
+      { label: this.translate.instant('server.ai.folder-root'), value: '' },
+      ...folders.sort((a, b) => a.localeCompare(b)).map(path => ({ label: path, value: path })),
+    ]);
+    this.folder = folders.includes(wanted) ? wanted : '';
+    await this.checkExistingAsset();
+  }
+
   protected async checkExistingAsset(): Promise<void> {
     const wanted = StringUtils.toKebabCase(this.assetName);
+    const library = this.targetLibrary();
     const assets = await this.assets.getAll();
-    this.existingAsset.set(assets.find(asset => (asset.path ?? '') === this.folder
+    this.existingAsset.set(assets.find(asset => this.assets.libraryOf(asset) === library
+      && (asset.path ?? '') === this.folder
       && StringUtils.toKebabCase(asset.name) === wanted) ?? null);
   }
 
@@ -337,8 +356,11 @@ export class CardIllustrationDialogComponent implements OnDestroy {
       if (existing) {
         await this.assets.update(existing.id, { ...existing, file: proposal.blob });
       } else {
-        await this.assets.create({ name, file: proposal.blob, path: this.folder } as Asset);
+        const library = this.targetLibrary();
+        await this.assets.create({ name, file: proposal.blob, path: this.folder,
+          ...(library === null ? {} : { deckId: library }) } as Asset);
       }
+      this.saveSetting('library', this.library);
       this.saveSetting('folder', this.folder);
       await this.linkToCard(name);
       this.saved.emit();

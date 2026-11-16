@@ -138,7 +138,13 @@
         },
         "asset-moved": "“{{name}}” moved to {{folder}}",
         "folder-moved": "Folder moved to {{folder}}",
-        "top-level": "the top level"
+        "top-level": "the top level",
+        "library-common": "Common library",
+        "choose-library": "Choose the illustration library",
+        "library-help": "Each deck has its own library; its templates also see the common library",
+        "move-to-library": "Move to library",
+        "moved-to-library": "\"{{name}}\" moved to {{library}}",
+        "confirm-deck-delete-message": "Delete the deck \"{{deck}}\"? Its illustrations will go to the common library, in a folder named after it."
     },
     "export": {
         "sheet-export": "Card Sheet",
@@ -687,7 +693,10 @@
             "no-card": "No card in this deck",
             "template-saved": "Prompt template saved for the deck.",
             "folder": "Folder",
-            "folder-root": "Assets (top level)"
+            "folder-root": "Assets (top level)",
+            "library": "Library",
+            "library-deck": "Deck {{deck}}",
+            "library-common": "Common library"
         },
         "ai-settings": {
             "title": "AI settings",
@@ -942,6 +951,12 @@
         }
     },
     "boosters": {
+        "common": "Common",
+        "common-help": "Boosters drawing from several decks",
+        "create-common": "New common booster (all decks)",
+        "create-in-deck": "New booster for the deck {{deck}}",
+        "none-common": "No common booster.",
+        "none-in-deck": "No booster for this deck.",
         "title": "Boosters",
         "create": "New booster",
         "none": "No booster yet.",

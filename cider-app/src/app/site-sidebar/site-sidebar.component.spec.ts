@@ -81,9 +81,9 @@ describe('SiteSidebarComponent', () => {
 
     it('moves a folder with its name into the folder it is dropped on, or to the top', async () => {
       await drop(folderNode('Fangh/Armes'), folderNode('Objets'));
-      expect(assets.renameFolder).toHaveBeenCalledWith('Fangh/Armes', 'Objets/Armes');
+      expect(assets.renameFolder).toHaveBeenCalledWith('Fangh/Armes', 'Objets/Armes', null);
       await drop(folderNode('Fangh/Armes'), rootNode);
-      expect(assets.renameFolder).toHaveBeenCalledWith('Fangh/Armes', 'Armes');
+      expect(assets.renameFolder).toHaveBeenCalledWith('Fangh/Armes', 'Armes', null);
     });
 
     it('does nothing for a folder dropped where it already is', async () => {

@@ -83,8 +83,9 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   }
 
   ngOnInit(): void {
-    this.assetsService.getAssetUrls().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(assetUrls => {
-      this.assetUrls = assetUrls;
+    // the images of the card's deck and the common ones
+    this.assetsService.getAssetUrls().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.assetUrls = this.assetsService.urlsFor(this.card?.deckId);
       this.changeDetectorRef.markForCheck();
     });
   }
@@ -92,6 +93,10 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   ngOnChanges(changes: SimpleChanges): void {
     const cardChange = changes['card'];
     const templateChange = changes['template'];
+
+    if (cardChange && this.assetUrls) {
+      this.assetUrls = this.assetsService.urlsFor(this.card?.deckId);
+    }
 
     if ((cardChange && !cardChange.isFirstChange()) || (templateChange && !templateChange.isFirstChange())) {
       this.isLoadedSubject = new AsyncSubject();

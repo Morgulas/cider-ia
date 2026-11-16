@@ -49,7 +49,8 @@ describe('CardTemplatesComponent', () => {
         { provide: DecksService, useValue: { getSelectedDeck: () => of({ id: 1, name: 'Livres' }) } },
         { provide: CardsService, useValue: { getAll: async () => [] } },
         { provide: CardAttributesService, useValue: { getAll: async () => [] } },
-        { provide: AssetsService, useValue: { getAllMetadata: async () => [], onChange: () => NEVER, getAssetUrls: () => of({}) } },
+        { provide: AssetsService, useValue: { getAllMetadata: async () => [], onChange: () => NEVER, getAssetUrls: () => of({}),
+          urlsFor: () => ({}), libraryOf: () => null } },
         { provide: CurrentProjectService, useValue: { flush: flushProject } },
       ],
     }).compileComponents();

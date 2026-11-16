@@ -2,6 +2,14 @@
 
 Entrée **Boosters** dans les pages du deck (panneau Explorateur). Un booster décrit un paquet scellé : les cartes qui peuvent en sortir, avec quelle fréquence, et à quoi ressemble le sachet. Les boosters sont enregistrés dans le projet.
 
+## Rangement
+
+La liste des boosters est rangée par deck : un booster qui ne pioche que dans un deck est rangé avec ce deck ; un booster qui mélange plusieurs decks est dans **Communs**. Le rangement suit le pool : ajouter un deck au pool d'un booster le fait passer dans les communs.
+
+- Le lien **Boosters** d'un deck (panneau latéral) ouvre la page sur les boosters de ce deck, puis les communs, puis les autres decks.
+- Le **+** d'un groupe crée un booster dans ce deck (ou, pour les communs, sur tous les decks) ; le **+** du titre le crée dans le deck en cours.
+- Les images du sachet viennent de la bibliothèque du booster : celle de son deck et la bibliothèque commune pour un booster de deck, la commune seule pour un booster commun ([interface.md](interface.md#bibliothèques)).
+
 ## Pool et poids
 
 - **Decks du pool** : les cartes de ces decks peuvent sortir.

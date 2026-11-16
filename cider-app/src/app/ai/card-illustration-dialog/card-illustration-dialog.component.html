@@ -99,6 +99,9 @@
           <label for="ai-asset-name">{{ 'server.ai.asset-name' | translate }}</label>
           <input pInputText id="ai-asset-name" name="assetName" [(ngModel)]="assetName" (ngModelChange)="checkExistingAsset()"
             aria-describedby="ai-asset-help" />
+          <label for="ai-library">{{ 'server.ai.library' | translate }}</label>
+          <p-select inputId="ai-library" name="library" [options]="libraryOptions()" optionLabel="label" optionValue="value"
+            [(ngModel)]="library" (ngModelChange)="loadFolders()" />
           <label for="ai-folder">{{ 'server.ai.folder' | translate }}</label>
           <p-select inputId="ai-folder" name="folder" [options]="folderOptions()" optionLabel="label" optionValue="value"
             [(ngModel)]="folder" (ngModelChange)="checkExistingAsset()" />

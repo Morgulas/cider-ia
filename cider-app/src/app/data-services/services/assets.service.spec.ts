@@ -122,4 +122,96 @@ describe('AssetsService', () => {
     // the top-level Logo keeps the short name
     expect(urls['logo']).not.toBe((urls['marques'] as AssetUrls)['logo']);
   });
+
+  describe('libraries (common and per deck)', () => {
+    /** Adds a deck; returns its id */
+    const deck = async (name: string) => await db.table(AppDB.DECKS_TABLE).add({ name }) as number;
+    /** Adds an asset to a library; returns its id */
+    const addIn = async (name: string, path: string, deckId: number | null, content = name) =>
+      (await service.create({ name, path, file: image(content), ...(deckId === null ? {} : { deckId }) } as unknown as Asset, true)).id;
+    const urlsReady = async () => {
+      service.updateAssetUrls();
+      await firstValueFrom(service.assetUrls.pipe(filter((u: AssetUrls) => 'commun' in u)));
+    };
+    const text = async (url: unknown) => (await fetch(String(url))).text();
+
+    it('lets a deck see its images and the common ones, its own first, not those of other decks', async () => {
+      const fangh = await deck('Fangh');
+      const flocons = await deck('Flocons');
+      await addIn('Commun', '', null);
+      await addIn('Dos', '', null, 'dos commun');
+      await addIn('Dos', '', fangh, 'dos de Fangh');
+      await addIn('Gobelin', 'Monstres', fangh);
+      await addIn('Flocon', '', flocons);
+      await urlsReady();
+
+      const common = service.urlsFor(null);
+      expect(Object.keys(common).sort()).toEqual(['commun', 'dos']);
+      expect(await text(common['dos'])).toBe('dos commun');
+
+      const forFangh = service.urlsFor(fangh);
+      expect(await text(forFangh['dos'])).toBe('dos de Fangh');
+      expect(forFangh['commun']).toBe(common['commun']);
+      expect(typeof (forFangh['monstres'] as AssetUrls)['gobelin']).toBe('string');
+      expect(forFangh['gobelin']).toBe((forFangh['monstres'] as AssetUrls)['gobelin']);
+      expect(forFangh['flocon']).toBeUndefined();
+      // kept until the images change: comparable by reference
+      expect(service.urlsFor(fangh)).toBe(forFangh);
+    });
+
+    it('keeps folders and names apart by library, and moves images between libraries', async () => {
+      const fangh = await deck('Fangh');
+      const commonId = await addIn('Dague', 'Armes', null);
+      await addIn('Dague', 'Armes', fangh);
+      await service.createFolder('Vide', fangh);
+      expect((await service.getFolders(null)).sort()).toEqual(['Armes']);
+      expect((await service.getFolders(fangh)).sort()).toEqual(['Armes', 'Vide']);
+
+      // same name in the same folder of the deck: refused
+      expect(await problemOf(service.moveAsset(await service.get(commonId), 'Armes', fangh))).toBe('name-taken');
+      await service.moveAsset(await service.get(commonId), 'Vieilles', fangh);
+      const moved = await service.get(commonId);
+      expect(moved.deckId).toBe(fangh);
+      expect(moved.path).toBe('Vieilles');
+      expect(await service.getFolders(fangh)).toContain('Vieilles');
+
+      // back to the common library: no deck any more
+      await service.moveAsset(await service.get(commonId), '', null);
+      expect('deckId' in (await service.get(commonId))).toBeFalse();
+    });
+
+    it('moves a whole folder to another library, refusing a name clash', async () => {
+      const fangh = await deck('Fangh');
+      await addIn('Dague', 'Armes', null);
+      await addIn('Epee', 'Armes/Longues', null);
+      await addIn('Racine', '', null);
+      await service.moveFolderToLibrary('Armes', null, fangh);
+      const inFangh = (await service.getAllMetadata()).filter(a => a.deckId === fangh).map(a => `${a.path}/${a.name}`).sort();
+      expect(inFangh).toEqual(['Armes/Dague', 'Armes/Longues/Epee']);
+      expect(await service.getFolders(null)).toEqual([]);
+      expect((await service.getFolders(fangh)).sort()).toEqual(['Armes', 'Armes/Longues']);
+
+      await addIn('Dague', 'Armes', null);
+      expect(await problemOf(service.moveFolderToLibrary('Armes', fangh, null))).toBe('name-taken');
+    });
+
+    it('gives the images of a deleted deck back to the common library, in a folder named after it', async () => {
+      const fangh = await deck('Fangh');
+      await addIn('Gobelin', 'Monstres', fangh);
+      await addIn('Logo', '', fangh);
+      await addIn('Autre', 'Fangh', null);
+      expect(await service.releaseDeckLibrary(fangh, 'Fangh')).toBe(2);
+      await db.table(AppDB.DECKS_TABLE).delete(fangh);
+      expect(await where()).toEqual(['Fangh (2)/Logo', 'Fangh (2)/Monstres/Gobelin', 'Fangh/Autre']);
+      expect((await service.getAllMetadata()).some(a => a.deckId != null)).toBeFalse();
+    });
+
+    it('counts an image of a deck that no longer exists as common', async () => {
+      await addIn('Perdue', '', 999);
+      await addIn('Commun', '', null);
+      await urlsReady();
+      expect(service.libraryOf({ deckId: 999 })).toBeNull();
+      expect(typeof service.urlsFor(null)['perdue']).toBe('string');
+    });
+  });
 });

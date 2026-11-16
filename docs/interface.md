@@ -56,7 +56,7 @@ Le bouton **⋮** à côté du sélecteur ouvre les actions du deck : nouveau de
 | **Attributs** | Les champs des cartes (texte, nombre, liste, case à cocher). | |
 | **Prompt d'illustration** | Le prompt commun aux illustrations du deck ([docker/README.md](../docker/README.md#ia--illustrations-de-cartes)). | |
 | **Exporter les cartes** | Planches PDF, images, Tabletop Simulator, ou **set pour l'appli de collection**. | |
-| **Boosters** | Le simulateur de boosters ([boosters.md](boosters.md)). Un booster peut piocher dans plusieurs decks : la page est commune au projet. | boosters qui piochent dans ce deck |
+| **Boosters** | Le simulateur de boosters ([boosters.md](boosters.md)), ouvert sur les boosters de ce deck ; les boosters communs (plusieurs decks) suivent. | boosters de ce deck (qui ne piochent que dans lui) |
 | **Modèles de carte** | Les modèles HTML/CSS du deck ([editeur-de-modeles.md](editeur-de-modeles.md)). Le bouton **+** au survol crée un modèle. | nombre de modèles |
 
 La page affichée est surlignée. Le champ **Rechercher** filtre les pages et modèles du deck.
@@ -69,12 +69,24 @@ En haut de chaque page d'un deck, une barre d'onglets reprend ses pages : **Cart
 
 ## Illustrations
 
-Le panneau **Illustrations** montre les ressources du projet (images, polices…). Deux vues, au choix avec les boutons en haut du panneau (le choix est retenu) :
+Le panneau **Illustrations** montre les ressources du projet (images, polices…), rangées en **bibliothèques** : une par deck, plus une **bibliothèque commune** à tout le projet.
+
+### Bibliothèques
+
+- La liste en haut du panneau choisit la bibliothèque affichée. Elle suit le deck choisi dans l'Explorateur ; « Bibliothèque commune » montre les images partagées.
+- Les **modèles de carte** d'un deck voient ses images **et** celles de la bibliothèque commune. Si les deux ont une image au même chemin (`{{assets.dos}}`), celle du deck l'emporte : chaque deck peut avoir son propre dos, son propre logo… Les images des autres decks ne sont pas visibles.
+- Les feuilles de style communes (`global-styles`) ne voient que la bibliothèque commune.
+- Une nouvelle image (bouton +, générateur ✨) va dans la bibliothèque affichée. La fenêtre d'**illustration IA** d'une carte la range par défaut dans le deck de la carte (au choix : le deck ou la bibliothèque commune).
+- **Changer de bibliothèque** : clic droit sur une image ou un dossier › *Déplacer vers la bibliothèque*. L'image garde son dossier ; c'est refusé si une image du même nom s'y trouve déjà.
+- **Supprimer un deck** ne supprime pas ses images : elles reviennent dans la bibliothèque commune, dans un dossier au nom du deck.
+- Les images d'avant cette organisation sont dans la bibliothèque commune : rien ne change pour les modèles existants tant qu'on ne les déplace pas.
+
+Deux vues, au choix avec les boutons en haut du panneau (le choix est retenu) :
 
 ### Vignettes (par défaut)
 
 - **Dossiers** en tête, avec leur nombre d'éléments ; un clic entre dans le dossier.
-- **Fil d'Ariane** (« Toutes › Personnages › Héros ») : un clic remonte. À droite, **nouveau dossier** et **nouvelle ressource** dans le dossier affiché.
+- **Fil d'Ariane** (« Fangh - Set 1 › Personnages › Héros », la bibliothèque en premier) : un clic remonte. À droite, **nouveau dossier** et **nouvelle ressource** dans le dossier affiché.
 - **Rechercher** cherche dans tous les dossiers à la fois.
 - Un clic sur une image l'ouvre ; le **clic droit** donne ses actions (renommer, générer, supprimer). Le damier derrière les images rend visibles les zones transparentes.
 - **Ranger** : glisser une vignette sur un dossier, ou sur une étape du fil d'Ariane pour la remonter.

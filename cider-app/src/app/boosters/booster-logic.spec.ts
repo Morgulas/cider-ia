@@ -1,6 +1,6 @@
 import { Booster } from '../data-services/types/booster.type';
 import { Card } from '../data-services/types/card.type';
-import { backOf, edgeClipPath, edgeOf, effectiveDesign, isToothed, newBooster, openBooster, pickChance, poolOf, simulate } from './booster-logic';
+import { backOf, boosterLibrary, edgeClipPath, edgeOf, effectiveDesign, isToothed, newBooster, openBooster, pickChance, poolOf, simulate } from './booster-logic';
 
 function card(id: number, extra: Record<string, unknown> = {}): Card {
   return { id, deckId: 1, name: `C${id}`, count: 1, frontCardTemplateId: 1, backCardTemplateId: 1, ...extra } as Card;
@@ -118,5 +118,13 @@ describe('booster-logic', () => {
     expect(set.background).toBe('aucun');
     // sans sachet complet : rien ne change
     expect(effectiveDesign({ ...design, fullArt: false }).artFit).toBe('contain');
+  });
+
+  it('ranges a booster with its deck when it draws from one deck only, else with the common ones', () => {
+    expect(boosterLibrary({ deckIds: [3] })).toBe(3);
+    expect(boosterLibrary({ deckIds: [3, 3] })).toBe(3);
+    expect(boosterLibrary({ deckIds: [3, 4] })).toBeNull();
+    expect(boosterLibrary({ deckIds: [] })).toBeNull();
+    expect(boosterLibrary(null)).toBeNull();
   });
 });

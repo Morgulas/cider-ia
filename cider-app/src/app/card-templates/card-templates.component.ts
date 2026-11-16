@@ -8,7 +8,7 @@ import { CardTemplatesService } from '../data-services/services/card-templates.s
 import { CardsService } from '../data-services/services/cards.service';
 import { CardTemplate } from '../data-services/types/card-template.type';
 import { Card } from '../data-services/types/card.type';
-import { Subject, debounceTime } from 'rxjs';
+import { Subject, combineLatest, debounceTime } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { LocalStorageService, PreviewSettings } from '../data-services/local-storage/local-storage.service';
 import { Bind } from 'primeng/bind';
@@ -32,6 +32,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { InputText } from 'primeng/inputtext';
 import { CardAttributesService } from '../data-services/services/card-attributes.service';
 import { AssetsService } from '../data-services/services/assets.service';
+import { assetChoices } from '../boosters/booster-assets';
 import { DecksService } from '../data-services/services/decks.service';
 import { CardAttribute } from '../data-services/types/card-attribute.type';
 import MonacoLanguages from '../shared/extensions/monaco-languages';
@@ -235,6 +236,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   attributes: CardAttribute[] = [];
   variables: TemplateVariable[] = [];
   assetEntries: { path: string; label: string }[] = [];
+  /** Deck whose images (and the common ones) the template can use */
+  private assetsDeckId: number | undefined;
   assetFilter = '';
   deckName = '';
   blocks: InsertBlock[] = [];
@@ -354,11 +357,19 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     });
     this.loadAssets();
     this.assetsService.onChange().pipe(debounceTime(500), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadAssets());
-    this.assetsService.getAssetUrls().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(urls => {
-      this.assetUrls = urls;
-      this.checks.next();
+    // the images of the deck and the common ones
+    combineLatest([this.assetsService.getAssetUrls(), this.decksService.getSelectedDeck()])
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(([, deck]) => {
+        this.assetUrls = this.assetsService.urlsFor(deck?.id);
+        this.checks.next();
+      });
+    this.decksService.getSelectedDeck().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(deck => {
+      this.deckName = deck?.name ?? '';
+      if (deck?.id !== this.assetsDeckId) {
+        this.assetsDeckId = deck?.id;
+        this.loadAssets();
+      }
     });
-    this.decksService.getSelectedDeck().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(deck => this.deckName = deck?.name ?? '');
     this.translate.onLangChange.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.updateCompletionContext());
   }
 
@@ -772,17 +783,9 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
    *********************************************************************/
 
   private loadAssets() {
-    this.assetsService.getAllMetadata().then(assets => {
-      this.assetEntries = assets
-        .filter(asset => asset?.name)
-        .map(asset => {
-          const folders = (asset.path || '').split('/').filter(Boolean);
-          return {
-            path: [...folders, asset.name].map((part: string) => StringUtils.toKebabCase(part)).join('.'),
-            label: [...folders, asset.name].join('/'),
-          };
-        })
-        .sort((a, b) => a.label.localeCompare(b.label));
+    // the images of the deck and the common ones
+    assetChoices(this.assetsService, this.assetsDeckId).then(entries => {
+      this.assetEntries = entries;
       this.updateCompletionContext();
     });
   }

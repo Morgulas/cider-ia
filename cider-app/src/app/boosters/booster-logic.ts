@@ -139,6 +139,15 @@ export function backOf(design: BoosterDesign): BoosterBackDesign {
 }
 
 /** Un booster neuf : tout le pool à poids 1. */
+/**
+ * Bibliothèque d'un booster, là où il est rangé et où il prend ses images : le deck dont il tire
+ * toutes ses cartes, ou la bibliothèque commune (null) s'il mélange plusieurs decks (ou aucun).
+ */
+export function boosterLibrary(booster: Pick<Booster, 'deckIds'> | null | undefined): number | null {
+  const decks = [...new Set(booster?.deckIds ?? [])];
+  return decks.length === 1 ? decks[0] : null;
+}
+
 export function newBooster(name: string, deckIds: number[]): Omit<Booster, 'id'> {
   return {
     name,
