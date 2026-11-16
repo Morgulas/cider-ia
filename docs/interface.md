@@ -71,6 +71,15 @@ En haut de chaque page d'un deck, une barre d'onglets reprend ses pages : **Cart
 
 Le panneau **Illustrations** montre les ressources du projet (images, polices…), rangées en **bibliothèques** : une par deck, plus une **bibliothèque commune** à tout le projet.
 
+### Page Illustrations
+
+Chaque bibliothèque a aussi sa **page**, en grand dans la zone principale :
+
+- **Illustrations** sous le projet (Explorateur, à côté de `global-styles`) : la bibliothèque commune.
+- **Illustrations** dans les pages du deck (et l'onglet du même nom en haut des pages du deck) : la bibliothèque du deck.
+
+La page montre les dossiers et les images en grandes vignettes (taille réglable avec le curseur, retenue), avec le fil d'Ariane, la recherche, **nouveau dossier**, **générer** ✨ et **Ajouter des images** (plusieurs fichiers à la fois, ou glissés depuis l'ordinateur sur la page : ils vont dans le dossier affiché, un nom déjà pris reçoit un suffixe -2, -3…). Un clic ouvre l'image ; le clic droit donne : ouvrir, copier l'appel pour les modèles (`{{assets.dossier.nom}}`), renommer, déplacer vers une autre bibliothèque, supprimer. Glisser une vignette sur un dossier ou une étape du fil d'Ariane la range.
+
 ### Bibliothèques
 
 - La liste en haut du panneau choisit la bibliothèque affichée. Elle suit le deck choisi dans l'Explorateur ; « Bibliothèque commune » montre les images partagées.

@@ -92,6 +92,8 @@ export class SiteSidebarComponent implements OnInit {
   assetUrls: AssetUrls = {};
   /** Library shown by the Illustrations panel: a deck's (its id) or the common one (null) */
   assetLibrary: AssetLibrary = null;
+  /** Number of illustrations by library (badges of the explorer) */
+  private libraryCounts = new Map<AssetLibrary, number>();
   /** Choices of the library picker (0: the common library) */
   libraryOptions: { value: number; label: string; icon: string }[] = [];
 
@@ -282,6 +284,22 @@ export class SiteSidebarComponent implements OnInit {
     };
     nodes.push(home);
 
+    // the common library of illustrations, on the whole page
+    const metadata = await this.assetsService.getAllMetadata().catch(() => []);
+    this.libraryCounts = new Map();
+    metadata.forEach(asset => {
+      const library = this.assetsService.libraryOf(asset);
+      this.libraryCounts.set(library, (this.libraryCounts.get(library) ?? 0) + 1);
+    });
+    home.children!.push({
+      label: this.translate.instant('sidebar.illustrations'),
+      data: { url: '/illustrations', badge: this.libraryCounts.get(null) ?? 0 },
+      icon: 'pi pi-images',
+      styleClass: 'project-illustrations',
+      draggable: false,
+      droppable: false
+    });
+
     const styles = await this.documentsService.getAll({ mime: 'text/css' });
     styles.forEach(document => home.children!.push({
       label: document.name,
@@ -435,6 +453,8 @@ export class SiteSidebarComponent implements OnInit {
     const nodes: TreeNode[] = [
       page('sidebar.cards', '/cards/listing', 'pi pi-list', 'card-listing', { data: { url: base + '/cards/listing', badge: deck.cards } }),
       page('sidebar.thumbnails', '/cards/thumbnails', 'pi pi-th-large', 'card-thumbnails'),
+      page('sidebar.illustrations', '/illustrations', 'pi pi-images', 'deck-illustrations',
+        { data: { url: base + '/illustrations', badge: this.libraryCounts.get(deck.id) ?? 0 } }),
       page('sidebar.attributes', '/cards/attributes', 'pi pi-tags', 'card-attributes'),
       page('sidebar.illustration-prompt', '/prompt', 'pi pi-sparkles', 'deck-prompt'),
       page('sidebar.export-cards', '/export-cards', 'pi pi-file-export', 'card-export'),

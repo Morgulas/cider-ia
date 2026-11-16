@@ -950,6 +950,24 @@
             "cadre": "Cadre (reverse holo)"
         }
     },
+    "illustrations": {
+        "common-help": "Images partagées par tout le projet : chaque deck les voit dans ses modèles.",
+        "deck-help": "Images de ce deck : ses modèles les voient, avec celles de la bibliothèque commune (les siennes l'emportent sur un même nom).",
+        "add": "Ajouter des images",
+        "added": "{{n}} fichier(s) ajouté(s)",
+        "folders": "Dossiers",
+        "total": "{{n}} fichier(s) dans la bibliothèque",
+        "size": "Taille des vignettes",
+        "search-results": "{{n}} résultat(s)",
+        "no-result": "Aucune image ne correspond à la recherche.",
+        "empty": "Aucune image ici. Glissez des fichiers sur la page ou utilisez « Ajouter des images ».",
+        "drop-here": "Déposer dans « {{folder}} »",
+        "open": "Ouvrir",
+        "copy-usage": "Copier l'appel pour les modèles",
+        "usage-copied": "Copié : {{usage}}",
+        "confirm-delete": "Supprimer « {{name}} » ?",
+        "folder-name": "Nom du dossier"
+    },
     "boosters": {
         "common": "Communs",
         "common-help": "Boosters qui tirent dans plusieurs decks",

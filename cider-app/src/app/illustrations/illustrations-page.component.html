@@ -1,0 +1,99 @@
+<p-confirmDialog />
+<p-contextmenu #menu [model]="menuItems" appendTo="body" />
+
+<div class="illustrations-page" [class.dropping]="dropping" (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave($event)" (drop)="onDropFiles($event)">
+  <header class="page-top">
+    <div class="title">
+      <i [class]="library === null ? 'pi pi-globe' : 'pi pi-clone'"></i>
+      <div>
+        <h2>{{ 'sidebar.illustrations' | translate }} · {{ libraryName }}</h2>
+        <p class="subtitle">{{ (library === null ? 'illustrations.common-help' : 'illustrations.deck-help') | translate }}</p>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="search">
+        <i class="pi pi-search"></i>
+        <input type="search" [(ngModel)]="query" (ngModelChange)="refresh()" [placeholder]="'controls.search' | translate"
+          [attr.aria-label]="'controls.search' | translate" />
+      </span>
+      <p-button icon="pi pi-folder-plus" [text]="true" [rounded]="true" (onClick)="newFolder()"
+        [pTooltip]="'sidebar.create-new-folder' | translate" [ariaLabel]="'sidebar.create-new-folder' | translate" />
+      <p-button icon="pi pi-sparkles" [text]="true" [rounded]="true" (onClick)="generate()"
+        [pTooltip]="'sidebar.generate-new-asset' | translate" [ariaLabel]="'sidebar.generate-new-asset' | translate" />
+      <p-button icon="pi pi-upload" [label]="'illustrations.add' | translate" [loading]="uploading"
+        (onClick)="fileInput.click()" />
+      <input #fileInput type="file" multiple hidden (change)="onFilesPicked($event)" />
+    </div>
+  </header>
+
+  <div class="bar">
+    <nav class="crumbs" [attr.aria-label]="'illustrations.folders' | translate">
+      @for (crumb of crumbs; track crumb.path; let last = $last) {
+        <button type="button" class="crumb" [class.current]="last && !query" (click)="openFolder(crumb.path)"
+          (dragover)="onFolderDragOver($event)" (drop)="onFolderDrop($event, crumb.path)">{{ crumb.label }}</button>
+        @if (!last) { <i class="pi pi-angle-right"></i> }
+      }
+      @if (query) {
+        <i class="pi pi-angle-right"></i>
+        <span class="crumb current">{{ 'illustrations.search-results' | translate: { n: assetTiles.length } }}</span>
+      }
+    </nav>
+    <span class="count">{{ 'illustrations.total' | translate: { n: total } }}</span>
+    <span class="size" [pTooltip]="'illustrations.size' | translate">
+      <i class="pi pi-image small"></i>
+      <p-slider [ngModel]="size" (ngModelChange)="setSize($event)" [min]="90" [max]="320" [step]="10"
+        [ariaLabel]="'illustrations.size' | translate" />
+      <i class="pi pi-image"></i>
+    </span>
+  </div>
+
+  <div class="grid" [style.--tile]="size + 'px'">
+    @for (folder of folderTiles; track folder.path) {
+      <button type="button" class="tile folder-tile" (click)="openFolder(folder.path)"
+        (contextmenu)="showFolderMenu($event, folder, menu)" (dragover)="onFolderDragOver($event)"
+        (drop)="onFolderDrop($event, folder.path)">
+        <span class="thumb"><i class="pi pi-folder"></i><span class="badge">{{ folder.count }}</span></span>
+        <span class="name">{{ folder.name }}</span>
+      </button>
+    }
+    @for (tile of assetTiles; track tile.id) {
+      <button type="button" class="tile" [title]="usage(tile)" (click)="openAsset(tile)"
+        (contextmenu)="showAssetMenu($event, tile, menu)" draggable="true" (dragstart)="onTileDragStart($event, tile)">
+        <span class="thumb">
+          @if (tile.url && isImage(tile)) {
+            <img [src]="tile.url" [alt]="tile.name" loading="lazy" draggable="false" />
+          } @else {
+            <i [class]="iconOf(tile)"></i>
+          }
+        </span>
+        <span class="name">{{ tile.name }}</span>
+        @if (query && tile.path) { <span class="path">{{ tile.path }}</span> }
+      </button>
+    }
+    @if (!folderTiles.length && !assetTiles.length) {
+      <div class="empty">
+        <i class="pi pi-images"></i>
+        <p>{{ (query ? 'illustrations.no-result' : 'illustrations.empty') | translate }}</p>
+      </div>
+    }
+  </div>
+
+  @if (dropping) {
+    <div class="drop-hint"><i class="pi pi-upload"></i> {{ 'illustrations.drop-here' | translate: { folder: crumbs[crumbs.length - 1].label } }}</div>
+  }
+</div>
+
+<p-dialog [header]="folderDialogTitle" [(visible)]="folderDialog" [modal]="true" [style]="{ width: '360px' }" appendTo="body">
+  <form (ngSubmit)="confirmFolderDialog()">
+    <input pInputText name="folderName" [(ngModel)]="folderName" class="folder-input"
+      [attr.aria-label]="'illustrations.folder-name' | translate" />
+    <div class="dialog-actions">
+      <p-button type="button" [label]="'controls.cancel' | translate" severity="secondary" [text]="true" (onClick)="folderDialog = false" />
+      <p-button type="submit" [label]="'controls.save' | translate" />
+    </div>
+  </form>
+</p-dialog>
+
+<app-entity-dialog [service]="assetsService" [(visible)]="assetDialog" [entity]="$any(assetEntity)" [title]="assetDialogTitle"
+  (visibleChange)="!$event && load()"></app-entity-dialog>

@@ -63,6 +63,7 @@ export class DeckTabsComponent implements OnInit {
     return [
       { key: 'sidebar.cards', icon: 'pi pi-list', url: `${base}/cards/listing`, match: /^\/decks\/\d+(\/cards(\/listing)?)?$/ },
       { key: 'sidebar.thumbnails', icon: 'pi pi-th-large', url: `${base}/cards/thumbnails`, match: /\/cards\/thumbnails$/ },
+      { key: 'sidebar.illustrations', icon: 'pi pi-images', url: `${base}/illustrations`, match: /\/illustrations$/ },
       { key: 'sidebar.attributes', icon: 'pi pi-tags', url: `${base}/cards/attributes`, match: /\/cards\/attributes$/ },
       { key: 'sidebar.templates', icon: 'pi pi-id-card', url: templatesUrl, match: /\/templates\// },
       { key: 'sidebar.illustration-prompt', icon: 'pi pi-sparkles', url: `${base}/prompt`, match: /\/prompt$/ },

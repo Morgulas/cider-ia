@@ -25,6 +25,8 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'project' },
       { path: 'decks', loadComponent: () => import('./decks/decks.component').then(m => m.DecksComponent) },
+      { path: 'illustrations', loadComponent: () => import('./illustrations/illustrations-page.component').then(m => m.IllustrationsPageComponent) },
+      { path: 'decks/:deckId/illustrations', loadComponent: () => import('./illustrations/illustrations-page.component').then(m => m.IllustrationsPageComponent), canActivate: [DeckGuard] },
       { path: 'assets', loadComponent: () => import('./assets/assets.component').then(m => m.AssetsComponent) },
       { path: 'assets/generator', loadComponent: () => import('./asset-generator/asset-generator.component').then(m => m.AssetGeneratorComponent) },
       { path: 'assets/:assetId', loadComponent: () => import('./asset/asset.component').then(m => m.AssetComponent) },

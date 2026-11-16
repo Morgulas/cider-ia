@@ -950,6 +950,24 @@
             "cadre": "Frame (reverse holo)"
         }
     },
+    "illustrations": {
+        "common-help": "Images shared by the whole project: every deck sees them in its templates.",
+        "deck-help": "Images of this deck: its templates see them, with those of the common library (its own win on the same name).",
+        "add": "Add images",
+        "added": "{{n}} file(s) added",
+        "folders": "Folders",
+        "total": "{{n}} file(s) in the library",
+        "size": "Thumbnail size",
+        "search-results": "{{n}} result(s)",
+        "no-result": "No image matches the search.",
+        "empty": "No image here. Drop files on the page or use \"Add images\".",
+        "drop-here": "Drop into \"{{folder}}\"",
+        "open": "Open",
+        "copy-usage": "Copy the template call",
+        "usage-copied": "Copied: {{usage}}",
+        "confirm-delete": "Delete \"{{name}}\"?",
+        "folder-name": "Folder name"
+    },
     "boosters": {
         "common": "Common",
         "common-help": "Boosters drawing from several decks",
