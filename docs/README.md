@@ -4,7 +4,7 @@
 
 | Page | Contenu |
 | :--- | :--- |
-| [interface.md](interface.md) | Se repérer : barre d'activité, Explorateur et sélecteur de deck, onglets du deck, panneau Illustrations. |
+| [interface.md](interface.md) | Se repérer : barre d'activité, Explorateur et sélecteur de deck, onglets du deck, pages Illustrations et bibliothèques. |
 | [editeur-de-modeles.md](editeur-de-modeles.md) | Éditeur de modèles de carte : code, insertion, aperçus, inspecteur, réglages, chatbot. |
 | [format-cartes-fangh.md](format-cartes-fangh.md) | Importer et exporter des cartes (CSV, JSON), synchronisation, historique, **publier un set pour l'appli de collection**. |
 | [boosters.md](boosters.md) | Simulateur de boosters : pool et poids, design recto/verso du sachet, ouverture, statistiques. |
