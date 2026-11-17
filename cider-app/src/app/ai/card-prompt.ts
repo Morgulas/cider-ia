@@ -1,6 +1,7 @@
 import * as Handlebars from 'handlebars';
 import { CardAttribute } from '../data-services/types/card-attribute.type';
 import { Card } from '../data-services/types/card.type';
+import { isBuiltInAttribute } from '../data-services/services/foil-attribute';
 import StringUtils from '../shared/utils/string-utils';
 
 /** A variable offered in the prompt template editor */
@@ -21,7 +22,7 @@ export function promptVariables(attributes: CardAttribute[]): PromptVariable[] {
   return [
     { token: '{{card.name}}', label: sorted.find(a => a.isSystem && a.name === 'Name')?.name ?? 'Name' },
     ...sorted
-      .filter(attribute => !attribute.isSystem)
+      .filter(attribute => !isBuiltInAttribute(attribute))
       .map(attribute => ({ token: `{{card.${StringUtils.toKebabCase(attribute.name)}}}`, label: attribute.name })),
     { token: '{{deck.name}}', label: 'Deck' },
   ];

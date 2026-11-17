@@ -37,6 +37,7 @@ import { DecksService } from '../data-services/services/decks.service';
 import { CardAttribute } from '../data-services/types/card-attribute.type';
 import MonacoLanguages from '../shared/extensions/monaco-languages';
 import MonacoExtension from '../shared/extensions/monaco-extension';
+import { isBuiltInAttribute } from '../data-services/services/foil-attribute';
 import StringUtils from '../shared/utils/string-utils';
 import { checkTemplate, TemplateIssue } from './template-check';
 import { ChatbotAnswer, TemplateVariable } from './template-chatbot';
@@ -803,7 +804,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     const name = sorted.find(attribute => attribute.isSystem && attribute.name === 'Name');
     this.variables = [
       { token: '{{card.name}}', label: name?.name ?? 'Name', type: 'text', example: exampleText(card.name) },
-      ...sorted.filter(attribute => !attribute.isSystem).map(attribute => {
+      ...sorted.filter(attribute => !isBuiltInAttribute(attribute)).map(attribute => {
         const field = StringUtils.toKebabCase(attribute.name);
         const options = attribute.type === 'dropdown' ? optionValues(attribute.options) : [];
         return {
@@ -897,7 +898,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     }
     const using = this.cards.filter(card => card.frontCardTemplateId === template.id || card.backCardTemplateId === template.id);
     const textFields = [...this.attributes]
-      .filter(attribute => !attribute.isSystem && String(attribute.type) === 'text')
+      .filter(attribute => !isBuiltInAttribute(attribute) && String(attribute.type) === 'text')
       .map(attribute => ({ key: StringUtils.toKebabCase(attribute.name), label: attribute.name }));
     const fields = [{ key: 'name', label: this.variables[0]?.label ?? 'Name' }, ...textFields];
     this.overflowCandidates = pickOverflowCards(using.length > 0 ? using : this.cards, fields,

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { AppDB } from '../indexed-db/db';
 import { DecksChildService } from '../indexed-db/decks-child.service';
 import { CardAttribute } from '../types/card-attribute.type';
+import { ensureFoilAttribute } from './foil-attribute';
 import { FieldType } from '../types/field-type.type';
 import { DropdownOption } from '../types/dropdown-option.type';
 import { DecksService } from './decks.service';
@@ -148,5 +149,6 @@ export class CardAttributesService extends DecksChildService<CardAttribute, numb
         }
       }
     }
+    await ensureFoilAttribute(this.db.table(this.tableName), deckId);
   }
 }

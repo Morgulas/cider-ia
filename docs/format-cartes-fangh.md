@@ -142,6 +142,10 @@ Exemple de modèle :
 - L'appli de collection se sert aujourd'hui du calque **`illustration`** : le foil ne brille que sur l'illustration (le foil « cadre », partout sauf sur elle), et l'encre manquante d'une erreur d'impression ne touche que l'illustration. Les autres noms sont exportés et gardés, pour de futurs effets.
 - Les calques sont rendus dans un second passage, sans le cache d'images. L'export est donc plus long. Une carte dont le modèle n'a aucun `data-calque` n'a pas de calque.
 
+### Attribut Foil
+
+Chaque deck a un attribut système **Foil** (comme Name, Count et les modèles : impossible à supprimer ou à renommer) : une liste déroulante des 7 effets `holo`, `galaxie`, `or`, `argent`, `prisme`, `paillettes`, `cadre`. Vide : la carte n'est pas foil. Un attribut foil qui existait déjà (Foil, Brillance, Effet foil ou Holo, en texte ou en liste) devient cet attribut système, avec ses valeurs ; s'il est d'un autre type (case à cocher), il est laissé tel quel. Dans un modèle : `{{card.foil}}`.
+
 ### Zones foil
 
 Un modèle peut dire **où** la carte brille : tout élément marqué `data-foil="<effet>"` devient une zone foil. Les effets sont ceux de l'attribut Foil : `holo`, `galaxie`, `or`, `argent`, `prisme`, `paillettes`, `cadre` (ou leurs synonymes, comme `gold` ou `holographique`). Une valeur vide ou inconnue veut dire « pas de foil ».

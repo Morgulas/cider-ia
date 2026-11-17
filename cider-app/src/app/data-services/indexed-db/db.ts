@@ -10,6 +10,7 @@ import { ReplaySubject, Subject } from "rxjs";
 import { Injectable } from "@angular/core";
 import { cardHistory, describeCard, entriesOverBudget, IDENTIFIER_FIELDS, isInternalField, MAX_AGE_DAYS, SIZE_CHECK_INTERVAL_MS } from "./card-history";
 import { BlobRef, isBlobRef, sha256Hex } from "./project-blobs";
+import { ensureFoilAttribute } from "../services/foil-attribute";
 
 /** User and project a local working copy belongs to */
 export interface ProjectOwner {
@@ -697,6 +698,8 @@ export class AppDB extends Dexie {
                     await attributesTable.where({ deckId: deck.id, name: attr.name }).modify({ isSystem: true });
                 }
             }
+            // effet foil : liste déroulante des effets, attribut système
+            await ensureFoilAttribute(attributesTable, deck.id);
         }
 
         } finally {
