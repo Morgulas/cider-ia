@@ -352,7 +352,7 @@
                   @if (pair && selectedCard) {
                   @for (side of pairSides; track side) {
                   <figure class="preview-item" [attr.data-preview-card]="selectedCard.id">
-                    <app-card-preview [card]="selectedCard"
+                    <app-card-preview [foils]="true" [card]="selectedCard"
                       [template]="pair[side].id === selectedTemplate.id ? inspectTemplate : pair[side]" [scale]="1.0"
                       [cache]="false" [version]="templateVersion"></app-card-preview>
                     <figcaption>{{ 'template-editor.side-' + side | translate }} — {{ pair[side].name }}</figcaption>

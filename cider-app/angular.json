@@ -64,6 +64,7 @@
             ],
             "styles": [
               "src/styles.scss",
+              "src/foil-zones.scss",
               "node_modules/oatear-longtable/longtable-styles.css"
             ],
             "browser": "src/main.ts"
@@ -144,6 +145,7 @@
             ],
             "styles": [
               "src/styles.scss",
+              "src/foil-zones.scss",
               "node_modules/oatear-longtable/longtable-styles.css"
             ]
           }

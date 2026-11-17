@@ -141,3 +141,18 @@ Exemple de modèle :
 - Un nom de calque compte de 1 à 20 caractères : minuscules, chiffres, `-` ou `_`. Une carte a au plus 6 calques. Plusieurs éléments du même nom forment un seul calque, et leur zone est l'union de leurs rectangles.
 - L'appli de collection se sert aujourd'hui du calque **`illustration`** : le foil ne brille que sur l'illustration (le foil « cadre », partout sauf sur elle), et l'encre manquante d'une erreur d'impression ne touche que l'illustration. Les autres noms sont exportés et gardés, pour de futurs effets.
 - Les calques sont rendus dans un second passage, sans le cache d'images. L'export est donc plus long. Une carte dont le modèle n'a aucun `data-calque` n'a pas de calque.
+
+### Zones foil
+
+Un modèle peut dire **où** la carte brille : tout élément marqué `data-foil="<effet>"` devient une zone foil. Les effets sont ceux de l'attribut Foil : `holo`, `galaxie`, `or`, `argent`, `prisme`, `paillettes`, `cadre` (ou leurs synonymes, comme `gold` ou `holographique`). Une valeur vide ou inconnue veut dire « pas de foil ».
+
+```html
+<div class="titre" data-foil="or">{{card.name}}</div>          <!-- titre toujours doré -->
+<div class="image" data-foil="{{card.foil}}"></div>             <!-- l'attribut Foil de la carte décide -->
+<div class="bordure" data-foil="prisme"></div>
+```
+
+- **À l'export vers l'appli de collection**, chaque effet donne un calque `foil-<effet>` (par exemple `foil-or`), **même sans** « Exporter aussi les calques ». L'appli fait briller chaque zone à la forme exacte de ses éléments (le contour des lettres, la transparence d'une image). Les zones foil passent avant les `data-calque` dans la limite de 6 calques par carte.
+- **La forme d'une zone, c'est ce qui est dessiné** : un élément avec un fond opaque donne un rectangle. Pour que seul un texte brille, mettre `data-foil` sur un élément sans fond.
+- **Dans cider-ia** (éditeur de modèles, vignettes, classeur, boosters, simulateur), le reflet est posé sur le rectangle de chaque élément ; pour une image, il suit sa transparence. C'est un aperçu : la forme exacte n'apparaît que dans l'appli de collection.
+- **Une carte dont le modèle a des zones foil** brille seulement sur ces zones, dans cider-ia comme dans l'appli de collection : l'effet de l'attribut Foil ne couvre plus toute la carte. Les zones ne rendent pas la carte « foil » pour autant : sa valeur, son poids sur la balance et le badge FOIL suivent toujours l'attribut Foil.

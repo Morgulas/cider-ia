@@ -48,7 +48,7 @@
           <div class="thickness-side top"></div>
           <div class="thickness-side bottom"></div>
           @if (stack.cards.length > 0 && stack.cards[stack.cards.length - 1].card.backCardTemplateId) {
-          <app-card-preview [cache]="false" [tiltable]="true" [template]="(stack.faceUp ? stack.cards[stack.cards.length - 1].card.frontCardTemplateId 
+          <app-card-preview [foils]="true" [cache]="false" [tiltable]="true" [template]="(stack.faceUp ? stack.cards[stack.cards.length - 1].card.frontCardTemplateId 
                         : stack.cards[stack.cards.length - 1].card.backCardTemplateId)
                         | entity: cardTemplatesService | async" [card]="stack.cards[stack.cards.length - 1].card"
             [scale]="1.0"
@@ -103,7 +103,7 @@
         [style.zIndex]="card.zIndex || 10" [class.discarding]="card.discarding" [class.drawing]="card.drawing"
         [class.flipping]="card.flipping" cdkDrag>
         <div class="card-wrapper" [style.rotate]="(card.rotation || 0) + 'deg'">
-          <app-card-preview [cache]="false" [tiltable]="true" [template]="(card.faceUp ? card.card.frontCardTemplateId 
+          <app-card-preview [foils]="true" [cache]="false" [tiltable]="true" [template]="(card.faceUp ? card.card.frontCardTemplateId 
                           : card.card.backCardTemplateId) 
                           | entity: cardTemplatesService | async" [card]="card.card" [scale]="1.0"
             [holographic]="card.holographic && card.faceUp"></app-card-preview>
@@ -375,7 +375,7 @@
 
 @if (magnifiedCard) {
 <div class="magnified-overlay" [style.left.px]="magnifiedPos.x" [style.top.px]="magnifiedPos.y">
-  <app-card-preview [cache]="false" [tiltable]="true" [template]="(magnifiedCard.faceUp ? magnifiedCard.card.frontCardTemplateId 
+  <app-card-preview [foils]="true" [cache]="false" [tiltable]="true" [template]="(magnifiedCard.faceUp ? magnifiedCard.card.frontCardTemplateId 
                     : magnifiedCard.card.backCardTemplateId) | entity: cardTemplatesService | async"
     [card]="magnifiedCard.card" [scale]="zoomMagnifiedLevel"
     [holographic]="magnifiedCard.holographic && magnifiedCard.faceUp"></app-card-preview>

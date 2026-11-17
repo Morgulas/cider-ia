@@ -12,7 +12,7 @@ import { CardTemplate } from '../data-services/types/card-template.type';
   selector: 'app-card-fit',
   template: `
     <div class="fit-inner" #inner>
-      <app-card-preview [card]="card" [template]="$any(template)" [cache]="false" [scale]="1"></app-card-preview>
+      <app-card-preview [card]="card" [template]="$any(template)" [cache]="false" [scale]="1" [foils]="foils"></app-card-preview>
     </div>`,
   styles: [`
     :host { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; }
@@ -27,6 +27,8 @@ export class CardFitComponent implements AfterViewInit, OnDestroy {
   @Input() template: CardTemplate | null | undefined = null;
   /** Agrandissement maximal permis (1 = jamais plus grand que la taille réelle). */
   @Input() maxScale = 1;
+  /** Zones foil du modèle (éléments data-foil) */
+  @Input() foils = true;
   /** Taille réelle de la carte, émise à chaque changement (pour régler les pochettes). */
   @Output() measured = new EventEmitter<{ width: number; height: number }>();
   @ViewChild('inner', { static: true }) inner!: ElementRef<HTMLElement>;

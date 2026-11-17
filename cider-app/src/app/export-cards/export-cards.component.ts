@@ -1004,20 +1004,24 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     this.displayLoading = true;
     this.loadingPercent = 0;
     try {
-      // calques des rectos (« Exporter aussi les calques ») : pris pendant le même passage
+      // calques des rectos, pris pendant le même passage : zones foil du modèle (data-foil) toujours,
+      // éléments data-calque avec « Exporter aussi les calques »
       const layerFiles: File[] = [];
       const layersByCard = new Map<string, CardLayers>();
-      const captureLayers = settings.calques ? async (preview: CardPreviewComponent) => {
+      const captureLayers = async (preview: CardPreviewComponent) => {
         const cardId = cardIdOf.get(preview.card.id);
         if (cardId) {
-          const own = await this.collectorLayersOf(preview, cardId, this.individualExportPixelRatio, layerFiles);
-          layersByCard.set(cardId, own);
+          const own = await this.collectorLayersOf(preview, cardId, this.individualExportPixelRatio, layerFiles,
+            !!settings.calques);
+          if (Object.keys(own).length) {
+            layersByCard.set(cardId, own);
+          }
         }
-      } : undefined;
+      };
       const files = await this.renderSingularImages(
         (card, side) => `${cardIdOf.get(card.id)}_${side}.png`, this.individualExportPixelRatio, captureLayers);
       let setJson = plan.setJson;
-      if (settings.calques) {
+      if (layersByCard.size) {
         files.push(...layerFiles);
         setJson = addLayers(setJson, plan.cardIds, layersByCard);
       }
@@ -1064,13 +1068,13 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   }
 
   /**
-   * Calques d'un recto (export « avec calques ») : une image par élément data-calque du modèle,
-   * ajoutée à `files`. Une carte dont le modèle n'a aucun élément data-calque n'a pas de calque.
+   * Calques d'un recto : une image par zone foil du modèle (data-foil, « foil-<effet> ») et, avec
+   * `calques`, par élément data-calque ; ajoutées à `files`. Sans ces éléments, pas de calque.
    */
   private async collectorLayersOf(preview: CardPreviewComponent, cardId: string, pixelRatio: number,
-    files: File[]): Promise<CardLayers> {
+    files: File[], calques: boolean): Promise<CardLayers> {
     const own: CardLayers = {};
-    for (const [name, layer] of Object.entries(await preview.captureLayers(pixelRatio))) {
+    for (const [name, layer] of Object.entries(await preview.captureLayers(pixelRatio, calques))) {
       const fileName = `${cardId}_front_${name}.png`;
       files.push(this.dataUrlToFile(layer.image, fileName));
       own[name] = { zone: layer.zone, image: 'cards/' + fileName };

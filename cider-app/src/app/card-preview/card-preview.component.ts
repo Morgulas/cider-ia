@@ -11,6 +11,7 @@ import { CardToHtmlPipe } from '../shared/pipes/template-to-html.pipe';
 import { ImageRendererService } from '../data-services/services/image-renderer.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
+import { FOIL_LAYER_PREFIX, clearFoilZones, drawFoilZones, foilGroups } from './foil-zones';
 
 @Component({
     selector: 'app-card-preview',
@@ -31,6 +32,11 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   @Input() cache = false;
   @Input() tiltable = false;
   @Input() holographic: boolean | undefined = false;
+  /**
+   * Montre les zones foil du modèle (éléments data-foil) : classeur, vignettes, éditeur...
+   * Jamais pour les exports d'images (le reflet serait dans l'image).
+   */
+  @Input() foils = false;
   @Input() version = 0;
   @Input() showTrimLines = false;
   @Input() trimOffsetPx = 37.5;
@@ -46,6 +52,9 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   private isLoadedSubject: AsyncSubject<boolean>;
   private isCacheLoadedSubject: AsyncSubject<boolean>;
   private resizeObserver?: ResizeObserver;
+  private foilObserver?: MutationObserver;
+  private foilFrame = 0;
+  private foilRoot?: HTMLElement;
 
   constructor(
     private assetsService: AssetsService,
@@ -76,10 +85,66 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       }
     });
     this.resizeObserver.observe(this.element.nativeElement);
+    this.watchFoils();
+    this.cardElement.changes.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.watchFoils());
   }
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+    this.stopFoils();
+  }
+
+  // ----- Zones foil du modèle (aperçu) -----
+
+  /** Suit le rendu de la carte pour reposer les reflets quand il change (modèle, images, polices) */
+  private watchFoils(): void {
+    const root = this.foils ? this.cardElement?.get(0)?.nativeElement : undefined;
+    if (root === this.foilRoot) {
+      return;
+    }
+    this.stopFoils();
+    if (!root) {
+      return;
+    }
+    this.foilRoot = root;
+    this.foilObserver = new MutationObserver(records => {
+      // les reflets eux-mêmes ne comptent pas
+      if (records.some(r => !(r.target as Element).closest?.('.cc-foil-layer')
+        && ![...r.addedNodes, ...r.removedNodes].every(n => (n as Element).classList?.contains('cc-foil-layer')))) {
+        this.scheduleFoils();
+      }
+    });
+    this.foilObserver.observe(root, { childList: true, subtree: true, attributes: true,
+      attributeFilter: ['data-foil', 'src', 'style', 'class'] });
+    root.addEventListener('load', this.onFoilImageLoad, true);
+    void document.fonts?.ready.then(() => this.scheduleFoils());
+    this.scheduleFoils();
+  }
+
+  private readonly onFoilImageLoad = () => this.scheduleFoils();
+
+  private scheduleFoils(): void {
+    if (this.foilFrame || !this.foilRoot) {
+      return;
+    }
+    this.foilFrame = requestAnimationFrame(() => {
+      this.foilFrame = 0;
+      if (this.foilRoot) {
+        drawFoilZones(this.foilRoot);
+      }
+    });
+  }
+
+  private stopFoils(): void {
+    this.foilObserver?.disconnect();
+    this.foilObserver = undefined;
+    cancelAnimationFrame(this.foilFrame);
+    this.foilFrame = 0;
+    if (this.foilRoot) {
+      this.foilRoot.removeEventListener('load', this.onFoilImageLoad, true);
+      clearFoilZones(this.foilRoot);
+      this.foilRoot = undefined;
+    }
   }
 
   ngOnInit(): void {
@@ -91,6 +156,9 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['foils'] && !changes['foils'].isFirstChange()) {
+      this.watchFoils();
+    }
     const cardChange = changes['card'];
     const templateChange = changes['template'];
 
@@ -192,8 +260,9 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
    *  - sa zone, en % de la carte : [x, y, largeur, hauteur] (union des éléments de même nom) ;
    *  - son image seule : un PNG de la taille de la carte, transparent ailleurs (les autres éléments sont
    *    masqués par visibility, voir .cc-layer-pass dans styles.scss).
+   * Les zones foil (data-foil) donnent un calque « foil-<effet> » par effet, même sans `calques`.
    */
-  public async captureLayers(pixelRatio: number): Promise<Record<string, { zone: number[]; image: string }>> {
+  public async captureLayers(pixelRatio: number, calques = true): Promise<Record<string, { zone: number[]; image: string }>> {
     const root = this.cardElement.get(0)?.nativeElement;
     if (!root) {
       return {};
@@ -202,7 +271,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     if (!box.width || !box.height) {
       return {};
     }
-    const groups = layerGroups(root);
+    const groups = layerGroups(root, calques);
     const out: Record<string, { zone: number[]; image: string }> = {};
     const filter = (node: HTMLElement) => 'style' !== node.localName;
     for (const [name, elements] of groups) {
@@ -235,10 +304,18 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
 /** nom de calque accepté par l'appli de collection */
 export const LAYER_NAME = /^[a-z0-9_-]{1,20}$/;
 
-/** Éléments marqués data-calque, regroupés par nom (minuscules ; noms invalides ignorés, 6 calques au plus) */
-export function layerGroups(root: HTMLElement): Map<string, HTMLElement[]> {
+/**
+ * Éléments marqués data-calque (si `calques`), regroupés par nom (minuscules ; noms invalides ignorés),
+ * puis zones foil (data-foil) regroupées par effet en « foil-<effet> » ; 6 calques au plus en tout.
+ */
+export function layerGroups(root: HTMLElement, calques = true): Map<string, HTMLElement[]> {
   const groups = new Map<string, HTMLElement[]>();
-  root.querySelectorAll<HTMLElement>('[data-calque]').forEach(element => {
+  for (const [effect, elements] of foilGroups(root)) {
+    if (groups.size < 6) {
+      groups.set(FOIL_LAYER_PREFIX + effect, elements);
+    }
+  }
+  root.querySelectorAll<HTMLElement>(calques ? '[data-calque]' : ':not(*)').forEach(element => {
     const name = (element.getAttribute('data-calque') ?? '').trim().toLowerCase();
     if (!LAYER_NAME.test(name) || (!groups.has(name) && groups.size >= 6)) {
       return;

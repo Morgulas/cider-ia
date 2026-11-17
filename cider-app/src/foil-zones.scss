@@ -1,0 +1,27 @@
+// Zones foil des modèles (éléments data-foil), dans l'aperçu des cartes : voir card-preview/foil-zones.ts.
+// Les effets sont ceux du classeur, limités aux reflets posés par drawFoilZones.
+@use 'sass:meta';
+
+.cc-foil-layer {
+  // pas de z-index ici : les reflets se mélangent (mix-blend-mode) avec la carte elle-même
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+
+  @include meta.load-css('app/card-binder/foil');
+
+  .cc-foil-zone {
+    position: absolute;
+    inset: auto;
+    z-index: 2147483000;
+    overflow: hidden;
+  }
+}
+
+// le modèle place lui-même son foil : pas de reflet sur toute la carte en plus (classeur, boosters)
+:has(.cc-foil-zone) > .foil:not(.cc-foil-zone) {
+  display: none !important;
+}

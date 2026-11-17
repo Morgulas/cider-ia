@@ -43,7 +43,7 @@
           @for (card of cards; track $index) {
           @if (sideSelected === 'fronts' || sideSelected === 'both') {
           <div class="card-item">
-            <app-card-preview [cache]="false" [tiltable]="true" [card]="card" [scale]="zoomLevel"
+            <app-card-preview [foils]="true" [cache]="false" [tiltable]="true" [card]="card" [scale]="zoomLevel"
               [template]="card.frontCardTemplateId | entity: templatesService | async"></app-card-preview>
             <p-button class="ai-button" icon="pi pi-sparkles" [rounded]="true" severity="secondary"
               [pTooltip]="'server.ai.dialog-title' | translate" [ariaLabel]="('server.ai.dialog-title' | translate) + ' : ' + card.name"
@@ -51,7 +51,7 @@
           </div>
           }
           @if (sideSelected === 'backs' || sideSelected === 'both') {
-          <app-card-preview [cache]="false" [tiltable]="true" [card]="card" [scale]="zoomLevel"
+          <app-card-preview [foils]="true" [cache]="false" [tiltable]="true" [card]="card" [scale]="zoomLevel"
             [template]="card.backCardTemplateId | entity: templatesService | async"></app-card-preview>
           }
           }

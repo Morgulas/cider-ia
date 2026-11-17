@@ -48,14 +48,14 @@
         <figure>
           <figcaption>{{ 'template-editor.chatbot.before' | translate }}</figcaption>
           <div class="preview-box">
-            <app-card-preview [card]="card()!" [template]="template()" [scale]="previewScale()"></app-card-preview>
+            <app-card-preview [foils]="true" [card]="card()!" [template]="template()" [scale]="previewScale()"></app-card-preview>
           </div>
         </figure>
         <i class="pi pi-arrow-right arrow"></i>
         <figure>
           <figcaption>{{ 'template-editor.chatbot.after' | translate }}</figcaption>
           <div class="preview-box">
-            <app-card-preview [card]="card()!" [template]="proposed()" [scale]="previewScale()"></app-card-preview>
+            <app-card-preview [foils]="true" [card]="card()!" [template]="proposed()" [scale]="previewScale()"></app-card-preview>
           </div>
         </figure>
       </section>
