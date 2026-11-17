@@ -11,7 +11,7 @@ import { CardToHtmlPipe } from '../shared/pipes/template-to-html.pipe';
 import { ImageRendererService } from '../data-services/services/image-renderer.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
-import { FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, clearFoilZones, drawFoilZones, zoneGroups } from './foil-zones';
+import { EMBOSS_LAYER_PREFIX, FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, clearFoilZones, drawFoilZones, zoneGroups, zoneOptions } from './foil-zones';
 
 @Component({
     selector: 'app-card-preview',
@@ -281,7 +281,8 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       elements.forEach(e => e.setAttribute('data-calque-on', ''));
       try {
         out[name] = { zone, image: isZoneLayer(name)
-          ? await this.visibleMask(root, pixelRatio, name.startsWith(GILDING_LAYER_PREFIX))
+          ? await this.visibleMask(root, pixelRatio, !name.startsWith(FOIL_LAYER_PREFIX),
+            name.startsWith(EMBOSS_LAYER_PREFIX) ? [] : elements)
           : await this.layerImage(root, pixelRatio) };
       } finally {
         elements.forEach(e => e.removeAttribute('data-calque-on'));
@@ -306,9 +307,11 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
    * La carte entière est rendue deux fois, les éléments de la zone peints en blanc puis en noir :
    * là où ils se voient, les deux rendus diffèrent ; là où un autre élément les recouvre (un bandeau
    * sur l'illustration), ils sont identiques. L'écart donne l'opacité du masque.
-   * Une dorure : sans l'ombre du texte (les lettres seules).
+   * Une dorure ou un gaufrage : sans l'ombre du texte (les lettres seules). Le masque peint et la force
+   * des éléments (data-foil-masque, data-foil-force) s'y appliquent.
    */
-  private async visibleMask(root: HTMLElement, pixelRatio: number, gilding: boolean): Promise<string> {
+  private async visibleMask(root: HTMLElement, pixelRatio: number, gilding: boolean,
+    elements: HTMLElement[] = []): Promise<string> {
     const filter = (node: HTMLElement) => 'style' !== node.localName;
     root.classList.toggle('cc-dorure-pass', gilding);
     try {
@@ -316,7 +319,17 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       const white = await this.imageRendererService.toPng(root, { pixelRatio, filter });
       root.classList.replace('cc-zone-white', 'cc-zone-black');
       const black = await this.imageRendererService.toPng(root, { pixelRatio, filter });
-      return await differenceMask(white, black);
+      // masque peint et force de chaque élément (data-foil-masque, data-foil-force)
+      const box = root.getBoundingClientRect();
+      const factors = elements
+        .map(element => ({ element, ...zoneOptions(element) }))
+        .filter(z => z.masque || z.force < 1)
+        .map(z => {
+          const r = z.element.getBoundingClientRect();
+          return { masque: z.masque, force: z.force,
+            rect: [(r.left - box.left) / box.width, (r.top - box.top) / box.height, r.width / box.width, r.height / box.height] };
+        });
+      return await differenceMask(white, black, factors);
     } finally {
       root.classList.remove('cc-zone-white', 'cc-zone-black', 'cc-dorure-pass');
     }
@@ -389,7 +402,14 @@ function whenImageDecoded(url: string): Promise<void> {
 
 /** Calque d'une zone foil ou dorure (masque de la part visible), et non d'un data-calque */
 function isZoneLayer(name: string): boolean {
-  return name.startsWith(FOIL_LAYER_PREFIX) || name.startsWith(GILDING_LAYER_PREFIX);
+  return [FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, EMBOSS_LAYER_PREFIX].some(prefix => name.startsWith(prefix));
+}
+
+/** Masque peint ou force d'un élément, sur sa zone (en fraction de la carte : x, y, largeur, hauteur) */
+export interface MaskFactor {
+  masque: string | null;
+  force: number;
+  rect: number[];
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -401,8 +421,11 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Masque blanc dont l'opacité est l'écart entre deux rendus (PNG, data URL) */
-export async function differenceMask(a: string, b: string): Promise<string> {
+/**
+ * Masque blanc dont l'opacité est l'écart entre deux rendus (PNG, data URL), multiplié sur la zone de
+ * chaque élément par sa force et la luminosité de son masque peint (étiré sur l'élément).
+ */
+export async function differenceMask(a: string, b: string, factors: MaskFactor[] = []): Promise<string> {
   const [ia, ib] = await Promise.all([loadImage(a), loadImage(b)]);
   const w = ia.naturalWidth, h = ia.naturalHeight;
   const canvas = document.createElement('canvas');
@@ -419,6 +442,34 @@ export async function differenceMask(a: string, b: string): Promise<string> {
     const diff = Math.max(Math.abs(px[i] - db[i]), Math.abs(px[i + 1] - db[i + 1]), Math.abs(px[i + 2] - db[i + 2]));
     px[i] = px[i + 1] = px[i + 2] = 255;
     px[i + 3] = diff;
+  }
+  for (const factor of factors) {
+    const [x, y, fw, fh] = [Math.round(factor.rect[0] * w), Math.round(factor.rect[1] * h),
+      Math.max(1, Math.round(factor.rect[2] * w)), Math.max(1, Math.round(factor.rect[3] * h))];
+    let lum: Uint8ClampedArray | null = null;
+    if (factor.masque) {
+      try {
+        const m = await loadImage(factor.masque);
+        const c = document.createElement('canvas');
+        c.width = fw;
+        c.height = fh;
+        const mc = c.getContext('2d', { willReadFrequently: true })!;
+        mc.drawImage(m, 0, 0, fw, fh);
+        lum = mc.getImageData(0, 0, fw, fh).data;
+      } catch { /* masque illisible : sans masque */ }
+    }
+    for (let yy = Math.max(0, y); yy < Math.min(h, y + fh); yy++) {
+      for (let xx = Math.max(0, x); xx < Math.min(w, x + fw); xx++) {
+        const i = (yy * w + xx) * 4;
+        let k = factor.force;
+        if (lum) {
+          const j = ((yy - y) * fw + (xx - x)) * 4;
+          // luminosité du masque peint (et sa transparence : transparent = pas de foil)
+          k *= (0.2126 * lum[j] + 0.7152 * lum[j + 1] + 0.0722 * lum[j + 2]) / 255 * (lum[j + 3] / 255);
+        }
+        px[i + 3] = Math.round(px[i + 3] * k);
+      }
+    }
   }
   ctx.putImageData(da, 0, 0);
   return canvas.toDataURL('image/png');

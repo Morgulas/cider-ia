@@ -115,6 +115,48 @@
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
 
+// Glace craquelée : éclats de verre irisés, plus vifs là où tombe la lumière
+.foil-glace {
+  background:
+    repeating-linear-gradient(17deg, transparent 0 13px, rgba(255, 255, 255, 0.9) 13px 14.5px, transparent 14px 31px),
+    repeating-linear-gradient(-33deg, transparent 0 19px, rgba(200, 240, 255, 0.85) 19px 20.5px, transparent 20px 41px),
+    repeating-linear-gradient(71deg, transparent 0 23px, rgba(255, 255, 255, 0.8) 23px 24.5px, transparent 24px 47px),
+    repeating-linear-gradient(-79deg, transparent 0 29px, rgba(220, 200, 255, 0.75) 29px 30.5px, transparent 30px 53px),
+    linear-gradient(120deg, rgba(120, 200, 255, 0.45), rgba(255, 255, 255, 0.15) 40%, rgba(180, 140, 255, 0.4) 70%, rgba(120, 255, 230, 0.4));
+  background-size: auto, auto, auto, auto, 250% 250%;
+  background-position: calc(var(--fx) * 0.3) 0, 0 calc(var(--fy) * 0.3), calc(var(--fx) * -0.2) 0, 0 0, var(--fx) var(--fy);
+  mix-blend-mode: color-dodge;
+  -webkit-mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.15) 80%);
+  mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.15) 80%);
+  opacity: calc(0.45 + var(--fo) * 0.55);
+}
+
+// Écailles : demi-cercles en quinconce, teintés arc-en-ciel
+.foil-ecailles {
+  background:
+    radial-gradient(circle at 50% 0, transparent 0 8px, rgba(255, 255, 255, 0.55) 8px 9px, transparent 9.5px) 0 0 / 18px 12px,
+    radial-gradient(circle at 50% 0, transparent 0 8px, rgba(255, 255, 255, 0.55) 8px 9px, transparent 9.5px) 9px 6px / 18px 12px,
+    linear-gradient(115deg, rgba(0, 255, 170, 0.45), rgba(0, 150, 255, 0.45) 35%, rgba(200, 80, 255, 0.45) 65%, rgba(255, 200, 0, 0.45));
+  background-size: 18px 12px, 18px 12px, 250% 250%;
+  background-position: 0 0, 9px 6px, var(--fx) var(--fy);
+  mix-blend-mode: color-dodge;
+  opacity: calc(0.35 + var(--fo) * 0.6);
+}
+
+// Hexagones : nid d'abeille irisé
+.foil-hexagones {
+  --h: 14px;
+  background:
+    linear-gradient(30deg, transparent 0 46%, rgba(255, 255, 255, 0.5) 46% 54%, transparent 54%) 0 0 / calc(var(--h) * 1.732) var(--h),
+    linear-gradient(-30deg, transparent 0 46%, rgba(255, 255, 255, 0.5) 46% 54%, transparent 54%) 0 0 / calc(var(--h) * 1.732) var(--h),
+    linear-gradient(90deg, transparent 0 48%, rgba(255, 255, 255, 0.35) 48% 52%, transparent 52%) 0 0 / calc(var(--h) * 1.732) calc(var(--h) * 2),
+    linear-gradient(125deg, rgba(255, 180, 0, 0.45), rgba(0, 220, 255, 0.45) 40%, rgba(255, 0, 170, 0.4) 70%, rgba(120, 255, 120, 0.4));
+  background-size: calc(var(--h) * 1.732) var(--h), calc(var(--h) * 1.732) var(--h), calc(var(--h) * 1.732) calc(var(--h) * 2), 250% 250%;
+  background-position: 0 0, 0 0, 0 0, var(--fx) var(--fy);
+  mix-blend-mode: color-dodge;
+  opacity: calc(0.35 + var(--fo) * 0.6);
+}
+
 // Pochettes : le foil ondule doucement au survol
 @keyframes foil-drift {
   0% { --glare-x: 20%; --glare-y: 30%; }

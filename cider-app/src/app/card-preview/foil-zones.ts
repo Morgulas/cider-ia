@@ -15,6 +15,7 @@ import { FoilEffect, foilFromValue } from '../card-binder/foil';
 
 export const FOIL_LAYER_PREFIX = 'foil-';
 export const GILDING_LAYER_PREFIX = 'dorure-';
+export const EMBOSS_LAYER_PREFIX = 'gaufrage-';
 /** Pièces de l'aperçu (reflets, dorures), posées juste après leur élément */
 export const PIECE_CLASS = 'cc-foil-piece';
 export const ZONE_CLASS = 'cc-foil-zone';
@@ -29,10 +30,31 @@ const GILDING_GRADIENTS: Record<string, string> = {
   holo: 'linear-gradient(115deg, #d9d9e6 0%, #ffb3e6 16%, #fff2a8 32%, #b3ffd9 48%, #a8e6ff 64%, #d2b3ff 80%, #d9d9e6 100%)',
 };
 
-/** Une zone du modèle : son type (reflet ou dorure) et son effet */
-export interface ZoneKind {
-  kind: 'foil' | 'dorure';
-  effect: FoilEffect;
+/** Une zone du modèle : reflet ou dorure (effet foil), ou gaufrage (relief ou creux) */
+export type ZoneKind =
+  | { kind: 'foil' | 'dorure'; effect: FoilEffect }
+  | { kind: 'gaufrage'; effect: 'relief' | 'creux' };
+
+/** Valeur de data-gaufrage : « creux » (en creux), sinon en relief */
+export function embossKind(value: string | null): ZoneKind | null {
+  if (value === null) {
+    return null;
+  }
+  return { kind: 'gaufrage', effect: /creux|deboss|enfonc/i.test(value) ? 'creux' : 'relief' };
+}
+
+/** Réglages d'une zone : masque peint (data-foil-masque) et force (data-foil-force, 0 à 1 ou en %) */
+export function zoneOptions(element: Element): { masque: string | null; force: number } {
+  const masque = (element.getAttribute('data-foil-masque') ?? '').trim() || null;
+  const raw = (element.getAttribute('data-foil-force') ?? '').trim();
+  let force = 1;
+  if (raw) {
+    const n = parseFloat(raw.replace(',', '.'));
+    if (Number.isFinite(n)) {
+      force = raw.endsWith('%') || n > 1 ? n / 100 : n;
+    }
+  }
+  return { masque, force: Math.min(1, Math.max(0, force)) };
 }
 
 /**
@@ -51,23 +73,27 @@ export function zoneKind(value: string | null | undefined): ZoneKind | null {
 
 /** Nom du calque exporté d'une zone : foil-<effet> ou dorure-<effet> */
 export function zoneLayerName(zone: ZoneKind): string {
-  return (zone.kind === 'dorure' ? GILDING_LAYER_PREFIX : FOIL_LAYER_PREFIX) + zone.effect;
+  const prefix = zone.kind === 'dorure' ? GILDING_LAYER_PREFIX : zone.kind === 'gaufrage' ? EMBOSS_LAYER_PREFIX : FOIL_LAYER_PREFIX;
+  return prefix + zone.effect;
 }
 
 /** Éléments foil et dorure du modèle, regroupés par calque (ordre d'apparition) */
 export function zoneGroups(root: HTMLElement): Map<string, { zone: ZoneKind; elements: HTMLElement[] }> {
   const groups = new Map<string, { zone: ZoneKind; elements: HTMLElement[] }>();
-  root.querySelectorAll<HTMLElement>('[data-foil]').forEach(element => {
-    if (element.closest('.' + PIECE_CLASS)) {
-      return;
-    }
-    const zone = zoneKind(element.getAttribute('data-foil'));
+  const add = (zone: ZoneKind | null, element: HTMLElement) => {
     if (zone) {
       const name = zoneLayerName(zone);
       const group = groups.get(name) ?? { zone, elements: [] };
       group.elements.push(element);
       groups.set(name, group);
     }
+  };
+  root.querySelectorAll<HTMLElement>('[data-foil], [data-gaufrage]').forEach(element => {
+    if (element.closest('.' + PIECE_CLASS)) {
+      return;
+    }
+    add(embossKind(element.getAttribute('data-gaufrage')), element);
+    add(zoneKind(element.getAttribute('data-foil')), element);
   });
   return groups;
 }
@@ -77,7 +103,7 @@ export function foilGroups(root: HTMLElement): Map<FoilEffect, HTMLElement[]> {
   const out = new Map<FoilEffect, HTMLElement[]>();
   for (const { zone, elements } of zoneGroups(root).values()) {
     if (zone.kind === 'foil') {
-      out.set(zone.effect, elements);
+      out.set(zone.effect as FoilEffect, elements);
     }
   }
   return out;
@@ -103,18 +129,23 @@ const VOID = ['IMG', 'INPUT', 'BR', 'HR', 'VIDEO', 'CANVAS', 'IFRAME', 'TEXTAREA
  * - un reflet, ou une pièce d'image, va juste après l'élément (même parent) avec sa transformation
  *   recopiée : le reflet se mélange ainsi avec ce qui est autour, pas seulement avec l'élément.
  */
-function place(piece: HTMLElement, element: HTMLElement, inside: boolean): void {
+function place(piece: HTMLElement, element: HTMLElement, where: 'append' | 'prepend' | 'after'): void {
   piece.classList.add(PIECE_CLASS);
   piece.setAttribute('aria-hidden', 'true');
-  inside = inside && !VOID.includes(element.tagName);
+  if (VOID.includes(element.tagName)) {
+    where = 'after';
+  }
+  const inside = where !== 'after';
   const style = getComputedStyle(element);
   Object.assign(piece.style, {
     position: 'absolute', left: '0px', top: '0px', right: 'auto', bottom: 'auto', margin: '0',
     ...pieceSize(piece, element), boxSizing: 'border-box',
     transform: inside ? 'none' : style.transform, transformOrigin: style.transformOrigin,
   });
-  if (inside) {
+  if (where === 'append') {
     element.appendChild(piece);
+  } else if (where === 'prepend') {
+    element.insertAdjacentElement('afterbegin', piece);
   } else {
     element.insertAdjacentElement('afterend', piece);
   }
@@ -136,10 +167,18 @@ export function clearFoilZones(root: HTMLElement): void {
 export function drawFoilZones(root: HTMLElement): number {
   clearFoilZones(root);
   let count = 0;
-  for (const { zone, elements } of zoneGroups(root).values()) {
+  // le gaufrage d'abord : la dorure et le reflet d'un même élément se posent par-dessus
+  const groups = [...zoneGroups(root).values()].sort((a, b) =>
+    Number(b.zone.kind === 'gaufrage') - Number(a.zone.kind === 'gaufrage'));
+  for (const { zone, elements } of groups) {
     for (const element of elements) {
       // éléments HTML affichés seulement (un SVG n'a pas de décalages)
       if (!(element instanceof HTMLElement) || !element.offsetWidth || !element.offsetHeight || !element.parentElement) {
+        continue;
+      }
+      if (zone.kind === 'gaufrage') {
+        place(embossed(element, zone.effect), element, 'prepend');
+        count++;
         continue;
       }
       const isImage = element instanceof HTMLImageElement;
@@ -147,7 +186,7 @@ export function drawFoilZones(root: HTMLElement): number {
       const piece = text ? gildedText(element, zone.effect)
         : zone.kind === 'dorure' && isImage ? gildedShape(element, zone.effect)
           : reflection(element, zone.effect);
-      place(piece, element, text);
+      place(piece, element, text ? 'append' : 'after');
       count++;
     }
   }
@@ -167,7 +206,7 @@ function reflection(element: HTMLElement, effect: FoilEffect): HTMLElement {
   zone.style.borderRadius = style.borderRadius;
   // au niveau de l'élément : ce qui est posé par-dessus (un bandeau sur l'illustration) le recouvre aussi
   zone.style.zIndex = style.zIndex;
-  maskWithImage(zone, element);
+  applyMasks(zone, element, EFFECT_MASKS[effect]);
   wrapper.appendChild(zone);
   return wrapper;
 }
@@ -178,7 +217,8 @@ function gildedShape(element: HTMLElement, effect: FoilEffect): HTMLElement {
   zone.className = 'cc-dorure';
   Object.assign(zone.style, { pointerEvents: 'none', zIndex: getComputedStyle(element).zIndex });
   setMetal(zone, effect);
-  maskWithImage(zone, element);
+  zone.style.opacity = String(zoneOptions(element).force);
+  applyMasks(zone, element, undefined, true);
   return zone;
 }
 
@@ -201,13 +241,73 @@ function setMetal(zone: HTMLElement, effect: FoilEffect): void {
   });
 }
 
-function maskWithImage(zone: HTMLElement, element: HTMLElement): void {
+/** Masques propres à certains effets (classe CSS), repris quand la zone a ses propres masques */
+const EFFECT_MASKS: Partial<Record<FoilEffect, { layers: string[]; composite: string[] }>> = {
+  paillettes: { layers: ['radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%)'], composite: ['add'] },
+  glace: { layers: ['radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.15) 80%)'], composite: ['add'] },
+  cadre: { layers: ['linear-gradient(#000 0 0) content-box', 'linear-gradient(#000 0 0)'], composite: ['exclude', 'add'] },
+};
+
+/**
+ * Masques d'une pièce : forme d'une image (sa transparence), masque peint (data-foil-masque, sa luminosité :
+ * blanc = foil, noir = rien), force (data-foil-force), puis ceux de l'effet. Tous se combinent (intersection).
+ */
+function applyMasks(zone: HTMLElement, element: HTMLElement, effect?: { layers: string[]; composite: string[] },
+  forceInOpacity = false): void {
+  const { masque, force } = zoneOptions(element);
+  const url = (u: string) => `url("${u.replace(/"/g, '%22')}")`;
+  const own: string[] = [];
   const src = element instanceof HTMLImageElement ? element.currentSrc || element.src : '';
   if (src) {
-    const mask = `url("${src.replace(/"/g, '%22')}") center / 100% 100% no-repeat`;
-    zone.style.setProperty('-webkit-mask', mask);
-    zone.style.setProperty('mask', mask);
+    own.push(`${url(src)} center / 100% 100% no-repeat`);
   }
+  if (masque) {
+    own.push(`${url(masque)} center / 100% 100% no-repeat luminance`);
+  }
+  if (force < 1 && !forceInOpacity) {
+    own.push(`linear-gradient(rgb(0 0 0 / ${force}), rgb(0 0 0 / ${force}))`);
+  }
+  if (!own.length) {
+    return;
+  }
+  // opérateur de chaque couche dans la forme courte (une forme courte avec var() ne se combine pas
+  // avec un mask-composite posé à part)
+  const layers = [...own.map(layer => `${layer} intersect`),
+    ...(effect?.layers ?? []).map((layer, i) => `${layer} ${effect!.composite[i]}`)];
+  zone.style.setProperty('mask', layers.join(', '));
+}
+
+/**
+ * Gaufrage : une copie de l'élément, identique, posée sur lui, avec un liseré clair du côté de la lumière
+ * et sombre de l'autre (en creux : l'inverse). La lumière vient de --relief-x, --relief-y (-1 à 1 ; par
+ * défaut d'en haut à gauche), posées par la vue 3D.
+ */
+function embossed(element: HTMLElement, effect: string): HTMLElement {
+  const clone = element.cloneNode(true) as HTMLElement;
+  copyStyles(element, clone);
+  const originals = [...element.querySelectorAll<HTMLElement>('*')];
+  [...clone.querySelectorAll<HTMLElement>('*')].forEach((copy, i) => {
+    if (originals[i]) {
+      copyStyles(originals[i], copy);
+    }
+  });
+  [clone, ...clone.querySelectorAll<HTMLElement>('[id], [data-foil], [data-calque], [data-gaufrage]')].forEach(node => {
+    node.removeAttribute('id');
+    node.removeAttribute('data-foil');
+    node.removeAttribute('data-calque');
+    node.removeAttribute('data-gaufrage');
+  });
+  clone.classList.add('cc-gaufrage');
+  const size = Math.max(1, parseFloat(getComputedStyle(element).fontSize || '16') * 0.05);
+  const d = effect === 'creux' ? -size : size;
+  const x = 'var(--relief-x, -0.7)';
+  const y = 'var(--relief-y, -0.7)';
+  Object.assign(clone.style, {
+    animation: 'none', transition: 'none', pointerEvents: 'none', zIndex: 'auto', overflow: 'visible',
+    filter: `drop-shadow(calc(${x} * ${d}px) calc(${y} * ${d}px) 0 rgb(255 255 255 / 0.7)) `
+      + `drop-shadow(calc(${x} * ${-d}px) calc(${y} * ${-d}px) ${size / 2}px rgb(0 0 0 / 0.6))`,
+  });
+  return clone;
 }
 
 /**
@@ -255,6 +355,8 @@ function gildedText(element: HTMLElement, effect: FoilEffect): HTMLElement {
   clone.style.setProperty('-webkit-text-fill-color', 'transparent');
   clone.style.setProperty('-webkit-background-clip', 'text');
   clone.style.setProperty('background-clip', 'text');
+  clone.style.opacity = String(zoneOptions(element).force);
+  applyMasks(clone, element, undefined, true);
   return clone;
 }
 

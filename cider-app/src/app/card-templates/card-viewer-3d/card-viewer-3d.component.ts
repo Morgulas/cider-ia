@@ -160,6 +160,8 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
     el.style.setProperty('--glare-o', String(light.glareO));
     el.style.setProperty('--shade', String(light.shade));
     el.style.setProperty('--spec', String(light.specular));
+    el.style.setProperty('--relief-x', light.reliefX.toFixed(3));
+    el.style.setProperty('--relief-y', light.reliefY.toFixed(3));
   }
 
   onPointerDown(event: PointerEvent): void {

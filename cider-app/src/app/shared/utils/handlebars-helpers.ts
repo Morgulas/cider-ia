@@ -149,6 +149,21 @@ export function registerHandlebarsHelpers(): void {
   /**
    * {{eq card.type 'mystic'}}
    */
+  /**
+   * Choix selon une valeur : {{selon card.rarete "Légendaire" "galaxie" "Rare" "holo" ""}}.
+   * Paires valeur / résultat (majuscules et accents indifférents) ; un dernier argument seul : par défaut.
+   */
+  Handlebars.registerHelper('selon', function (value: unknown, ...rest: unknown[]) {
+    const args = rest.slice(0, -1); // le dernier : les options de Handlebars
+    const key = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    for (let i = 0; i + 1 < args.length; i += 2) {
+      if (key(args[i]) === key(value)) {
+        return args[i + 1];
+      }
+    }
+    return args.length % 2 === 1 ? args[args.length - 1] : '';
+  });
+
   Handlebars.registerHelper('eq', function (a, b) {
     return a == b;
   });

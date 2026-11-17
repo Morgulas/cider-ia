@@ -979,7 +979,10 @@
             "argent": "Silver",
             "prisme": "Prism",
             "paillettes": "Glitter",
-            "cadre": "Frame (reverse holo)"
+            "cadre": "Frame (reverse holo)",
+            "glace": "Cracked ice",
+            "ecailles": "Scales",
+            "hexagones": "Honeycomb"
         }
     },
     "illustrations": {

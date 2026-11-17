@@ -22,7 +22,7 @@ describe('foil-attribute', () => {
     const foil = table.rows.find(r => r.name === 'Foil')!;
     expect(foil.isSystem).toBeTrue();
     expect(foil.type as string).toBe('dropdown');
-    expect((foil.options as DropdownOption[]).map(o => o.value)).toEqual(['holo', 'galaxie', 'or', 'argent', 'prisme', 'paillettes', 'cadre']);
+    expect((foil.options as DropdownOption[]).map(o => o.value)).toEqual(['holo', 'galaxie', 'or', 'argent', 'prisme', 'paillettes', 'cadre', 'glace', 'ecailles', 'hexagones']);
     expect(isBuiltInAttribute(foil as CardAttribute)).toBeFalse();
     // une seconde fois : rien de plus
     await ensureFoilAttribute(table, 1);
@@ -35,7 +35,7 @@ describe('foil-attribute', () => {
     expect(table.rows.length).toBe(1);
     expect(table.rows[0].isSystem).toBeTrue();
     expect(table.rows[0].type as string).toBe('dropdown');
-    expect((table.rows[0].options as DropdownOption[]).length).toBe(7);
+    expect((table.rows[0].options as DropdownOption[]).length).toBe(10);
   });
 
   it('complète la liste d\'un attribut Foil existant sans perdre ses options', async () => {
@@ -44,7 +44,7 @@ describe('foil-attribute', () => {
     await ensureFoilAttribute(table, 1);
     const values = (table.rows[0].options as DropdownOption[]).map(o => o.value);
     expect(values.slice(0, 2)).toEqual(['or', 'spécial']);
-    expect(values.length).toBe(8);
+    expect(values.length).toBe(11);
     expect((table.rows[0].options as DropdownOption[])[0].color).toBe('#000');
   });
 

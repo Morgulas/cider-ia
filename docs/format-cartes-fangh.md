@@ -162,6 +162,28 @@ Un modèle peut dire **où** la carte brille : tout élément marqué `data-foil
 - **Dans cider-ia** (éditeur de modèles, vignettes, classeur, boosters, simulateur), le reflet est posé sur le rectangle de chaque élément ; pour une image, il suit sa transparence. C'est un aperçu : la forme exacte n'apparaît que dans l'appli de collection.
 - **Une carte dont le modèle a des zones foil** brille seulement sur ces zones, dans cider-ia comme dans l'appli de collection : l'effet de l'attribut Foil ne couvre plus toute la carte. Les zones ne rendent pas la carte « foil » pour autant : sa valeur, son poids sur la balance et le badge FOIL suivent toujours l'attribut Foil.
 
+#### Masque peint et force
+
+- **`data-foil-masque="{{assets.mon-masque}}"`** : une image en niveaux de gris de la bibliothèque, étirée sur l'élément. Blanc : le foil brille pleinement ; noir (ou transparent) : rien ; gris : à moitié. C'est la façon des « etched foils » : peindre le ciel et les fleurs en blanc, les visages en noir.
+- **`data-foil-force="0.4"`** (ou `40%`) : force de la zone, de 0 à 1.
+- Les deux valent pour les reflets et les dorures, dans l'aperçu comme à l'export.
+
+#### Effets à motif
+
+`glace` (glace craquelée), `ecailles`, `hexagones` (nid d'abeille) : une texture gravée dans la brillance, en plus des sept effets. Ils sont aussi proposés dans l'attribut Foil et pour les sachets.
+
+#### Foil selon une valeur
+
+Le helper **`selon`** choisit une valeur d'après une autre, sans accents ni majuscules ; un dernier argument seul sert par défaut :
+
+```html
+<div class="image" data-foil="{{selon card.rarete 'Légendaire' 'galaxie' 'Épique' 'glace' 'Rare' 'holo'}}"></div>
+```
+
+#### Gaufrage
+
+**`data-gaufrage`** (en relief) ou **`data-gaufrage="creux"`** : l'élément ressort (ou s'enfonce), avec un liseré clair du côté de la lumière et sombre de l'autre. Il se combine avec une dorure (`data-gaufrage data-foil="dorure-or"` : un titre doré en relief). Dans la vue 3D, le liseré suit la direction de la lumière. À l'export : un calque `gaufrage-relief` ou `gaufrage-creux`.
+
 #### Dorure
 
 Un effet foil est un **reflet** : il éclaircit ce qui est dessous. Sur une encre noire, il ne montre rien. Pour un texte en métal, comme une dorure à chaud, utiliser **`data-foil="dorure-or"`**, `dorure-argent` ou `dorure-holo` : le métal **remplace** l'encre des lettres, et son éclat suit la lumière.

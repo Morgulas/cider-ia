@@ -1,5 +1,5 @@
 import { differenceMask, layerGroups } from './card-preview.component';
-import { clearFoilZones, drawFoilZones, foilGroups, zoneKind } from './foil-zones';
+import { clearFoilZones, drawFoilZones, embossKind, foilGroups, zoneKind, zoneOptions } from './foil-zones';
 
 describe('foil-zones', () => {
   let root: HTMLElement;
@@ -116,5 +116,72 @@ describe('foil-zones', () => {
     const d = ctx.getImageData(0, 0, 2, 1).data;
     expect(d[3]).toBe(255); // visible
     expect(d[7]).toBe(0);   // recouvert : identique dans les deux rendus
+  });
+
+  it('lit le masque peint et la force (0 à 1 ou en %)', () => {
+    const el = document.createElement('div');
+    expect(zoneOptions(el)).toEqual({ masque: null, force: 1 });
+    el.setAttribute('data-foil-force', '40%');
+    el.setAttribute('data-foil-masque', 'masque.png');
+    expect(zoneOptions(el)).toEqual({ masque: 'masque.png', force: 0.4 });
+    el.setAttribute('data-foil-force', '0,25');
+    expect(zoneOptions(el).force).toBe(0.25);
+  });
+
+  it('reflet : force et masque peint en masques combinés, avec ceux de l\'effet', () => {
+    const art = root.querySelector<HTMLElement>('.art')!;
+    art.setAttribute('data-foil', 'paillettes');
+    art.setAttribute('data-foil-force', '0.5');
+    art.setAttribute('data-foil-masque', 'm.png');
+    drawFoilZones(root);
+    const zone = root.querySelector<HTMLElement>('.foil-paillettes')!;
+    const mask = zone.style.getPropertyValue('mask');
+    expect(mask).toContain('m.png');
+    expect(mask).toContain('luminance');
+    expect(mask).toContain('radial-gradient');
+    expect(mask).toContain('intersect');
+  });
+
+  it('gaufrage : en relief ou en creux, une copie de l\'élément posée en premier', () => {
+    expect(embossKind(null)).toBeNull();
+    expect(embossKind('')).toEqual({ kind: 'gaufrage', effect: 'relief' });
+    expect(embossKind('creux')).toEqual({ kind: 'gaufrage', effect: 'creux' });
+    const titre = root.querySelector<HTMLElement>('.titre')!;
+    titre.setAttribute('data-gaufrage', '');
+    titre.setAttribute('data-foil', 'dorure-or');
+    expect([...layerGroups(root, false).keys()]).toContain('gaufrage-relief');
+    drawFoilZones(root);
+    // gaufrage en premier enfant, dorure en dernier : la dorure est par-dessus
+    expect(titre.firstElementChild!.classList.contains('cc-gaufrage')).toBeTrue();
+    expect(titre.lastElementChild!.classList.contains('cc-dorure')).toBeTrue();
+    expect((titre.firstElementChild as HTMLElement).style.filter).toContain('drop-shadow');
+  });
+
+  it('masque d\'export : force et masque peint appliqués sur la zone de l\'élément', async () => {
+    const solid = (color: string, w = 4, h = 1) => {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = color; ctx.fillRect(0, 0, w, h);
+      return c.toDataURL();
+    };
+    // masque peint : moitié gauche blanche, moitié droite noire
+    const c = document.createElement('canvas');
+    c.width = 2; c.height = 1;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 1, 1);
+    ctx.fillStyle = '#000'; ctx.fillRect(1, 0, 1, 1);
+    const mask = await differenceMask(solid('#fff'), solid('#000'), [
+      { masque: c.toDataURL(), force: 1, rect: [0, 0, 0.5, 1] },
+      { masque: null, force: 0.5, rect: [0.5, 0, 0.5, 1] },
+    ]);
+    const img = new Image();
+    await new Promise(resolve => { img.onload = resolve; img.src = mask; });
+    const out = document.createElement('canvas');
+    out.width = 4; out.height = 1;
+    const o = out.getContext('2d')!;
+    o.drawImage(img, 0, 0);
+    const d = o.getImageData(0, 0, 4, 1).data;
+    expect([d[3], d[7], d[11], d[15]]).toEqual([255, 0, 128, 128]);
   });
 });

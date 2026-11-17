@@ -3,7 +3,7 @@ import { Card } from '../data-services/types/card.type';
 import { fieldOf } from '../data-services/types/entity-service.type';
 
 /** Effets foil proposés : la clé sert de classe CSS (`foil-<clé>`). */
-export const FOIL_EFFECTS = ['holo', 'galaxie', 'or', 'argent', 'prisme', 'paillettes', 'cadre'] as const;
+export const FOIL_EFFECTS = ['holo', 'galaxie', 'or', 'argent', 'prisme', 'paillettes', 'cadre', 'glace', 'ecailles', 'hexagones'] as const;
 export type FoilEffect = typeof FOIL_EFFECTS[number];
 
 /** Noms d'attribut reconnus comme « effet foil » (sans accents ni majuscules). */
@@ -18,6 +18,9 @@ const ALIASES: Record<FoilEffect, string[]> = {
   prisme: ['prisme', 'prism', 'arc-en-ciel', 'arc en ciel', 'rainbow'],
   paillettes: ['paillettes', 'glitter', 'sparkle', 'eclats', 'etincelles'],
   cadre: ['cadre', 'reverse', 'reverse holo', 'inverse', 'bordure'],
+  glace: ['glace', 'glace craquelee', 'cracked ice', 'ice', 'givre'],
+  ecailles: ['ecailles', 'ecaille', 'scales', 'dragon'],
+  hexagones: ['hexagones', 'hexagone', 'hexagon', 'hexagons', 'nid d abeille', 'nid-d-abeille', 'honeycomb'],
 };
 
 /** Valeurs qui veulent juste dire « oui, foil » : effet par défaut. */

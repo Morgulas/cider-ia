@@ -979,7 +979,10 @@
             "argent": "Argent",
             "prisme": "Prisme",
             "paillettes": "Paillettes",
-            "cadre": "Cadre (reverse holo)"
+            "cadre": "Cadre (reverse holo)",
+            "glace": "Glace craquelée",
+            "ecailles": "Écailles",
+            "hexagones": "Hexagones"
         }
     },
     "illustrations": {

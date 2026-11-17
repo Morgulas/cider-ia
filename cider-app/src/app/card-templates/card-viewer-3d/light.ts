@@ -27,6 +27,9 @@ export interface Lighting {
   shade: number;
   /** intensité du reflet spéculaire, 0 à 1 */
   specular: number;
+  /** côté d'où vient la lumière sur la face visible (-1 à 1) : liseré clair des gaufrages */
+  reliefX: number;
+  reliefY: number;
 }
 
 type Vec = [number, number, number];
@@ -75,6 +78,8 @@ export function lighting(rx: number, ry: number, light: LightSettings): Lighting
   // le verso est retourné autour de l'axe vertical : x et z inversés
   const flip = side === 'back' ? -1 : 1;
   const lz = l[2] * flip;
+  const [lx, ly] = [l[0] * flip, l[1]];
+  const spread = Math.max(0.5, Math.hypot(lx, ly));
   const [hx, hy, hz] = [h[0] * flip, h[1], h[2] * flip];
   const intensity = clamp(light.intensity, 0, 2);
   const diffuse = Math.max(0, lz) * intensity;
@@ -87,5 +92,7 @@ export function lighting(rx: number, ry: number, light: LightSettings): Lighting
     glareO: clamp(intensity * (0.3 + 0.7 * grazing) * (lz > 0 ? 1 : 0.35), 0, 1),
     shade: clamp((1 - brightness) * 0.85, 0, 0.85),
     specular: clamp(Math.pow(Math.max(0, hz), 12) * intensity * 0.55 * (lz > 0 ? 1 : 0), 0, 1),
+    reliefX: clamp(lx / spread, -1, 1),
+    reliefY: clamp(ly / spread, -1, 1),
   };
 }
