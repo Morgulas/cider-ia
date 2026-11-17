@@ -1,0 +1,105 @@
+<div class="viewer-overlay" role="dialog" aria-modal="true" [attr.aria-label]="'viewer3d.title' | translate">
+  <div #home class="viewer-home">
+    @if (inWindow) {
+    <div class="in-window">
+      <i class="pi pi-window-maximize"></i>
+      <p>{{ 'viewer3d.in-window' | translate }}</p>
+      <div class="row">
+        <button type="button" class="v-btn" (click)="bringBack()"><i class="pi pi-arrow-down-left"></i> {{ 'viewer3d.bring-back' | translate }}</button>
+        <button type="button" class="v-btn" (click)="close()"><i class="pi pi-times"></i> {{ 'controls.close' | translate }}</button>
+      </div>
+    </div>
+    }
+    <div #viewer class="viewer" [class]="'viewer bg-' + settings.background">
+      <div #stage class="stage" role="application" [attr.aria-label]="'viewer3d.help' | translate"
+        (pointerdown)="onPointerDown($event)" (pointermove)="onPointerMove($event)" (pointerup)="onPointerUp($event)"
+        (pointercancel)="onPointerUp($event)" (wheel)="onWheel($event)" (dblclick)="face('front')"
+        (contextmenu)="$event.preventDefault()">
+        <div class="scene">
+          <div #card3d class="card3d" [style.width.px]="faceW" [style.height.px]="faceH">
+            <div class="face front">
+              @if (card() && front()) {
+              <app-card-fit [card]="card()!" [template]="front()" [maxScale]="12" (measured)="onMeasured($event)" />
+              }
+              @if (cardFoil(); as effect) {
+              <span class="foil foil-{{ effect }}" aria-hidden="true"></span>
+              }
+              <span class="spec" aria-hidden="true"></span>
+            </div>
+            <div class="face back">
+              @if (card() && back()) {
+              <app-card-fit [card]="card()!" [template]="back()" [maxScale]="12" />
+              } @else {
+              <div class="no-back">{{ 'viewer3d.no-back' | translate }}</div>
+              }
+              <span class="spec" aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+        <p class="hint">{{ 'viewer3d.help' | translate }}</p>
+      </div>
+
+      <aside class="panel" [class.collapsed]="!panelOpen">
+        <header>
+          <button type="button" class="v-btn icon" (click)="panelOpen = !panelOpen"
+            [attr.aria-label]="'viewer3d.settings' | translate" [title]="'viewer3d.settings' | translate">
+            <i [class]="panelOpen ? 'pi pi-angle-right' : 'pi pi-sliders-h'"></i>
+          </button>
+          @if (panelOpen) { <strong>{{ 'viewer3d.title' | translate }}</strong> }
+        </header>
+        @if (panelOpen) {
+        <section>
+          <h3>{{ 'viewer3d.light' | translate }}</h3>
+          <label>{{ 'viewer3d.intensity' | translate }} <output>{{ percent(settings.intensity) }} %</output>
+            <input type="range" min="0" max="200" step="5" [value]="percent(settings.intensity)" (input)="setLight('intensity', $event)" />
+          </label>
+          <label>{{ 'viewer3d.azimuth' | translate }} <output>{{ settings.azimuth }}°</output>
+            <input type="range" min="-180" max="180" step="5" [value]="settings.azimuth" (input)="setLight('azimuth', $event)" />
+          </label>
+          <label>{{ 'viewer3d.elevation' | translate }} <output>{{ settings.elevation }}°</output>
+            <input type="range" min="5" max="90" step="1" [value]="settings.elevation" (input)="setLight('elevation', $event)" />
+          </label>
+          <label>{{ 'viewer3d.ambient' | translate }} <output>{{ percent(settings.ambient) }} %</output>
+            <input type="range" min="0" max="100" step="5" [value]="percent(settings.ambient)" (input)="setLight('ambient', $event)" />
+          </label>
+          <label class="check">
+            <input type="checkbox" [checked]="settings.followPointer" (change)="setFollow($event)" />
+            {{ 'viewer3d.follow' | translate }}
+          </label>
+        </section>
+        <section>
+          <h3>{{ 'viewer3d.card' | translate }}</h3>
+          <div class="row">
+            <button type="button" class="v-btn" (click)="face('front')">{{ 'viewer3d.front' | translate }}</button>
+            <button type="button" class="v-btn" (click)="face('back')">{{ 'viewer3d.back' | translate }}</button>
+            <button type="button" class="v-btn" (click)="turn()"><i class="pi pi-sync"></i></button>
+          </div>
+          <div class="row">
+            <button type="button" class="v-btn" [class.on]="spinning" (click)="toggleSpin()"><i class="pi pi-replay"></i> {{ 'viewer3d.spin' | translate }}</button>
+            <button type="button" class="v-btn" (click)="setZoom(zoom / 1.2)"><i class="pi pi-search-minus"></i></button>
+            <button type="button" class="v-btn" (click)="setZoom(zoom * 1.2)"><i class="pi pi-search-plus"></i></button>
+          </div>
+        </section>
+        <section>
+          <h3>{{ 'viewer3d.background' | translate }}</h3>
+          <div class="row">
+            @for (bg of ['sombre', 'clair', 'damier']; track bg) {
+            <button type="button" class="v-btn" [class.on]="settings.background === bg" (click)="setBackground($any(bg))">{{ 'viewer3d.bg-' + bg | translate }}</button>
+            }
+          </div>
+        </section>
+        <section class="actions">
+          <button type="button" class="v-btn" (click)="reset()"><i class="pi pi-refresh"></i> {{ 'viewer3d.reset' | translate }}</button>
+          <button type="button" class="v-btn" (click)="fullscreen()"><i class="pi pi-expand"></i> {{ 'viewer3d.fullscreen' | translate }}</button>
+          @if (inWindow) {
+          <button type="button" class="v-btn" (click)="bringBack()"><i class="pi pi-arrow-down-left"></i> {{ 'viewer3d.bring-back' | translate }}</button>
+          } @else {
+          <button type="button" class="v-btn" (click)="openWindow()"><i class="pi pi-external-link"></i> {{ 'viewer3d.window' | translate }}</button>
+          }
+          <button type="button" class="v-btn" (click)="close()"><i class="pi pi-times"></i> {{ 'controls.close' | translate }}</button>
+        </section>
+        }
+      </aside>
+    </div>
+  </div>
+</div>

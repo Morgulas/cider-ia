@@ -1,0 +1,240 @@
+@use '../../card-binder/foil';
+
+.viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.viewer-home {
+  position: absolute;
+  inset: 0;
+}
+
+.in-window {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #e4e4e7;
+  background: #18181b;
+
+  > i {
+    font-size: 2.5rem;
+    opacity: 0.6;
+  }
+}
+
+.viewer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  color: #e4e4e7;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  user-select: none;
+
+  &.bg-sombre { background: radial-gradient(ellipse at 50% 40%, #2a2a33, #0d0d10 75%); }
+  &.bg-clair { background: radial-gradient(ellipse at 50% 40%, #fafafa, #c9c9cf 80%); }
+  &.bg-damier {
+    background: repeating-conic-gradient(#3a3a42 0% 25%, #2a2a30 0% 50%) 50% / 32px 32px;
+  }
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1600px;
+  cursor: grab;
+  touch-action: none;
+  overflow: hidden;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.scene {
+  transform-style: preserve-3d;
+}
+
+.card3d {
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+
+  &.back {
+    transform: rotateY(180deg);
+  }
+
+  // ombrage de la face selon la lumière (sans assombrir le fond autour des coins arrondis)
+  app-card-fit {
+    filter: brightness(calc(1 - var(--shade, 0)));
+  }
+
+  // reflet spéculaire
+  .spec {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: 4.5%;
+    background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%),
+      rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.25) 22%, transparent 55%);
+    mix-blend-mode: soft-light;
+    opacity: var(--spec, 0);
+  }
+}
+
+.no-back {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4.5%;
+  background: repeating-linear-gradient(45deg, #2c2c35 0 10px, #24242c 10px 20px);
+  color: #a1a1aa;
+  text-align: center;
+  padding: 1rem;
+}
+
+.hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.6;
+  pointer-events: none;
+  .bg-clair & { color: #3f3f46; }
+}
+
+.panel {
+  width: 270px;
+  flex: none;
+  overflow-y: auto;
+  background: rgba(24, 24, 27, 0.92);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &.collapsed {
+    width: auto;
+    padding: 10px 6px;
+    background: transparent;
+    border: none;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.6;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+
+    output {
+      float: right;
+      opacity: 0.7;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type='range'] {
+      display: block;
+      width: 100%;
+      margin-top: 4px;
+      accent-color: var(--p-primary-color, #22c55e);
+    }
+
+    &.check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: auto;
+  }
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.v-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  &.on {
+    border-color: var(--p-primary-color, #22c55e);
+    background: color-mix(in srgb, var(--p-primary-color, #22c55e) 25%, transparent);
+  }
+
+  &.icon {
+    padding: 6px 8px;
+  }
+}
+
+@media (max-width: 700px) {
+  .viewer {
+    flex-direction: column;
+  }
+
+  .panel {
+    width: auto;
+    max-height: 45%;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}

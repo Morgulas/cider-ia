@@ -44,6 +44,7 @@ import { ChatbotAnswer, TemplateVariable } from './template-chatbot';
 import { TemplateChatbotDialogComponent } from './template-chatbot-dialog.component';
 import { annotateLines, CssRule, CssVariable, findCssVariables, formatColorLike, formatCss, LINE_ATTRIBUTE, matchableSelector, OverflowCandidate, parseCssRules, pickOverflowCards, sliderRange, splitSelectorList } from './template-tools';
 import { CurrentProjectService } from '../server/current-project.service';
+import { CardViewer3dComponent } from './card-viewer-3d/card-viewer-3d.component';
 
 type ViewMode = 'card' | 'pair' | 'overflow';
 type Side = 'front' | 'back';
@@ -165,7 +166,7 @@ const templateHtmlFront =
     templateUrl: './card-templates.component.html',
     styleUrls: ['./card-templates.component.scss'],
     providers: [MessageService, ConfirmationService],
-    imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, TranslatePipe, InputText, TemplateChatbotDialogComponent, NgTemplateOutlet]
+    imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, TranslatePipe, InputText, TemplateChatbotDialogComponent, NgTemplateOutlet, CardViewer3dComponent]
 })
 export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
@@ -884,6 +885,20 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     if (!pair && this.viewMode === 'pair') {
       this.setViewMode('card');
     }
+  }
+
+  /** Vue 3D de la carte (rotation libre, lumière réglable) */
+  viewer3dOpen = false;
+
+  /**
+   * Recto ou verso de la vue 3D, avec les modifications en cours : le modèle édité est sa face ;
+   * sans paire, il est le recto et le verso reste vide.
+   */
+  public viewer3dSide(side: Side): CardTemplate | null {
+    if (this.pair) {
+      return this.pair[side].id === this.selectedTemplate.id ? this.inspectTemplate : this.pair[side];
+    }
+    return side === 'front' ? this.inspectTemplate : null;
   }
 
   public pairColumns(): number {

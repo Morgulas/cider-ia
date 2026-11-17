@@ -52,6 +52,11 @@ export class CardFitComponent implements AfterViewInit, OnDestroy {
     this.observer?.disconnect();
   }
 
+  /** Recalcule l'ajustement (conteneur déplacé dans une autre fenêtre, où l'observateur ne suit pas toujours) */
+  refit(): void {
+    this.fit();
+  }
+
   private fit(): void {
     const host = this.host.nativeElement;
     const inner = this.inner.nativeElement;

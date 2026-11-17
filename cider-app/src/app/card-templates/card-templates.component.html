@@ -17,6 +17,8 @@
               filterBy="name" optionLabel="name" class="card-dropdown"></p-select>
             <button pButton type="button" icon="pi pi-external-link" class="p-button-outlined"
               (click)="openPopout()" [pTooltip]="'template-editor.popout' | translate"></button>
+            <button pButton type="button" icon="pi pi-box" class="p-button-outlined" [disabled]="!selectedCard"
+              (click)="viewer3dOpen = true" [pTooltip]="'viewer3d.open' | translate"></button>
             <button pButton type="button" icon="pi pi-cog" class="p-button-outlined"
               (click)="settingsVisible = true" [pTooltip]="'controls.preview-settings' | translate"></button>
           </div>
@@ -396,3 +398,8 @@
                   }
                   }
 </ng-template>
+
+@if (viewer3dOpen && selectedCard) {
+<app-card-viewer-3d [card]="selectedCard" [front]="viewer3dSide('front')" [back]="viewer3dSide('back')"
+  [title]="selectedTemplate.name ?? ''" (closed)="viewer3dOpen = false" />
+}
