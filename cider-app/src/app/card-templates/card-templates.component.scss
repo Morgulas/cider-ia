@@ -91,6 +91,10 @@ textarea {
 
     p-splitter {
         max-height: 100%;
+        /* a definite height: without it the panels take the height of their content and the
+           bottom of the code editor (with its horizontal scrollbar) goes below the visible area */
+        flex: 1 1 0;
+        min-height: 0;
     }
 
     .p-splitter {
