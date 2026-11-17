@@ -66,12 +66,16 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
   @ViewChild('home', { static: true }) home!: ElementRef<HTMLElement>;
   @ViewChild('stage', { static: true }) stage!: ElementRef<HTMLElement>;
   @ViewChild('card3d', { static: true }) card3d!: ElementRef<HTMLElement>;
+  @ViewChild('scene', { static: true }) scene!: ElementRef<HTMLElement>;
   @ViewChildren(CardFitComponent) fits!: QueryList<CardFitComponent>;
 
   settings: ViewerSettings = { ...DEFAULTS };
   rx = 0;
   ry = 0;
   zoom = 1;
+  /** déplacement de la carte dans la scène (px) */
+  panX = 0;
+  panY = 0;
   spinning = false;
   /** taille d'une face à l'écran (px) */
   faceW = 0;
@@ -82,7 +86,7 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
   private aspect = 0.714;
   private popup: Window | null = null;
   private resize?: ResizeObserver;
-  private drag: { id: number; x: number; y: number; light: boolean } | null = null;
+  private drag: { id: number; x: number; y: number; mode: 'turn' | 'light' | 'move' } | null = null;
   private frame = 0;
   private spinFrom = 0;
 
@@ -159,11 +163,13 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
   }
 
   onPointerDown(event: PointerEvent): void {
-    if (event.button !== 0 && event.button !== 2) {
+    if (event.button > 2) {
       return;
     }
-    const light = event.shiftKey || event.button === 2;
-    this.drag = { id: event.pointerId, x: event.clientX, y: event.clientY, light };
+    // bouton du milieu, Ctrl ou Alt : déplacer ; clic droit ou Maj : la lumière ; sinon : tourner
+    const mode = event.button === 1 || event.ctrlKey || event.altKey || event.metaKey ? 'move'
+      : event.button === 2 || event.shiftKey ? 'light' : 'turn';
+    this.drag = { id: event.pointerId, x: event.clientX, y: event.clientY, mode };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     this.stopSpin();
     event.preventDefault();
@@ -183,8 +189,12 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
     const dy = event.clientY - this.drag.y;
     this.drag.x = event.clientX;
     this.drag.y = event.clientY;
-    if (this.drag.light) {
+    if (this.drag.mode === 'light') {
       this.lightFromPointer(event);
+      return;
+    }
+    if (this.drag.mode === 'move') {
+      this.moveBy(dx, dy);
       return;
     }
     // la carte suit la main : horizontale autour de Y ; verticale autour de X (sens inversé à l'envers)
@@ -212,14 +222,67 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /** Zoom vers le pointeur : le point de la carte sous la souris reste sous la souris */
   onWheel(event: WheelEvent): void {
     event.preventDefault();
-    this.setZoom(this.zoom * (event.deltaY > 0 ? 0.92 : 1.08));
+    const box = this.stage.nativeElement.getBoundingClientRect();
+    this.setZoom(this.zoom * (event.deltaY > 0 ? 0.9 : 1.1),
+      { x: event.clientX - box.left - box.width / 2, y: event.clientY - box.top - box.height / 2 });
   }
 
-  setZoom(zoom: number): void {
-    this.zoom = Math.min(4, Math.max(0.3, zoom));
+  /** Zoom autour d'un point de la scène (par rapport à son centre) ; par défaut, le centre de la carte */
+  setZoom(zoom: number, around?: { x: number; y: number }): void {
+    const next = Math.min(8, Math.max(0.3, zoom));
+    const factor = next / this.zoom;
+    if (around) {
+      // le point visé, mesuré depuis le centre de la carte, s'éloigne de `factor` : la carte suit
+      this.panX += (around.x - this.panX) * (1 - factor);
+      this.panY += (around.y - this.panY) * (1 - factor);
+    } else {
+      this.panX *= factor;
+      this.panY *= factor;
+    }
+    this.zoom = next;
+    this.applyPan();
     this.layout();
+  }
+
+  /** Déplace la carte dans la scène */
+  moveBy(dx: number, dy: number): void {
+    this.panX += dx;
+    this.panY += dy;
+    this.applyPan();
+  }
+
+  /** Carte recentrée, à sa taille de départ */
+  recenter(): void {
+    this.panX = 0;
+    this.panY = 0;
+    this.zoom = 1;
+    this.applyPan();
+    this.layout();
+  }
+
+  private applyPan(): void {
+    this.scene.nativeElement.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
+  }
+
+  /** Flèches : déplacer (Maj : plus vite) ; + et - : zoom ; 0 : recentrer */
+  onKey(event: KeyboardEvent): void {
+    const step = event.shiftKey ? 60 : 15;
+    const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    if (moves[event.key]) {
+      this.moveBy(...moves[event.key]);
+    } else if (event.key === '+' || event.key === '=') {
+      this.setZoom(this.zoom * 1.2);
+    } else if (event.key === '-') {
+      this.setZoom(this.zoom / 1.2);
+    } else if (event.key === '0') {
+      this.recenter();
+    } else {
+      return;
+    }
+    event.preventDefault();
   }
 
   /** Remet la carte de face (ou de dos) */
@@ -235,8 +298,7 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
 
   reset(): void {
     this.settings = { ...DEFAULTS, background: this.settings.background };
-    this.zoom = 1;
-    this.layout();
+    this.recenter();
     this.face('front');
     this.save();
   }

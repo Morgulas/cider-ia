@@ -61,7 +61,8 @@ Si rien ne s'ouvre, le navigateur a bloqué la fenêtre : autoriser les fenêtre
 
 Le bouton **Vue 3D** (cube, à côté de la fenêtre séparée) ouvre la carte choisie en grand, pour juger les foils et les reflets :
 
-- **Tourner** : glisser la carte, dans tous les sens, jusqu'au verso. Double-clic : de face. Boutons Recto, Verso, demi-tour, rotation automatique ; molette ou loupes : zoom.
+- **Tourner** : glisser la carte, dans tous les sens, jusqu'au verso. Boutons Recto, Verso, demi-tour, rotation automatique.
+- **Zoomer et déplacer** : la molette zoome vers la souris (le détail visé reste sous le pointeur). Ctrl, Alt ou le bouton du milieu + glisser déplace la carte ; au clavier (après un clic sur la scène), les flèches la déplacent (Maj : plus vite), + et - zooment, 0 recentre. Double-clic ou « Recentrer » : de face, au centre, taille de départ.
 - **Lumière** : intensité (0 à 200 %), direction et hauteur, lumière ambiante. Maj+glisser (ou clic droit) déplace la lumière : au centre, de face ; vers les bords, rasante. « La lumière suit la souris » la déplace sans cliquer.
 - La lumière règle les foils (zones `data-foil` du modèle, ou attribut Foil sur toute la carte), un reflet blanc et l'ombrage de la carte.
 - **Fond** sombre, clair ou en damier, pour voir les foils sur différents fonds.

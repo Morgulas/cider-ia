@@ -11,11 +11,12 @@
     </div>
     }
     <div #viewer class="viewer" [class]="'viewer bg-' + settings.background">
-      <div #stage class="stage" role="application" [attr.aria-label]="'viewer3d.help' | translate"
+      <div #stage class="stage" role="application" tabindex="0" (keydown)="onKey($event)" [attr.aria-label]="'viewer3d.help' | translate"
         (pointerdown)="onPointerDown($event)" (pointermove)="onPointerMove($event)" (pointerup)="onPointerUp($event)"
-        (pointercancel)="onPointerUp($event)" (wheel)="onWheel($event)" (dblclick)="face('front')"
+        (pointercancel)="onPointerUp($event)" (wheel)="onWheel($event)" (dblclick)="face('front'); recenter()"
+        (auxclick)="$event.preventDefault()" (mousedown)="$event.button === 1 && $event.preventDefault()"
         (contextmenu)="$event.preventDefault()">
-        <div class="scene">
+        <div #scene class="scene">
           <div #card3d class="card3d" [style.width.px]="faceW" [style.height.px]="faceH">
             <div class="face front">
               @if (card() && front()) {
@@ -78,6 +79,7 @@
             <button type="button" class="v-btn" [class.on]="spinning" (click)="toggleSpin()"><i class="pi pi-replay"></i> {{ 'viewer3d.spin' | translate }}</button>
             <button type="button" class="v-btn" (click)="setZoom(zoom / 1.2)"><i class="pi pi-search-minus"></i></button>
             <button type="button" class="v-btn" (click)="setZoom(zoom * 1.2)"><i class="pi pi-search-plus"></i></button>
+            <button type="button" class="v-btn" (click)="recenter()" [title]="'viewer3d.recenter' | translate"><i class="pi pi-arrows-alt"></i> {{ 'viewer3d.recenter' | translate }}</button>
           </div>
         </section>
         <section>

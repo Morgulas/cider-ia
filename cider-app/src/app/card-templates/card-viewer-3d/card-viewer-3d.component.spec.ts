@@ -59,4 +59,20 @@ describe('CardViewer3dComponent', () => {
     expect(fixture.nativeElement.querySelector('.face.front .foil.foil-or')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.face.back .no-back')).not.toBeNull();
   });
+
+  it('déplace la carte avec Ctrl+glisser, et zoome vers la souris', () => {
+    const scene = fixture.nativeElement.querySelector('.scene') as HTMLElement;
+    pointer(stage, 'pointerdown', 100, 100, { ctrlKey: true });
+    pointer(stage, 'pointermove', 130, 90, { ctrlKey: true });
+    pointer(stage, 'pointerup', 130, 90);
+    expect(component.ry).toBe(0);
+    expect(scene.style.transform).toBe('translate(30px, -10px)');
+    component.recenter();
+    // zoom ×2 autour d'un point à 100 px à droite du centre : la carte part de 100 px vers la gauche
+    component.setZoom(2, { x: 100, y: 0 });
+    expect(component.panX).toBeCloseTo(-100, 5);
+    expect(component.zoom).toBe(2);
+    component.recenter();
+    expect(scene.style.transform).toBe('translate(0px, 0px)');
+  });
 });
