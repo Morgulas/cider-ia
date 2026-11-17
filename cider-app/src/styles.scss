@@ -86,5 +86,9 @@ html {
 /* Export « avec calques » vers l'appli de collection : rendu d'un seul calque (voir CardPreviewComponent.captureLayers) */
 .cc-layer-pass, .cc-layer-pass * { visibility: hidden !important; }
 .cc-layer-pass [data-calque-on], .cc-layer-pass [data-calque-on] * { visibility: visible !important; }
+/* masque d'une zone foil ou dorure : la carte entière, les éléments de la zone peints en blanc puis en noir
+   (voir CardPreviewComponent.visibleMask) */
+.cc-zone-white [data-calque-on] { filter: brightness(0) invert(1) !important; }
+.cc-zone-black [data-calque-on] { filter: brightness(0) !important; }
 /* calque d'une dorure (data-foil="dorure-or"...) : les lettres seules, sans leur ombre ni celle de la boîte */
 .cc-dorure-pass [data-calque-on], .cc-dorure-pass [data-calque-on] * { text-shadow: none !important; box-shadow: none !important; }

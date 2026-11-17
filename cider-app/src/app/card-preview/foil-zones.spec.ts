@@ -1,4 +1,4 @@
-import { layerGroups } from './card-preview.component';
+import { differenceMask, layerGroups } from './card-preview.component';
 import { clearFoilZones, drawFoilZones, foilGroups, zoneKind } from './foil-zones';
 
 describe('foil-zones', () => {
@@ -80,5 +80,41 @@ describe('foil-zones', () => {
     expect(Math.abs(gilded.left + pad - title.left)).toBeLessThan(1);
     expect(Math.abs(gilded.top + pad - title.top)).toBeLessThan(1);
     expect(Math.abs(gilded.width - 2 * pad - title.width)).toBeLessThan(2);
+  });
+
+  it('reste sous ce qui recouvre l\'élément (un bandeau posé sur l\'illustration)', () => {
+    root.innerHTML = `<div style="position:relative;width:200px;height:200px">
+      <div class="art" data-foil="galaxie" style="position:absolute;inset:0;background:#36c"></div>
+      <div class="band" style="position:absolute;left:0;top:0;width:200px;height:40px;background:#fcc"></div></div>`;
+    drawFoilZones(root);
+    const band = root.querySelector('.band')!;
+    const piece = root.querySelector('.cc-foil-piece')!;
+    // le reflet passe avant le bandeau dans l'ordre d'affichage (même niveau, plus tôt dans la page)
+    expect(piece.compareDocumentPosition(band) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(getComputedStyle(root.querySelector('.cc-foil-zone')!).zIndex).toBe('auto');
+    // au centre du bandeau, c'est le bandeau qui est dessus
+    const r = band.getBoundingClientRect();
+    expect(document.elementFromPoint(r.left + 100, r.top + 20)).toBe(band);
+  });
+
+  it('masque de la part visible : écart entre deux rendus', async () => {
+    const png = (color: string) => {
+      const c = document.createElement('canvas');
+      c.width = 2; c.height = 1;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = color; ctx.fillRect(0, 0, 1, 1);
+      ctx.fillStyle = '#808080'; ctx.fillRect(1, 0, 1, 1);
+      return c.toDataURL();
+    };
+    const mask = await differenceMask(png('#ffffff'), png('#000000'));
+    const img = new Image();
+    await new Promise(resolve => { img.onload = resolve; img.src = mask; });
+    const c = document.createElement('canvas');
+    c.width = 2; c.height = 1;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, 2, 1).data;
+    expect(d[3]).toBe(255); // visible
+    expect(d[7]).toBe(0);   // recouvert : identique dans les deux rendus
   });
 });

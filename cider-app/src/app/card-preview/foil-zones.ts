@@ -163,7 +163,10 @@ function reflection(element: HTMLElement, effect: FoilEffect): HTMLElement {
   const wrapper = doc.createElement('span');
   const zone = doc.createElement('span');
   zone.className = `foil foil-${effect} ${ZONE_CLASS}`;
-  zone.style.borderRadius = getComputedStyle(element).borderRadius;
+  const style = getComputedStyle(element);
+  zone.style.borderRadius = style.borderRadius;
+  // au niveau de l'élément : ce qui est posé par-dessus (un bandeau sur l'illustration) le recouvre aussi
+  zone.style.zIndex = style.zIndex;
   maskWithImage(zone, element);
   wrapper.appendChild(zone);
   return wrapper;
@@ -173,7 +176,7 @@ function reflection(element: HTMLElement, effect: FoilEffect): HTMLElement {
 function gildedShape(element: HTMLElement, effect: FoilEffect): HTMLElement {
   const zone = element.ownerDocument.createElement('span');
   zone.className = 'cc-dorure';
-  Object.assign(zone.style, { pointerEvents: 'none', zIndex: '2147483000' });
+  Object.assign(zone.style, { pointerEvents: 'none', zIndex: getComputedStyle(element).zIndex });
   setMetal(zone, effect);
   maskWithImage(zone, element);
   return zone;
@@ -237,7 +240,8 @@ function gildedText(element: HTMLElement, effect: FoilEffect): HTMLElement {
     transition: 'none', mixBlendMode: 'normal', visibility: 'visible', pointerEvents: 'none',
     color: 'transparent', textShadow: 'none', boxShadow: 'none', borderColor: 'transparent',
     backgroundColor: 'transparent', overflow: 'visible',
-    boxSizing: 'border-box', zIndex: '2147483000',
+    // dans l'élément, juste au-dessus de son texte : ce qui couvre l'élément couvre aussi la dorure
+    boxSizing: 'border-box', zIndex: 'auto',
   });
   setMetal(clone, effect);
   // le métal n'est peint que dans la boîte : elle est agrandie (et décalée d'autant par place) pour couvrir

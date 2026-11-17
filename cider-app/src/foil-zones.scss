@@ -3,15 +3,11 @@
 @use 'sass:meta';
 
 .cc-foil-piece {
-  // posée juste après son élément (même parent, mêmes transformations) ; sans z-index ni opacité :
+  // posée juste après son élément (même parent, mêmes transformations), au même niveau que lui ; sans z-index ni opacité :
   // le reflet qu'elle contient se mélange (mix-blend-mode) avec la carte elle-même
   pointer-events: none;
 
   @include meta.load-css('app/card-binder/foil');
-
-  .cc-foil-zone {
-    z-index: 2147483000;
-  }
 }
 
 // le modèle place lui-même son foil : pas de reflet sur toute la carte en plus (classeur, boosters)

@@ -11,7 +11,7 @@ import { CardToHtmlPipe } from '../shared/pipes/template-to-html.pipe';
 import { ImageRendererService } from '../data-services/services/image-renderer.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
-import { GILDING_LAYER_PREFIX, clearFoilZones, drawFoilZones, zoneGroups } from './foil-zones';
+import { FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, clearFoilZones, drawFoilZones, zoneGroups } from './foil-zones';
 
 @Component({
     selector: 'app-card-preview',
@@ -273,26 +273,53 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     }
     const groups = layerGroups(root, calques);
     const out: Record<string, { zone: number[]; image: string }> = {};
-    const filter = (node: HTMLElement) => 'style' !== node.localName;
     for (const [name, elements] of groups) {
       const zone = layerZone(box, elements.map(e => e.getBoundingClientRect()));
       if (!zone) {
         continue;
       }
-      // une dorure : la forme des lettres seules, sans leur ombre
-      const gilding = name.startsWith(GILDING_LAYER_PREFIX);
-      root.classList.add('cc-layer-pass');
-      root.classList.toggle('cc-dorure-pass', gilding);
       elements.forEach(e => e.setAttribute('data-calque-on', ''));
       try {
-        const image = await this.imageRendererService.toPng(root, { pixelRatio, filter });
-        out[name] = { zone, image };
+        out[name] = { zone, image: isZoneLayer(name)
+          ? await this.visibleMask(root, pixelRatio, name.startsWith(GILDING_LAYER_PREFIX))
+          : await this.layerImage(root, pixelRatio) };
       } finally {
-        root.classList.remove('cc-layer-pass', 'cc-dorure-pass');
         elements.forEach(e => e.removeAttribute('data-calque-on'));
       }
     }
     return out;
+  }
+
+  /** Image d'un calque data-calque : ses éléments seuls, le reste caché */
+  private async layerImage(root: HTMLElement, pixelRatio: number): Promise<string> {
+    const filter = (node: HTMLElement) => 'style' !== node.localName;
+    root.classList.add('cc-layer-pass');
+    try {
+      return await this.imageRendererService.toPng(root, { pixelRatio, filter });
+    } finally {
+      root.classList.remove('cc-layer-pass');
+    }
+  }
+
+  /**
+   * Masque d'une zone foil ou dorure : la part de ses éléments qui se voit vraiment sur la carte.
+   * La carte entière est rendue deux fois, les éléments de la zone peints en blanc puis en noir :
+   * là où ils se voient, les deux rendus diffèrent ; là où un autre élément les recouvre (un bandeau
+   * sur l'illustration), ils sont identiques. L'écart donne l'opacité du masque.
+   * Une dorure : sans l'ombre du texte (les lettres seules).
+   */
+  private async visibleMask(root: HTMLElement, pixelRatio: number, gilding: boolean): Promise<string> {
+    const filter = (node: HTMLElement) => 'style' !== node.localName;
+    root.classList.toggle('cc-dorure-pass', gilding);
+    try {
+      root.classList.add('cc-zone-white');
+      const white = await this.imageRendererService.toPng(root, { pixelRatio, filter });
+      root.classList.replace('cc-zone-white', 'cc-zone-black');
+      const black = await this.imageRendererService.toPng(root, { pixelRatio, filter });
+      return await differenceMask(white, black);
+    } finally {
+      root.classList.remove('cc-zone-white', 'cc-zone-black', 'cc-dorure-pass');
+    }
   }
 
   public isLoaded() {
@@ -358,4 +385,41 @@ function whenImageDecoded(url: string): Promise<void> {
   const image = new Image();
   image.src = url;
   return image.decode().catch(() => undefined).then(() => nextFrame());
+}
+
+/** Calque d'une zone foil ou dorure (masque de la part visible), et non d'un data-calque */
+function isZoneLayer(name: string): boolean {
+  return name.startsWith(FOIL_LAYER_PREFIX) || name.startsWith(GILDING_LAYER_PREFIX);
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('image illisible'));
+    image.src = src;
+  });
+}
+
+/** Masque blanc dont l'opacité est l'écart entre deux rendus (PNG, data URL) */
+export async function differenceMask(a: string, b: string): Promise<string> {
+  const [ia, ib] = await Promise.all([loadImage(a), loadImage(b)]);
+  const w = ia.naturalWidth, h = ia.naturalHeight;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(ia, 0, 0);
+  const da = ctx.getImageData(0, 0, w, h);
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(ib, 0, 0, w, h);
+  const db = ctx.getImageData(0, 0, w, h).data;
+  const px = da.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const diff = Math.max(Math.abs(px[i] - db[i]), Math.abs(px[i + 1] - db[i + 1]), Math.abs(px[i + 2] - db[i + 2]));
+    px[i] = px[i + 1] = px[i + 2] = 255;
+    px[i + 3] = diff;
+  }
+  ctx.putImageData(da, 0, 0);
+  return canvas.toDataURL('image/png');
 }

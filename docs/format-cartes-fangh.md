@@ -157,6 +157,7 @@ Un modèle peut dire **où** la carte brille : tout élément marqué `data-foil
 ```
 
 - **À l'export vers l'appli de collection**, chaque effet donne un calque `foil-<effet>` (par exemple `foil-or`), **même sans** « Exporter aussi les calques ». L'appli fait briller chaque zone à la forme exacte de ses éléments (le contour des lettres, la transparence d'une image). Les zones foil passent avant les `data-calque` dans la limite de 6 calques par carte.
+- **Ce qui est posé par-dessus la zone la recouvre** : un foil sur l'illustration ne brille pas sous le bandeau du titre ni sous la boîte de texte (à l'export, le masque ne garde que la part de la zone qui se voit sur la carte ; un élément à moitié transparent laisse passer la moitié du foil).
 - **La forme d'une zone, c'est ce qui est dessiné** : un élément avec un fond opaque donne un rectangle. Pour que seul un texte brille, mettre `data-foil` sur un élément sans fond.
 - **Dans cider-ia** (éditeur de modèles, vignettes, classeur, boosters, simulateur), le reflet est posé sur le rectangle de chaque élément ; pour une image, il suit sa transparence. C'est un aperçu : la forme exacte n'apparaît que dans l'appli de collection.
 - **Une carte dont le modèle a des zones foil** brille seulement sur ces zones, dans cider-ia comme dans l'appli de collection : l'effet de l'attribut Foil ne couvre plus toute la carte. Les zones ne rendent pas la carte « foil » pour autant : sa valeur, son poids sur la balance et le badge FOIL suivent toujours l'attribut Foil.
