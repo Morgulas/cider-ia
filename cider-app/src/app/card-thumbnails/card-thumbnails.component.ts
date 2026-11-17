@@ -23,6 +23,7 @@ import { Tooltip } from 'primeng/tooltip';
 import { AiService } from '../ai/ai.service';
 import { CardIllustrationDialogComponent } from '../ai/card-illustration-dialog/card-illustration-dialog.component';
 import { BinderItem, CardBinderComponent } from '../card-binder/card-binder.component';
+import { findNumberField, sortByNumber } from '../card-binder/card-order';
 
 const VIEW_KEY = 'cider.thumbnails.view';
 
@@ -43,6 +44,8 @@ export class CardThumbnailsComponent implements OnInit {
   binderItems: BinderItem[] = [];
   /** Champ des cartes qui porte l'effet foil (attribut « Foil »), s'il existe. */
   foilField: string | undefined;
+  /** Champ « N° » du deck : les cartes sont rangées par numéro (sinon dans l'ordre du tableau). */
+  numberField: string | undefined;
   /** Essai des effets : « auto » suit l'attribut, sinon l'effet est mis sur toutes les cartes. */
   foilTest: FoilEffect | 'auto' | 'none' = 'auto';
   readonly foilTestOptions: { value: FoilEffect | 'auto' | 'none'; key: string }[] = [
@@ -87,6 +90,8 @@ export class CardThumbnailsComponent implements OnInit {
     this.cardsService.getFields().then(fields => {
       this.filterFields = fields.map(field => field.field).join(',');
       this.foilField = findFoilField(fields);
+      this.numberField = findNumberField(fields);
+      this.thumbnailCards = sortByNumber(this.thumbnailCards, this.numberField);
       this.refreshBinder();
     });
 
@@ -115,7 +120,7 @@ export class CardThumbnailsComponent implements OnInit {
           }
         }
       });
-      this.thumbnailCards = expandedList;
+      this.thumbnailCards = sortByNumber(expandedList, this.numberField);
       this.refreshBinder();
     });
   }
