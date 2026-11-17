@@ -54,9 +54,14 @@ describe('foil-zones', () => {
     expect(drawFoilZones(root)).toBe(2);
     const gilded = root.querySelector<HTMLElement>('.cc-foil-piece.cc-dorure')!;
     expect(gilded.textContent).toBe('Titre');
+    // boîte agrandie de sa marge (jambages, accents) tout autour du titre
+    const pad = Number(gilded.dataset['pad']);
+    expect(pad).toBeGreaterThan(0);
     const title = root.querySelector('.titre')!.getBoundingClientRect();
-    expect(Math.abs(gilded.getBoundingClientRect().left - title.left)).toBeLessThan(1);
-    expect(Math.abs(gilded.getBoundingClientRect().top - title.top)).toBeLessThan(1);
+    expect(Math.abs(gilded.getBoundingClientRect().left + pad - title.left)).toBeLessThan(1);
+    expect(Math.abs(gilded.getBoundingClientRect().top + pad - title.top)).toBeLessThan(1);
+    // la lumière reste héritée (pas figée par la copie du style)
+    expect(gilded.style.getPropertyValue('--glare-x')).toBe('');
     expect(gilded.style.backgroundImage).toContain('linear-gradient');
     expect(gilded.style.getPropertyValue('-webkit-text-fill-color')).toBe('transparent');
     expect(gilded.hasAttribute('data-foil')).toBeFalse();
@@ -71,8 +76,9 @@ describe('foil-zones', () => {
     drawFoilZones(root);
     const title = root.querySelector('h1')!.getBoundingClientRect();
     const gilded = root.querySelector('.cc-dorure')!.getBoundingClientRect();
-    expect(Math.abs(gilded.left - title.left)).toBeLessThan(1);
-    expect(Math.abs(gilded.top - title.top)).toBeLessThan(1);
-    expect(Math.abs(gilded.width - title.width)).toBeLessThan(1);
+    const pad = Number((root.querySelector('.cc-dorure') as HTMLElement).dataset['pad']);
+    expect(Math.abs(gilded.left + pad - title.left)).toBeLessThan(1);
+    expect(Math.abs(gilded.top + pad - title.top)).toBeLessThan(1);
+    expect(Math.abs(gilded.width - 2 * pad - title.width)).toBeLessThan(2);
   });
 });

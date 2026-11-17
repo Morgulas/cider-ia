@@ -366,7 +366,7 @@
                   @for (candidate of overflowCandidates; track candidate.card.id) {
                   <figure class="preview-item" [attr.data-preview-card]="candidate.card.id"
                     [class.bad]="(overflowResults.get(candidate.card.id) ?? 0) > 0">
-                    <app-card-preview [card]="candidate.card" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
+                    <app-card-preview [foils]="true" [card]="candidate.card" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
                       [version]="templateVersion"></app-card-preview>
                     <figcaption>
                       <b>{{ candidate.card.name }}</b>
@@ -389,7 +389,7 @@
                   @default {
                   @if (selectedCard) {
                   <div class="preview-item" [attr.data-preview-card]="selectedCard.id">
-                    <app-card-preview [card]="selectedCard" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
+                    <app-card-preview [foils]="true" [card]="selectedCard" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
                       [tiltable]="previewSettings.tiltEnabled && !inspecting" [showTrimLines]="previewSettings.trimLinesEnabled"
                       [trimOffsetPx]="getTrimOffsetPx()" [showSafeLines]="previewSettings.safeLinesEnabled"
                       [safeOffsetPx]="getSafeOffsetPx()" [version]="templateVersion"></app-card-preview>

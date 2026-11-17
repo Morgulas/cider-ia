@@ -110,7 +110,7 @@ function place(piece: HTMLElement, element: HTMLElement, inside: boolean): void 
   const style = getComputedStyle(element);
   Object.assign(piece.style, {
     position: 'absolute', left: '0px', top: '0px', right: 'auto', bottom: 'auto', margin: '0',
-    width: `${element.offsetWidth}px`, height: `${element.offsetHeight}px`, boxSizing: 'border-box',
+    ...pieceSize(piece, element), boxSizing: 'border-box',
     transform: inside ? 'none' : style.transform, transformOrigin: style.transformOrigin,
   });
   if (inside) {
@@ -121,8 +121,10 @@ function place(piece: HTMLElement, element: HTMLElement, inside: boolean): void 
   // le bloc de référence de la pièce peut différer de celui de l'élément : on mesure l'écart
   const at = offsetPosition(element);
   const zero = offsetPosition(piece);
-  piece.style.left = `${at.x - zero.x}px`;
-  piece.style.top = `${at.y - zero.y}px`;
+  // marge autour de la pièce (dorure : jambages et accents qui dépassent de la boîte du texte)
+  const pad = Number(piece.dataset['pad'] ?? 0);
+  piece.style.left = `${at.x - zero.x - pad}px`;
+  piece.style.top = `${at.y - zero.y - pad}px`;
 }
 
 /** Retire les reflets et dorures de l'aperçu */
@@ -238,18 +240,34 @@ function gildedText(element: HTMLElement, effect: FoilEffect): HTMLElement {
     boxSizing: 'border-box', zIndex: '2147483000',
   });
   setMetal(clone, effect);
-  // un pixel de marge : un arrondi de largeur ne doit pas renvoyer le texte à la ligne
-  clone.style.width = `${element.offsetWidth + 1}px`;
+  // le métal n'est peint que dans la boîte : elle est agrandie (et décalée d'autant par place) pour couvrir
+  // les jambages (g, p), les accents et les lettres penchées qui dépassent de la boîte du texte
+  const style = getComputedStyle(element);
+  const pad = Math.ceil(parseFloat(style.fontSize || '16') * 0.4);
+  clone.dataset['pad'] = String(pad);
+  for (const side of ['Top', 'Right', 'Bottom', 'Left'] as const) {
+    clone.style.setProperty(`padding-${side.toLowerCase()}`, `${parseFloat(style.getPropertyValue(`padding-${side.toLowerCase()}`) || '0') + pad}px`);
+  }
   clone.style.setProperty('-webkit-text-fill-color', 'transparent');
   clone.style.setProperty('-webkit-background-clip', 'text');
   clone.style.setProperty('background-clip', 'text');
   return clone;
 }
 
+/** Dimensions d'une pièce : celles de l'élément, plus sa marge (et un pixel contre les retours à la ligne) */
+function pieceSize(piece: HTMLElement, element: HTMLElement): { width: string; height: string } {
+  const pad = Number(piece.dataset['pad'] ?? 0);
+  const extra = pad ? 1 : 0;
+  return { width: `${element.offsetWidth + 2 * pad + extra}px`, height: `${element.offsetHeight + 2 * pad}px` };
+}
+
 /** Recopie le style calculé d'un élément (la copie n'a plus le contexte des sélecteurs du modèle) */
 function copyStyles(from: Element, to: HTMLElement): void {
   const computed = getComputedStyle(from);
   for (const name of Array.from(computed)) {
-    to.style.setProperty(name, computed.getPropertyValue(name));
+    // pas les variables : la lumière (--glare-x...) doit rester héritée, pas figée au moment de la copie
+    if (!name.startsWith('--')) {
+      to.style.setProperty(name, computed.getPropertyValue(name));
+    }
   }
 }
