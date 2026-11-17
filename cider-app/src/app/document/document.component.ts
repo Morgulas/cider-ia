@@ -15,6 +15,8 @@ import { MarkdownComponent, provideMarkdown } from 'ngx-markdown';
 import { EditorComponent } from 'ngx-monaco-editor-v2';
 import { FormsModule } from '@angular/forms';
 import ScriptLoader from '../shared/utils/script-loader';
+import MonacoExtension from '../shared/extensions/monaco-extension';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
     selector: 'app-document',
@@ -26,6 +28,7 @@ import ScriptLoader from '../shared/utils/script-loader';
 })
 export class DocumentComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly translate = inject(TranslateService);
   editorOptions: { theme: string; language: string; automaticLayout: boolean; minimap: { enabled: boolean } } = {
     theme: 'vs-dark-extended', language: 'markdown',
     automaticLayout: true, minimap: { enabled: false }
@@ -93,6 +96,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
   protected editorInitialized(editor: Monaco.editor.IStandaloneCodeEditor) {
     this.editor = editor;
     this.monaco = (window as unknown as { monaco: typeof Monaco }).monaco;
+    MonacoExtension.addCommentActions(editor, {
+      line: this.translate.instant('code-editor.comment-line'),
+      block: this.translate.instant('code-editor.comment-block'),
+    });
     this.updateEditorType();
   }
 

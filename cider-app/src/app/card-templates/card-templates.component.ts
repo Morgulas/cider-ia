@@ -36,6 +36,7 @@ import { assetChoices } from '../boosters/booster-assets';
 import { DecksService } from '../data-services/services/decks.service';
 import { CardAttribute } from '../data-services/types/card-attribute.type';
 import MonacoLanguages from '../shared/extensions/monaco-languages';
+import MonacoExtension from '../shared/extensions/monaco-extension';
 import StringUtils from '../shared/utils/string-utils';
 import { checkTemplate, TemplateIssue } from './template-check';
 import { ChatbotAnswer, TemplateVariable } from './template-chatbot';
@@ -655,6 +656,10 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
         label: this.translate.instant('template-editor.save-now'),
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
         run: () => this.zone.run(() => this.saveNow()),
+      });
+      MonacoExtension.addCommentActions(editor, {
+        line: this.translate.instant('code-editor.comment-line'),
+        block: this.translate.instant('code-editor.comment-block'),
       });
     }
     // inspector: the element of the HTML line, or the elements of the CSS rule, under the cursor are outlined

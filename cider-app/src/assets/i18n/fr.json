@@ -359,6 +359,10 @@
             "help": "Les parties sont enregistrées dans le projet : table, zones, joueurs, mains, compteurs et journal. Une partie enregistrée au début sert de mise en place."
         }
     },
+    "code-editor": {
+        "comment-line": "Commenter/décommenter la ligne",
+        "comment-block": "Commenter/décommenter le bloc"
+    },
     "template-editor": {
         "preview-settings-title": "Réglages de l'aperçu",
         "enable-tilt": "Inclinaison dynamique de la carte",

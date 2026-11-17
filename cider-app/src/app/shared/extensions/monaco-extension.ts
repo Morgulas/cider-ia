@@ -29,6 +29,34 @@ export default class MonacoExtension {
         monaco.languages.registerCompletionItemProvider('handlebars', handlebarsCompletionProvider);
     }
 
+    /**
+     * Comment / uncomment entries in the context menu of an editor (Monaco only has them as
+     * shortcuts): line comment (Ctrl+/) and block comment (Shift+Alt+A), with the comment
+     * syntax of the language (slash-star in CSS, {{!-- --}} in Handlebars, <!-- --> in HTML...)
+     */
+    static addCommentActions(editor: Monaco.editor.IStandaloneCodeEditor,
+        labels: { line: string; block: string }) {
+        const monaco = (window as unknown as { monaco: MonacoApi }).monaco;
+        if (!monaco) {
+            return;
+        }
+        const actions = [
+            { id: 'cider.comment-line', label: labels.line, builtIn: 'editor.action.commentLine',
+                keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash] },
+            { id: 'cider.comment-block', label: labels.block, builtIn: 'editor.action.blockComment',
+                keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyA] },
+        ];
+        actions.forEach((action, index) => editor.addAction({
+            id: action.id,
+            label: action.label,
+            keybindings: action.keybindings,
+            precondition: '!editorReadonly',
+            contextMenuGroupId: '1_modification',
+            contextMenuOrder: 10 + index,
+            run: ed => ed.trigger('contextmenu', action.builtIn, null),
+        }));
+    }
+
     static registerCssHandlebars(monaco: MonacoApi) {
         monaco.languages.register({ id: 'css-handlebars' });
 

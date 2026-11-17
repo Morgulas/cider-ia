@@ -359,6 +359,10 @@
             "help": "Games are saved in the project: table, zones, players, hands, counters and log. A game saved at the start works as a setup."
         }
     },
+    "code-editor": {
+        "comment-line": "Toggle line comment",
+        "comment-block": "Toggle block comment"
+    },
     "template-editor": {
         "preview-settings-title": "Preview Settings",
         "enable-tilt": "Enable Dynamic Card Tilt",
