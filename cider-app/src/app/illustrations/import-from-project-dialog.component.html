@@ -1,0 +1,78 @@
+<p-dialog [header]="'illustrations.import-project.title' | translate" [visible]="visible()" (visibleChange)="visible.set($event)"
+  (onShow)="onShow()" (onHide)="onHide()" [modal]="true" [style]="{ width: '760px', maxWidth: '96vw' }"
+  [contentStyle]="{ display: 'flex', flexDirection: 'column', gap: '10px' }" appendTo="body">
+  <div class="top">
+    <p-select [options]="projects" optionLabel="name" optionValue="id" [(ngModel)]="projectId" (ngModelChange)="loadProject()"
+      [placeholder]="'illustrations.import-project.choose' | translate" [filter]="projects.length > 8" filterBy="name"
+      class="project-select" appendTo="body" />
+    @if (groups().length) {
+      <input pInputText type="search" class="filter" [ngModel]="query()" (ngModelChange)="query.set($event)"
+        [placeholder]="'controls.search' | translate" [attr.aria-label]="'controls.search' | translate" />
+    }
+  </div>
+
+  @if (error(); as message) {
+    <p-message severity="error" [text]="message" />
+  }
+
+  <div class="list">
+    @if (loading()) {
+      <div class="state"><i class="pi pi-spin pi-spinner"></i> {{ 'illustrations.import-project.loading' | translate }}</div>
+    } @else if (!projectId) {
+      <div class="state">{{ 'illustrations.import-project.help' | translate }}</div>
+    } @else if (!groups().length) {
+      <div class="state">{{ 'illustrations.import-project.none' | translate }}</div>
+    } @else {
+      @for (group of shownGroups(); track group.key; let index = $index) {
+        <section class="group">
+          <div class="group-head">
+            <p-checkbox [inputId]="'import-group-' + index" [binary]="true" [ngModel]="groupState(group)" (onChange)="toggleGroup(group)" />
+            <i class="pi pi-folder"></i>
+            <label class="group-name" [for]="'import-group-' + index">{{ group.label }}</label>
+            <span class="count">{{ group.images.length }}</span>
+          </div>
+          <div class="tiles">
+            @for (image of group.images; track image.id) {
+              <button type="button" class="tile" [class.on]="isSelected(image)" (click)="toggle(image)" [title]="image.name"
+                [attr.aria-pressed]="isSelected(image)">
+                <span class="thumb">
+                  @if (thumbs().get(image.id); as url) {
+                    <img [src]="url" [alt]="image.name" />
+                  } @else {
+                    <i class="pi pi-image"></i>
+                  }
+                  @if (isSelected(image)) { <i class="pi pi-check-circle tick"></i> }
+                </span>
+                <span class="name">{{ image.name }}</span>
+              </button>
+            }
+          </div>
+        </section>
+      }
+    }
+  </div>
+
+  @if (groups().length) {
+    <div class="options">
+      <div class="links">
+        <button type="button" class="link" (click)="selectAll(true)">{{ 'illustrations.import-project.select-all' | translate }}</button>
+        <button type="button" class="link" (click)="selectAll(false)">{{ 'illustrations.import-project.select-none' | translate }}</button>
+      </div>
+      <div class="check">
+        <p-checkbox inputId="import-keep-folders" [binary]="true" [(ngModel)]="keepFolders" />
+        <label for="import-keep-folders">{{ 'illustrations.import-project.keep-folders' | translate }}</label>
+      </div>
+      <div class="conflict">
+        <label for="import-conflict">{{ 'illustrations.import-project.conflict' | translate }}</label>
+        <p-select inputId="import-conflict" [options]="conflictOptions" optionLabel="label" optionValue="value"
+          [(ngModel)]="onConflict" appendTo="body" />
+      </div>
+    </div>
+  }
+
+  <ng-template #footer>
+    <span class="destination">{{ 'illustrations.import-project.to' | translate: { place: destination() } }}</span>
+    <p-button [label]="'illustrations.import-project.import' | translate: { n: selectedCount() }" icon="pi pi-download"
+      (onClick)="import()" [disabled]="!selectedCount() || importing()" [loading]="importing()" />
+  </ng-template>
+</p-dialog>

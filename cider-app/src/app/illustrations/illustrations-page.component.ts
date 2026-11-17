@@ -17,6 +17,7 @@ import { DecksService } from '../data-services/services/decks.service';
 import { Asset, AssetLibrary, AssetUrls, StoredAsset } from '../data-services/types/asset.type';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import StringUtils from '../shared/utils/string-utils';
+import { ImportFromProjectDialogComponent } from './import-from-project-dialog.component';
 
 /** A folder shown in the grid */
 export interface FolderTile {
@@ -57,7 +58,7 @@ export function uniqueName(fileName: string, taken: Set<string>): string {
   styleUrls: ['./illustrations-page.component.scss'],
   providers: [ConfirmationService, MessageService],
   imports: [FormsModule, TranslatePipe, Button, ConfirmDialog, ContextMenu, Dialog, InputText, Slider, Tooltip,
-    EntityDialogComponent]
+    EntityDialogComponent, ImportFromProjectDialogComponent]
 })
 export class IllustrationsPageComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
@@ -97,6 +98,20 @@ export class IllustrationsPageComponent implements OnInit {
   folderDialogTitle = '';
   folderName = '';
   private folderDialogAction: (name: string) => Promise<unknown> = async () => undefined;
+
+  /** images copied from another project */
+  importDialog = false;
+
+  /** The library and folder shown, as « Commune › icones » */
+  get destinationLabel(): string {
+    return this.crumbs.map(crumb => crumb.label).join(' › ');
+  }
+
+  onImported(result: { imported: number; skipped: number }): void {
+    const summary = this.translate.instant('illustrations.import-project.done', result);
+    this.messages.add({ severity: 'success', summary, life: 3500 });
+    void this.load();
+  }
 
   // asset dialog (rename, replace the file)
   assetDialog = false;

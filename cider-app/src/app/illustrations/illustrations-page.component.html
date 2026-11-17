@@ -21,6 +21,8 @@
         [pTooltip]="'sidebar.create-new-folder' | translate" [ariaLabel]="'sidebar.create-new-folder' | translate" />
       <p-button icon="pi pi-sparkles" [text]="true" [rounded]="true" (onClick)="generate()"
         [pTooltip]="'sidebar.generate-new-asset' | translate" [ariaLabel]="'sidebar.generate-new-asset' | translate" />
+      <p-button icon="pi pi-file-import" [text]="true" [rounded]="true" (onClick)="importDialog = true"
+        [pTooltip]="'illustrations.import-project.button' | translate" [ariaLabel]="'illustrations.import-project.button' | translate" />
       <p-button icon="pi pi-upload" [label]="'illustrations.add' | translate" [loading]="uploading"
         (onClick)="fileInput.click()" />
       <input #fileInput type="file" multiple hidden (change)="onFilesPicked($event)" />
@@ -97,3 +99,6 @@
 
 <app-entity-dialog [service]="assetsService" [(visible)]="assetDialog" [entity]="$any(assetEntity)" [title]="assetDialogTitle"
   (visibleChange)="!$event && load()"></app-entity-dialog>
+
+<app-import-from-project-dialog [(visible)]="importDialog" [library]="library" [folder]="folder"
+  [destination]="destinationLabel" (done)="onImported($event)" />

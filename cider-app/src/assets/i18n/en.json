@@ -970,7 +970,27 @@
         "copy-usage": "Copy the template call",
         "usage-copied": "Copied: {{usage}}",
         "confirm-delete": "Delete \"{{name}}\"?",
-        "folder-name": "Folder name"
+        "folder-name": "Folder name",
+        "import-project": {
+            "button": "Import images from another project",
+            "title": "Import images from another project",
+            "choose": "Choose a project",
+            "help": "Choose one of your projects to see its images.",
+            "loading": "Loading images…",
+            "none": "This project has no images.",
+            "common": "Common library",
+            "select-all": "Select all",
+            "select-none": "Select none",
+            "keep-folders": "Keep folders",
+            "conflict": "If the name already exists:",
+            "conflict-skip": "skip the image",
+            "conflict-rename": "import it under another name (name-2)",
+            "to": "To: {{place}}",
+            "import": "Import ({{n}})",
+            "done": "{{imported}} image(s) imported, {{skipped}} skipped (already there)",
+            "load-error": "This project could not be read.",
+            "import-error": "The import stopped ({{n}} image(s) imported)."
+        }
     },
     "boosters": {
         "moved-out": "This booster now draws elsewhere: it is now under \"{{library}}\" (it stays here while selected).",

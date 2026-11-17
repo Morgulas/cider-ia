@@ -970,7 +970,27 @@
         "copy-usage": "Copier l'appel pour les modèles",
         "usage-copied": "Copié : {{usage}}",
         "confirm-delete": "Supprimer « {{name}} » ?",
-        "folder-name": "Nom du dossier"
+        "folder-name": "Nom du dossier",
+        "import-project": {
+            "button": "Importer des images d'un autre projet",
+            "title": "Importer des images d'un autre projet",
+            "choose": "Choisir un projet",
+            "help": "Choisissez un de vos projets pour voir ses images.",
+            "loading": "Chargement des images…",
+            "none": "Ce projet n'a aucune image.",
+            "common": "Bibliothèque commune",
+            "select-all": "Tout sélectionner",
+            "select-none": "Tout désélectionner",
+            "keep-folders": "Garder les dossiers",
+            "conflict": "Si le nom existe déjà :",
+            "conflict-skip": "ignorer l'image",
+            "conflict-rename": "l'importer sous un autre nom (nom-2)",
+            "to": "Vers : {{place}}",
+            "import": "Importer ({{n}})",
+            "done": "{{imported}} image(s) importée(s), {{skipped}} ignorée(s) (déjà présentes)",
+            "load-error": "Impossible de lire ce projet.",
+            "import-error": "L'import s'est interrompu ({{n}} image(s) importée(s))."
+        }
     },
     "boosters": {
         "moved-out": "Ce booster pioche maintenant ailleurs : il est rangé dans « {{library}} » (il reste ici tant qu'il est choisi).",
