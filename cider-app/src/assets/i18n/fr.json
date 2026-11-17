@@ -147,6 +147,8 @@
         "confirm-deck-delete-message": "Supprimer le deck « {{deck}} » ? Ses illustrations iront dans la bibliothèque commune, dans un dossier à son nom."
     },
     "export": {
+        "foil-plate": "Plaque foil pour l'impression",
+        "foil-plate-help": "Avec chaque recto qui a un foil ou une dorure : foil-<carte>.png, noir là où va le foil, blanc ailleurs (dorure à chaud, vernis sélectif).",
         "sheet-export": "Planche de cartes",
         "singular-export": "Images individuelles",
         "collector-set": "Set pour l'appli de collection",
@@ -370,6 +372,12 @@
         "help": "Glisser : tourner · Ctrl, Alt ou bouton du milieu + glisser : déplacer · Maj+glisser ou clic droit : lumière · Molette : zoom vers la souris · Double-clic : de face, recentrée",
         "in-window": "La vue 3D est dans une fenêtre séparée.",
         "bring-back": "Ramener ici",
+        "thickness": "Épaisseur",
+        "depth": "Épaisseur de la carte",
+        "edge-blanc": "Tranche blanche",
+        "edge-noir": "Noire",
+        "edge-dore": "Dorée",
+        "environment": "Reflets de l'environnement",
         "recenter": "Recentrer",
         "settings": "Réglages",
         "light": "Lumière",

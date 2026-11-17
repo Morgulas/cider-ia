@@ -335,6 +335,31 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     }
   }
 
+  /**
+   * Plaque foil pour l'impression (dorure à chaud, vernis sélectif) : noir là où la carte a un foil ou une
+   * dorure (data-foil) visible, blanc ailleurs ; null si le modèle n'en a pas. Masques peints et forces
+   * comptent ; tout ce qui dépasse la moitié devient noir (une plaque n'a pas de demi-teinte).
+   */
+  public async captureFoilPlate(pixelRatio: number): Promise<string | null> {
+    const root = this.cardElement.get(0)?.nativeElement;
+    if (!root) {
+      return null;
+    }
+    const elements = [...zoneGroups(root).entries()]
+      .filter(([name]) => !name.startsWith(EMBOSS_LAYER_PREFIX))
+      .flatMap(([, group]) => group.elements);
+    if (!elements.length) {
+      return null;
+    }
+    elements.forEach(e => e.setAttribute('data-calque-on', ''));
+    try {
+      const mask = await this.visibleMask(root, pixelRatio, true, elements);
+      return await maskToPlate(mask);
+    } finally {
+      elements.forEach(e => e.removeAttribute('data-calque-on'));
+    }
+  }
+
   public isLoaded() {
     return this.isLoadedSubject.asObservable();
   }
@@ -403,6 +428,25 @@ function whenImageDecoded(url: string): Promise<void> {
 /** Calque d'une zone foil ou dorure (masque de la part visible), et non d'un data-calque */
 function isZoneLayer(name: string): boolean {
   return [FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, EMBOSS_LAYER_PREFIX].some(prefix => name.startsWith(prefix));
+}
+
+/** Plaque d'impression : noir là où le masque est au moins à moitié opaque, blanc ailleurs */
+export async function maskToPlate(mask: string): Promise<string> {
+  const image = await loadImage(mask);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(image, 0, 0);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const px = data.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const v = px[i + 3] >= 128 ? 0 : 255;
+    px[i] = px[i + 1] = px[i + 2] = v;
+    px[i + 3] = 255;
+  }
+  ctx.putImageData(data, 0, 0);
+  return canvas.toDataURL('image/png');
 }
 
 /** Masque peint ou force d'un élément, sur sa zone (en fraction de la carte : x, y, largeur, hauteur) */

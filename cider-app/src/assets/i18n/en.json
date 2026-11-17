@@ -147,6 +147,8 @@
         "confirm-deck-delete-message": "Delete the deck \"{{deck}}\"? Its illustrations will go to the common library, in a folder named after it."
     },
     "export": {
+        "foil-plate": "Foil plate for printing",
+        "foil-plate-help": "With each front that has a foil or gilding: foil-<card>.png, black where the foil goes, white elsewhere (hot foil stamping, spot UV).",
         "sheet-export": "Card Sheet",
         "singular-export": "Individual Images",
         "collector-set": "Collector app set",
@@ -370,6 +372,12 @@
         "help": "Drag: turn · Ctrl, Alt or middle button + drag: move · Shift+drag or right-click: light · Wheel: zoom toward the mouse · Double-click: face on, centered",
         "in-window": "The 3D view is in a separate window.",
         "bring-back": "Bring it back",
+        "thickness": "Thickness",
+        "depth": "Card thickness",
+        "edge-blanc": "White edge",
+        "edge-noir": "Black",
+        "edge-dore": "Gilded",
+        "environment": "Environment reflections",
         "recenter": "Recenter",
         "settings": "Settings",
         "light": "Light",

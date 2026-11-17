@@ -482,6 +482,12 @@
             <label for="individualExportUseCardName" class="ml-2">Use Card name</label>
           </div>
           <div class="p-field p-d-flex p-flex-row">
+            <p-checkbox name="individualExportFoilPlate" class="p-mr-2" [binary]="true"
+              [(ngModel)]="individualExportFoilPlate" inputId="individualExportFoilPlate"
+              (onChange)="saveSettings()"></p-checkbox>
+            <label for="individualExportFoilPlate" class="ml-2" [pTooltip]="'export.foil-plate-help' | translate">{{ 'export.foil-plate' | translate }}</label>
+          </div>
+          <div class="p-field p-d-flex p-flex-row">
             <p-checkbox name="excludeCardBacks" class="p-mr-2" [binary]="true" [(ngModel)]="excludeCardBacks"
               (onChange)="syncShowBack()" inputId="excludeCardBacksSingular"></p-checkbox>
             <label for="excludeCardBacksSingular" class="ml-2">{{'export.exclude-card-backs' |

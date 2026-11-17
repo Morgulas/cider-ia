@@ -66,6 +66,7 @@ Le bouton **Vue 3D** (cube, à côté de la fenêtre séparée) ouvre la carte c
 - **Lumière** : intensité (0 à 200 %), direction et hauteur, lumière ambiante. Maj+glisser (ou clic droit) déplace la lumière : au centre, de face ; vers les bords, rasante. « La lumière suit la souris » la déplace sans cliquer.
 - La lumière règle les foils (zones `data-foil` du modèle, ou attribut Foil sur toute la carte), un reflet blanc et l'ombrage de la carte.
 - **Fond** sombre, clair ou en damier, pour voir les foils sur différents fonds.
+- **Épaisseur** de la carte (tranche blanche, noire ou dorée) et **reflets de l'environnement** (un ciel clair et un sol sombre qui glissent sur la carte quand elle tourne), pour juger les métaux comme sous une vraie lumière.
 - **Plein écran**, ou **Fenêtre séparée** pour la mettre sur un second écran.
 - Le modèle modifié s'y voit en direct, avant même d'être enregistré. Le verso est celui de la carte quand le modèle fait partie de sa paire recto/verso ; sinon il reste vide.
 - Les réglages de lumière et de fond sont gardés d'une fois sur l'autre (sur ce navigateur).

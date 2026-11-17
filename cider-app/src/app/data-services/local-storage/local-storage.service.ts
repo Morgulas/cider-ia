@@ -24,6 +24,7 @@ export interface ExportConfiguration {
   cutMarkLength?: number;
   individualExportPixelRatio?: number;
   individualExportUseCardName?: boolean;
+  individualExportFoilPlate?: boolean;
   scale?: number;
   maxTtsPixels?: number;
   softProofMode?: string;

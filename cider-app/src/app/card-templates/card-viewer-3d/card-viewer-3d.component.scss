@@ -88,6 +88,19 @@
     transform: rotateY(180deg);
   }
 
+  // reflet de l'environnement : ciel clair en haut, sol sombre en bas, qui glisse avec la rotation
+  .env {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: 4.5%;
+    background: linear-gradient(180deg, #dceeff 0%, #f6f8fb 40%, #9aa3ad 50%, #2c2f35 60%, #15171a 100%);
+    background-size: 100% 300%;
+    background-position: var(--env-x, 50%) var(--env-y, 50%);
+    mix-blend-mode: soft-light;
+    opacity: var(--env-o, 0);
+  }
+
   // ombrage de la face selon la lumière (sans assombrir le fond autour des coins arrondis)
   app-card-fit {
     filter: brightness(calc(1 - var(--shade, 0)));
@@ -104,6 +117,13 @@
     mix-blend-mode: soft-light;
     opacity: var(--spec, 0);
   }
+}
+
+// épaisseur : tranches empilées entre le recto et le verso
+.slice {
+  position: absolute;
+  inset: 0;
+  border-radius: 4.5%;
 }
 
 .no-back {

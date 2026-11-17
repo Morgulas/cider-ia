@@ -75,4 +75,15 @@ describe('CardViewer3dComponent', () => {
     component.recenter();
     expect(scene.style.transform).toBe('translate(0px, 0px)');
   });
+
+  it('donne une épaisseur à la carte (tranches) et un reflet d\'environnement', () => {
+    component.faceH = 400;
+    component.settings = { ...component.settings, thickness: 1, edge: 'dore', environment: true };
+    expect(component.depth()).toBe(6);
+    expect(component.slices().length).toBe(7);
+    expect(component.slices()[0]).toBe(-3);
+    expect(component.edgeBackground()).toContain('#f7e08a');
+    component.settings = { ...component.settings, thickness: 0 };
+    expect(component.slices()).toEqual([]);
+  });
 });

@@ -131,6 +131,8 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
   public pixelRatio = 1;
   public individualExportPixelRatio = 1;
   public individualExportUseCardName = false;
+  /** Avec les images : la plaque foil de chaque recto (noir sur blanc), pour l'impression */
+  public individualExportFoilPlate = false;
   public maxTtsPixels = 4096;
   public scale = 0.1;
   public exportSelectionDialogVisible = false;
@@ -310,6 +312,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       if (config.cutMarkLength !== undefined) this.cutMarkLength = config.cutMarkLength;
       if (config.individualExportPixelRatio !== undefined) this.individualExportPixelRatio = config.individualExportPixelRatio;
       if (config.individualExportUseCardName !== undefined) this.individualExportUseCardName = config.individualExportUseCardName;
+      if (config.individualExportFoilPlate !== undefined) this.individualExportFoilPlate = config.individualExportFoilPlate;
       if (config.scale !== undefined) this.scale = config.scale;
       if (config.maxTtsPixels !== undefined) this.maxTtsPixels = config.maxTtsPixels;
 
@@ -502,6 +505,7 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
       cutMarkLength: this.cutMarkLength,
       individualExportPixelRatio: this.individualExportPixelRatio,
       individualExportUseCardName: this.individualExportUseCardName,
+      individualExportFoilPlate: this.individualExportFoilPlate,
       scale: this.scale,
       maxTtsPixels: this.maxTtsPixels,
       softProofMode: this.softProofMode,
@@ -933,10 +937,18 @@ export class ExportCardsComponent implements OnInit, AfterViewChecked {
     this.displayLoading = true;
     this.loadingPercent = 0;
     try {
-      const files = await this.renderSingularImages((card, side) => {
-        const imgIdentifier = this.individualExportUseCardName ? StringUtils.toKebabCase(card?.name) : card?.id;
-        return side + '-' + imgIdentifier + '.png';
-      }, this.individualExportPixelRatio);
+      const name = (card: Card) => this.individualExportUseCardName ? StringUtils.toKebabCase(card?.name) : card?.id;
+      // plaque foil de chaque recto (impression) : pendant le même passage
+      const plates: File[] = [];
+      const plate = this.individualExportFoilPlate ? async (preview: CardPreviewComponent) => {
+        const uri = await preview.captureFoilPlate(this.individualExportPixelRatio);
+        if (uri) {
+          plates.push(this.dataUrlToFile(uri, 'foil-' + name(preview.card) + '.png'));
+        }
+      } : undefined;
+      const files = await this.renderSingularImages((card, side) => side + '-' + name(card) + '.png',
+        this.individualExportPixelRatio, plate);
+      files.push(...plates);
       this.loadingInfo = 'Zipping up files...';
       const blob = await this.zipFiles(files);
       this.loadingInfo = 'Saving file...';

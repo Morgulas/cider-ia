@@ -1,4 +1,4 @@
-import { differenceMask, layerGroups } from './card-preview.component';
+import { differenceMask, layerGroups, maskToPlate } from './card-preview.component';
 import { clearFoilZones, drawFoilZones, embossKind, foilGroups, zoneKind, zoneOptions } from './foil-zones';
 
 describe('foil-zones', () => {
@@ -183,5 +183,20 @@ describe('foil-zones', () => {
     o.drawImage(img, 0, 0);
     const d = o.getImageData(0, 0, 4, 1).data;
     expect([d[3], d[7], d[11], d[15]]).toEqual([255, 0, 128, 128]);
+  });
+
+  it('plaque d\'impression : noir là où le masque est au moins à moitié opaque', async () => {
+    const c = document.createElement('canvas');
+    c.width = 3; c.height = 1;
+    const ctx = c.getContext('2d')!;
+    ['rgba(255,255,255,1)', 'rgba(255,255,255,0.4)', 'rgba(255,255,255,0)'].forEach((f, i) => { ctx.fillStyle = f; ctx.fillRect(i, 0, 1, 1); });
+    const plate = await maskToPlate(c.toDataURL());
+    const img = new Image();
+    await new Promise(resolve => { img.onload = resolve; img.src = plate; });
+    ctx.clearRect(0, 0, 3, 1);
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, 3, 1).data;
+    expect([d[0], d[4], d[8]]).toEqual([0, 255, 255]);
+    expect([d[3], d[7], d[11]]).toEqual([255, 255, 255]);
   });
 });

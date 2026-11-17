@@ -18,21 +18,26 @@
         (contextmenu)="$event.preventDefault()">
         <div #scene class="scene">
           <div #card3d class="card3d" [style.width.px]="faceW" [style.height.px]="faceH">
-            <div class="face front">
+            @for (z of slices(); track $index) {
+            <div class="slice" [style.transform]="'translateZ(' + z + 'px)'" [style.background]="edgeBackground()"></div>
+            }
+            <div class="face front" [style.transform]="'translateZ(' + depth() / 2 + 'px)'">
               @if (card() && front()) {
               <app-card-fit [card]="card()!" [template]="front()" [maxScale]="12" (measured)="onMeasured($event)" />
               }
               @if (cardFoil(); as effect) {
               <span class="foil foil-{{ effect }}" aria-hidden="true"></span>
               }
+              <span class="env" aria-hidden="true"></span>
               <span class="spec" aria-hidden="true"></span>
             </div>
-            <div class="face back">
+            <div class="face back" [style.transform]="'rotateY(180deg) translateZ(' + depth() / 2 + 'px)'">
               @if (card() && back()) {
               <app-card-fit [card]="card()!" [template]="back()" [maxScale]="12" />
               } @else {
               <div class="no-back">{{ 'viewer3d.no-back' | translate }}</div>
               }
+              <span class="env" aria-hidden="true"></span>
               <span class="spec" aria-hidden="true"></span>
             </div>
           </div>
@@ -81,6 +86,21 @@
             <button type="button" class="v-btn" (click)="setZoom(zoom * 1.2)"><i class="pi pi-search-plus"></i></button>
             <button type="button" class="v-btn" (click)="recenter()" [title]="'viewer3d.recenter' | translate"><i class="pi pi-arrows-alt"></i> {{ 'viewer3d.recenter' | translate }}</button>
           </div>
+        </section>
+        <section>
+          <h3>{{ 'viewer3d.thickness' | translate }}</h3>
+          <label>{{ 'viewer3d.depth' | translate }} <output>{{ percent(settings.thickness) }} %</output>
+            <input type="range" min="0" max="100" step="5" [value]="percent(settings.thickness)" (input)="setThickness($event)" />
+          </label>
+          <div class="row">
+            @for (edge of ['blanc', 'noir', 'dore']; track edge) {
+            <button type="button" class="v-btn" [class.on]="settings.edge === edge" (click)="setEdge($any(edge))">{{ 'viewer3d.edge-' + edge | translate }}</button>
+            }
+          </div>
+          <label class="check">
+            <input type="checkbox" [checked]="settings.environment" (change)="setEnvironment($event)" />
+            {{ 'viewer3d.environment' | translate }}
+          </label>
         </section>
         <section>
           <h3>{{ 'viewer3d.background' | translate }}</h3>

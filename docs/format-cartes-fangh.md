@@ -184,6 +184,10 @@ Le helper **`selon`** choisit une valeur d'après une autre, sans accents ni maj
 
 **`data-gaufrage`** (en relief) ou **`data-gaufrage="creux"`** : l'élément ressort (ou s'enfonce), avec un liseré clair du côté de la lumière et sombre de l'autre. Il se combine avec une dorure (`data-gaufrage data-foil="dorure-or"` : un titre doré en relief). Dans la vue 3D, le liseré suit la direction de la lumière. À l'export : un calque `gaufrage-relief` ou `gaufrage-creux`.
 
+#### Plaque foil pour l'impression
+
+Export **Images** › **Plaque foil pour l'impression** : avec chaque recto qui a un foil ou une dorure, une image `foil-<carte>.png`, noire là où va le foil (ce qui se voit vraiment, masques peints compris), blanche ailleurs. C'est le calque séparé que demandent les imprimeurs pour la dorure à chaud ou le vernis sélectif. Une plaque n'a pas de demi-teinte : ce qui dépasse la moitié devient noir.
+
 #### Dorure
 
 Un effet foil est un **reflet** : il éclaircit ce qui est dessous. Sur une encre noire, il ne montre rien. Pour un texte en métal, comme une dorure à chaud, utiliser **`data-foil="dorure-or"`**, `dorure-argent` ou `dorure-holo` : le métal **remplace** l'encre des lettres, et son éclat suit la lumière.

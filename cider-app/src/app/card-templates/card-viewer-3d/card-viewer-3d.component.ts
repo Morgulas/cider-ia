@@ -9,13 +9,30 @@ import { FoilEffect, foilFromValue } from '../../card-binder/foil';
 
 type Background = 'sombre' | 'clair' | 'damier';
 
+type Edge = 'blanc' | 'noir' | 'dore';
+
 interface ViewerSettings extends LightSettings {
   followPointer: boolean;
   background: Background;
+  /** épaisseur de la carte : 0 à 1 (1 : 1,5 % de sa hauteur) */
+  thickness: number;
+  edge: Edge;
+  /** reflet de l'environnement (ciel et sol) qui glisse quand la carte tourne */
+  environment: boolean;
 }
 
+/** Couleur de la tranche */
+const EDGES: Record<Edge, string> = {
+  blanc: 'linear-gradient(#f4f1ea, #d9d4c8)',
+  noir: 'linear-gradient(#2a2a2e, #111114)',
+  dore: 'linear-gradient(90deg, #8a6416, #f7e08a, #b8892c, #fff5c0, #a77c22)',
+};
+/** Tranches empilées qui dessinent l'épaisseur */
+const SLICES = 7;
+
 const STORAGE_KEY = 'cider.viewer3d';
-const DEFAULTS: ViewerSettings = { intensity: 1, azimuth: -35, elevation: 55, ambient: 0.35, followPointer: false, background: 'sombre' };
+const DEFAULTS: ViewerSettings = { intensity: 1, azimuth: -35, elevation: 55, ambient: 0.35, followPointer: false,
+  background: 'sombre', thickness: 0.5, edge: 'blanc', environment: true };
 /** degrés par pixel glissé */
 const DRAG_GAIN = 0.4;
 /** vitesse de la rotation automatique, degrés par seconde */
@@ -161,6 +178,10 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
     el.style.setProperty('--shade', String(light.shade));
     el.style.setProperty('--spec', String(light.specular));
     el.style.setProperty('--relief-x', light.reliefX.toFixed(3));
+    // reflet de l'environnement : le ciel et le sol glissent quand la carte tourne
+    el.style.setProperty('--env-x', `${50 + wrapDeg(this.ry) / 3.6}%`);
+    el.style.setProperty('--env-y', `${50 - wrapDeg(this.rx) / 3.6}%`);
+    el.style.setProperty('--env-o', this.settings.environment ? String(0.22 + 0.2 * Math.min(1, this.settings.intensity)) : '0');
     el.style.setProperty('--relief-y', light.reliefY.toFixed(3));
   }
 
@@ -371,6 +392,40 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
     this.save();
   }
 
+  setThickness(event: Event): void {
+    this.settings = { ...this.settings, thickness: Number((event.target as HTMLInputElement).value) / 100 };
+    this.save();
+  }
+
+  setEdge(edge: Edge): void {
+    this.settings = { ...this.settings, edge };
+    this.save();
+  }
+
+  setEnvironment(event: Event): void {
+    this.settings = { ...this.settings, environment: (event.target as HTMLInputElement).checked };
+    this.render();
+    this.save();
+  }
+
+  /** Épaisseur à l'écran (px) */
+  depth(): number {
+    return Math.round(this.faceH * 0.015 * this.settings.thickness * 10) / 10;
+  }
+
+  /** Position (translateZ) de chaque tranche, d'une face à l'autre */
+  slices(): number[] {
+    const d = this.depth();
+    if (d < 0.5) {
+      return [];
+    }
+    return Array.from({ length: SLICES }, (_, i) => -d / 2 + (d * i) / (SLICES - 1));
+  }
+
+  edgeBackground(): string {
+    return EDGES[this.settings.edge] ?? EDGES.blanc;
+  }
+
   setBackground(background: Background): void {
     this.settings = { ...this.settings, background };
     this.save();
@@ -442,6 +497,10 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
   percent(value: number): number {
     return Math.round(value * 100);
   }
+}
+
+function wrapDeg(deg: number): number {
+  return wrap(deg);
 }
 
 /** Angle ramené entre -180 et 180 */
