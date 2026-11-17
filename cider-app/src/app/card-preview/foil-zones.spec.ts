@@ -30,14 +30,14 @@ describe('foil-zones', () => {
 
   it('pose un reflet par élément, à sa place, et le retire', () => {
     expect(drawFoilZones(root)).toBe(2);
-    const zone = root.querySelector<HTMLElement>('.cc-foil-zone.foil-or')!;
+    const zone = root.querySelector<HTMLElement>('.cc-foil-zone.foil-or')!.parentElement!;
     expect(zone.style.left).toBe('10px');
     expect(zone.style.top).toBe('20px');
     expect(zone.style.width).toBe('100px');
     // les reflets ne sont pas eux-mêmes des zones
     expect(foilGroups(root).size).toBe(2);
     clearFoilZones(root);
-    expect(root.querySelector('.cc-foil-layer')).toBeNull();
+    expect(root.querySelector('.cc-foil-piece')).toBeNull();
   });
 
   it('reconnaît la dorure (or, argent, holo) et l\'exporte en calque dorure-<effet>', () => {
@@ -52,13 +52,27 @@ describe('foil-zones', () => {
   it('dore les lettres : une copie du texte remplie de métal, à la place de l\'élément', () => {
     root.querySelector('.titre')!.setAttribute('data-foil', 'dorure-or');
     expect(drawFoilZones(root)).toBe(2);
-    const gilded = root.querySelector<HTMLElement>('.cc-foil-layer .cc-dorure')!;
+    const gilded = root.querySelector<HTMLElement>('.cc-foil-piece.cc-dorure')!;
     expect(gilded.textContent).toBe('Titre');
-    expect(gilded.style.left).toBe('10px');
+    const title = root.querySelector('.titre')!.getBoundingClientRect();
+    expect(Math.abs(gilded.getBoundingClientRect().left - title.left)).toBeLessThan(1);
+    expect(Math.abs(gilded.getBoundingClientRect().top - title.top)).toBeLessThan(1);
     expect(gilded.style.backgroundImage).toContain('linear-gradient');
     expect(gilded.style.getPropertyValue('-webkit-text-fill-color')).toBe('transparent');
     expect(gilded.hasAttribute('data-foil')).toBeFalse();
     // une dorure ne compte pas comme zone foil : le foil de la carte reste possible
     expect(gilded.classList.contains('cc-foil-zone')).toBeFalse();
+  });
+
+  it('suit les transformations du modèle (bandeau centré par translateX(-50%))', () => {
+    root.innerHTML = `<div class="band" style="position:absolute;left:50%;top:10px;width:200px;height:40px;transform:translateX(-50%)">
+      <h1 data-foil="dorure-or" style="margin:0;font-size:20px">Le Mariage</h1></div>`;
+    root.style.width = '400px';
+    drawFoilZones(root);
+    const title = root.querySelector('h1')!.getBoundingClientRect();
+    const gilded = root.querySelector('.cc-dorure')!.getBoundingClientRect();
+    expect(Math.abs(gilded.left - title.left)).toBeLessThan(1);
+    expect(Math.abs(gilded.top - title.top)).toBeLessThan(1);
+    expect(Math.abs(gilded.width - title.width)).toBeLessThan(1);
   });
 });

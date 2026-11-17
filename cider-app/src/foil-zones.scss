@@ -2,22 +2,15 @@
 // Les effets sont ceux du classeur, limités aux reflets posés par drawFoilZones.
 @use 'sass:meta';
 
-.cc-foil-layer {
-  // pas de z-index ici : les reflets se mélangent (mix-blend-mode) avec la carte elle-même
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 0;
-  height: 0;
+.cc-foil-piece {
+  // posée juste après son élément (même parent, mêmes transformations) ; sans z-index ni opacité :
+  // le reflet qu'elle contient se mélange (mix-blend-mode) avec la carte elle-même
   pointer-events: none;
 
   @include meta.load-css('app/card-binder/foil');
 
   .cc-foil-zone {
-    position: absolute;
-    inset: auto;
     z-index: 2147483000;
-    overflow: hidden;
   }
 }
 

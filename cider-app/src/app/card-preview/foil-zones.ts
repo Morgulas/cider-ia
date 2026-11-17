@@ -15,7 +15,8 @@ import { FoilEffect, foilFromValue } from '../card-binder/foil';
 
 export const FOIL_LAYER_PREFIX = 'foil-';
 export const GILDING_LAYER_PREFIX = 'dorure-';
-const LAYER_CLASS = 'cc-foil-layer';
+/** Pièces de l'aperçu (reflets, dorures), posées juste après leur élément */
+export const PIECE_CLASS = 'cc-foil-piece';
 export const ZONE_CLASS = 'cc-foil-zone';
 
 /** Effets proposés en dorure : le métal remplace l'encre au lieu de s'y refléter */
@@ -57,7 +58,7 @@ export function zoneLayerName(zone: ZoneKind): string {
 export function zoneGroups(root: HTMLElement): Map<string, { zone: ZoneKind; elements: HTMLElement[] }> {
   const groups = new Map<string, { zone: ZoneKind; elements: HTMLElement[] }>();
   root.querySelectorAll<HTMLElement>('[data-foil]').forEach(element => {
-    if (element.closest('.' + LAYER_CLASS)) {
+    if (element.closest('.' + PIECE_CLASS)) {
       return;
     }
     const zone = zoneKind(element.getAttribute('data-foil'));
@@ -82,81 +83,95 @@ export function foilGroups(root: HTMLElement): Map<FoilEffect, HTMLElement[]> {
   return out;
 }
 
-/** Position d'un élément dans la carte, sans tenir compte des transformations (échelle, inclinaison) */
-function boxIn(element: HTMLElement, root: HTMLElement): { x: number; y: number; w: number; h: number } | null {
-  if (!(element instanceof HTMLElement)) {
-    // SVG : pas d'offsetLeft ; mesure à l'écran ramenée à l'échelle de la carte
-    const r = (element as Element).getBoundingClientRect();
-    const box = root.getBoundingClientRect();
-    const k = root.offsetWidth ? box.width / root.offsetWidth : 1;
-    return r.width && r.height && k ? { x: (r.left - box.left) / k, y: (r.top - box.top) / k, w: r.width / k, h: r.height / k } : null;
+/** Position d'un élément dans la page, par ses décalages (sans les transformations) */
+function offsetPosition(element: HTMLElement): { x: number; y: number } {
+  let x = 0, y = 0;
+  for (let n: HTMLElement | null = element; n; n = n.offsetParent as HTMLElement | null) {
+    x += n.offsetLeft + (n !== element ? n.clientLeft : 0);
+    y += n.offsetTop + (n !== element ? n.clientTop : 0);
   }
-  const page = (e: HTMLElement) => {
-    let x = 0, y = 0;
-    for (let n: HTMLElement | null = e; n; n = n.offsetParent as HTMLElement | null) {
-      x += n.offsetLeft + (n !== e ? n.clientLeft : 0);
-      y += n.offsetTop + (n !== e ? n.clientTop : 0);
-    }
-    return { x, y };
-  };
-  if (!element.offsetWidth || !element.offsetHeight) {
-    return null;
-  }
-  const a = page(element);
-  const b = page(root);
-  return { x: a.x - b.x - root.clientLeft, y: a.y - b.y - root.clientTop, w: element.offsetWidth, h: element.offsetHeight };
+  return { x, y };
 }
 
-/** Retire les reflets de l'aperçu */
+/** Éléments sans contenu : la pièce se pose à côté d'eux */
+const VOID = ['IMG', 'INPUT', 'BR', 'HR', 'VIDEO', 'CANVAS', 'IFRAME', 'TEXTAREA', 'SELECT'];
+
+/**
+ * Pose une pièce à la place exacte de son élément, en gardant toutes les transformations du modèle
+ * (un bandeau centré par translateX(-50%)...) et de l'affichage (échelle, vue 3D) :
+ * - une dorure de texte va dans l'élément lui-même (sa transformation s'y applique d'elle-même) ;
+ * - un reflet, ou une pièce d'image, va juste après l'élément (même parent) avec sa transformation
+ *   recopiée : le reflet se mélange ainsi avec ce qui est autour, pas seulement avec l'élément.
+ */
+function place(piece: HTMLElement, element: HTMLElement, inside: boolean): void {
+  piece.classList.add(PIECE_CLASS);
+  piece.setAttribute('aria-hidden', 'true');
+  inside = inside && !VOID.includes(element.tagName);
+  const style = getComputedStyle(element);
+  Object.assign(piece.style, {
+    position: 'absolute', left: '0px', top: '0px', right: 'auto', bottom: 'auto', margin: '0',
+    width: `${element.offsetWidth}px`, height: `${element.offsetHeight}px`, boxSizing: 'border-box',
+    transform: inside ? 'none' : style.transform, transformOrigin: style.transformOrigin,
+  });
+  if (inside) {
+    element.appendChild(piece);
+  } else {
+    element.insertAdjacentElement('afterend', piece);
+  }
+  // le bloc de référence de la pièce peut différer de celui de l'élément : on mesure l'écart
+  const at = offsetPosition(element);
+  const zero = offsetPosition(piece);
+  piece.style.left = `${at.x - zero.x}px`;
+  piece.style.top = `${at.y - zero.y}px`;
+}
+
+/** Retire les reflets et dorures de l'aperçu */
 export function clearFoilZones(root: HTMLElement): void {
-  root.querySelectorAll(':scope > .' + LAYER_CLASS).forEach(layer => layer.remove());
+  root.querySelectorAll('.' + PIECE_CLASS).forEach(piece => piece.remove());
 }
 
 /** (Re)pose les reflets et dorures de l'aperçu sur les éléments data-foil ; renvoie le nombre de zones */
 export function drawFoilZones(root: HTMLElement): number {
   clearFoilZones(root);
-  const groups = zoneGroups(root);
-  if (!groups.size) {
-    return 0;
-  }
-  const layer = root.ownerDocument.createElement('div');
-  layer.className = LAYER_CLASS;
-  layer.setAttribute('aria-hidden', 'true');
   let count = 0;
-  for (const { zone, elements } of groups.values()) {
+  for (const { zone, elements } of zoneGroups(root).values()) {
     for (const element of elements) {
-      const box = boxIn(element, root);
-      if (!box) {
+      // éléments HTML affichés seulement (un SVG n'a pas de décalages)
+      if (!(element instanceof HTMLElement) || !element.offsetWidth || !element.offsetHeight || !element.parentElement) {
         continue;
       }
       const isImage = element instanceof HTMLImageElement;
-      const piece = zone.kind === 'dorure' && !isImage && element.textContent?.trim()
-        ? gildedText(element, zone.effect)
+      const text = zone.kind === 'dorure' && !isImage && !!element.textContent?.trim();
+      const piece = text ? gildedText(element, zone.effect)
         : zone.kind === 'dorure' && isImage ? gildedShape(element, zone.effect)
           : reflection(element, zone.effect);
-      Object.assign(piece.style, { left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` });
-      layer.appendChild(piece);
+      place(piece, element, text);
       count++;
     }
   }
-  root.appendChild(layer);
   return count;
 }
 
-/** Reflet posé sur l'élément (rectangle ; une image : découpé à sa transparence) */
+/**
+ * Reflet posé sur l'élément (rectangle ; une image : découpé à sa transparence). L'enveloppe ne crée pas
+ * de contexte d'empilement : le reflet se mélange (mix-blend-mode) avec la carte dessous.
+ */
 function reflection(element: HTMLElement, effect: FoilEffect): HTMLElement {
-  const zone = element.ownerDocument.createElement('span');
+  const doc = element.ownerDocument;
+  const wrapper = doc.createElement('span');
+  const zone = doc.createElement('span');
   zone.className = `foil foil-${effect} ${ZONE_CLASS}`;
   zone.style.borderRadius = getComputedStyle(element).borderRadius;
   maskWithImage(zone, element);
-  return zone;
+  wrapper.appendChild(zone);
+  return wrapper;
 }
 
 /** Dorure d'une image : le métal à la forme de l'image (sa transparence) */
 function gildedShape(element: HTMLElement, effect: FoilEffect): HTMLElement {
   const zone = element.ownerDocument.createElement('span');
   zone.className = 'cc-dorure';
-  Object.assign(zone.style, { position: 'absolute', pointerEvents: 'none', zIndex: '2147483000' });
+  Object.assign(zone.style, { pointerEvents: 'none', zIndex: '2147483000' });
   zone.style.backgroundImage = GILDING_GRADIENTS[effect];
   setMetalLight(zone);
   maskWithImage(zone, element);
@@ -206,7 +221,7 @@ function gildedText(element: HTMLElement, effect: FoilEffect): HTMLElement {
   // pas ZONE_CLASS : une dorure n'empêche pas le foil de la carte (attribut Foil) sur toute la carte
   clone.classList.add('cc-dorure');
   Object.assign(clone.style, {
-    position: 'absolute', margin: '0', transform: 'none', opacity: '1', filter: 'none', animation: 'none',
+    opacity: '1', filter: 'none', animation: 'none',
     transition: 'none', mixBlendMode: 'normal', visibility: 'visible', pointerEvents: 'none',
     color: 'transparent', textShadow: 'none', boxShadow: 'none', borderColor: 'transparent',
     backgroundColor: 'transparent', backgroundImage: GILDING_GRADIENTS[effect], overflow: 'visible',

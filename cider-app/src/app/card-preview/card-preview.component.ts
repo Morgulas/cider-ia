@@ -109,8 +109,8 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     this.foilRoot = root;
     this.foilObserver = new MutationObserver(records => {
       // les reflets eux-mêmes ne comptent pas
-      if (records.some(r => !(r.target as Element).closest?.('.cc-foil-layer')
-        && ![...r.addedNodes, ...r.removedNodes].every(n => (n as Element).classList?.contains('cc-foil-layer')))) {
+      if (records.some(r => !(r.target as Element).closest?.('.cc-foil-piece')
+        && ![...r.addedNodes, ...r.removedNodes].every(n => (n as Element).classList?.contains('cc-foil-piece')))) {
         this.scheduleFoils();
       }
     });
