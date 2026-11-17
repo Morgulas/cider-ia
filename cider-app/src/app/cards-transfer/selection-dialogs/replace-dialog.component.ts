@@ -31,6 +31,7 @@ export class ReplaceDialogComponent {
 
   protected columns: DeckColumn[] = [];
   protected fields: string[] = [];
+  private numericFields: string[] = [];
   protected search = '';
   protected replacement = '';
   protected caseSensitive = false;
@@ -41,7 +42,10 @@ export class ReplaceDialogComponent {
 
   protected async onShow(): Promise<void> {
     const deck = await this.transfer.load(this.deckId());
-    this.columns = deck.columns.filter(c => c.type === FieldType.text || c.type === FieldType.dropdown && !c.template);
+    // numeric columns too: their values kept as text by an import ("5/36") can be cleaned up
+    this.columns = deck.columns.filter(c => c.type === FieldType.text || c.type === FieldType.numeric
+      || c.type === FieldType.dropdown && !c.template);
+    this.numericFields = deck.columns.filter(c => c.type === FieldType.numeric).map(c => c.field);
     this.fields = this.columns.filter(c => c.type === FieldType.text).map(c => c.field);
     this.found.set(null);
   }
@@ -54,7 +58,7 @@ export class ReplaceDialogComponent {
       return;
     }
     const result = await this.transfer.replaceInCards(this.ids(), this.fields, this.search, this.replacement,
-      { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord }, false);
+      { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord }, false, this.numericFields);
     if (run === this.previewRun) {
       this.found.set(result);
     }
@@ -65,7 +69,7 @@ export class ReplaceDialogComponent {
     try {
       const label = this.translate.instant('cards-selection.replace-label', { search: this.search, replacement: this.replacement });
       const result = await this.tracked.run('replace', label, () => this.transfer.replaceInCards(this.ids(), this.fields,
-        this.search, this.replacement, { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord }, true));
+        this.search, this.replacement, { caseSensitive: this.caseSensitive, wholeWord: this.wholeWord }, true, this.numericFields));
       this.visible.set(false);
       this.done.emit(this.translate.instant('cards-selection.replaced', { n: result.replacements, cards: result.cards }));
     } finally {

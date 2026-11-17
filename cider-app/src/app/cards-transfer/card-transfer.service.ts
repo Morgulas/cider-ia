@@ -227,7 +227,7 @@ export class CardTransferService {
    * written: returns how many replacements would be made, and in how many cards.
    */
   async replaceInCards(ids: number[], fields: string[], search: string, replacement: string,
-    options: ReplaceOptions, apply: boolean): Promise<{ cards: number; replacements: number }> {
+    options: ReplaceOptions, apply: boolean, numericFields: string[] = []): Promise<{ cards: number; replacements: number }> {
     let cards = 0;
     let replacements = 0;
     for (const id of ids) {
@@ -243,7 +243,10 @@ export class CardTransferService {
         }
         const result = replaceInText(value, search, replacement, options);
         if (result.count > 0) {
-          changes[field] = result.text;
+          // numeric column holding text (an import kept "5/36"): stored as a number once it is one
+          const number = Number(result.text.trim().replace(',', '.'));
+          changes[field] = numericFields.includes(field) && result.text.trim() !== '' && Number.isFinite(number)
+            ? number : result.text;
           replacements += result.count;
         }
       }
