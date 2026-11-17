@@ -24,8 +24,8 @@ export const GILDING_EFFECTS: FoilEffect[] = ['or', 'argent', 'holo'];
 
 /** Métal d'une dorure, déplacé par la lumière (--glare-x, --glare-y) */
 const GILDING_GRADIENTS: Record<string, string> = {
-  or: 'linear-gradient(125deg, #8a6416 0%, #f7e08a 20%, #b8892c 34%, #fff5c0 48%, #a77c22 62%, #f2d06a 78%, #7a5a14 100%)',
-  argent: 'linear-gradient(125deg, #6b7078 0%, #f4f6f8 20%, #9aa0a8 36%, #ffffff 48%, #858b93 62%, #e6e9ec 78%, #5d6168 100%)',
+  or: 'linear-gradient(125deg, #a87a22 0%, #ffe9a3 18%, #d4a640 32%, #fffbe0 46%, #c99a36 60%, #ffe28a 76%, #94701e 100%)',
+  argent: 'linear-gradient(125deg, #8a9098 0%, #f7f9fb 18%, #b4bac2 32%, #ffffff 46%, #a2a8b0 60%, #eceff2 76%, #7a8088 100%)',
   holo: 'linear-gradient(115deg, #d9d9e6 0%, #ffb3e6 16%, #fff2a8 32%, #b3ffd9 48%, #a8e6ff 64%, #d2b3ff 80%, #d9d9e6 100%)',
 };
 
@@ -172,17 +172,27 @@ function gildedShape(element: HTMLElement, effect: FoilEffect): HTMLElement {
   const zone = element.ownerDocument.createElement('span');
   zone.className = 'cc-dorure';
   Object.assign(zone.style, { pointerEvents: 'none', zIndex: '2147483000' });
-  zone.style.backgroundImage = GILDING_GRADIENTS[effect];
-  setMetalLight(zone);
+  setMetal(zone, effect);
   maskWithImage(zone, element);
   return zone;
 }
 
-/** Le métal suit la lumière (variables posées par l'inclinaison ou la vue 3D) */
-function setMetalLight(zone: HTMLElement): void {
+/** Force du reflet : la plus forte de l'inclinaison (--glare-o) et du reflet de la vue 3D (--spec) */
+const SHINE = 'max(var(--glare-o, 0.4), var(--spec, 0))';
+
+/**
+ * Le métal d'une dorure et sa lumière : un éclat blanc qui balaie les lettres et s'intensifie avec le
+ * reflet, un métal plus sombre quand il ne renvoie pas la lumière, et le dégradé du métal qui se déplace.
+ */
+function setMetal(zone: HTMLElement, effect: FoilEffect): void {
+  const glint = `linear-gradient(115deg, transparent 45%, rgb(255 255 255 / calc(${SHINE} * 0.95)) 50%, transparent 55%)`;
+  const shade = `rgb(0 0 0 / calc(0.28 - ${SHINE} * 0.28))`;
+  const light = 'clamp(0%, var(--glare-x, 50%), 100%) clamp(0%, var(--glare-y, 50%), 100%)';
   Object.assign(zone.style, {
-    backgroundSize: '300% 300%', backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
-    backgroundPosition: 'clamp(0%, var(--glare-x, 50%), 100%) clamp(0%, var(--glare-y, 50%), 100%)',
+    backgroundImage: `${glint}, linear-gradient(${shade}, ${shade}), ${GILDING_GRADIENTS[effect]}`,
+    backgroundSize: '250% 250%, 100% 100%, 200% 200%',
+    backgroundPosition: `${light}, 0 0, ${light}`,
+    backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
   });
 }
 
@@ -224,10 +234,12 @@ function gildedText(element: HTMLElement, effect: FoilEffect): HTMLElement {
     opacity: '1', filter: 'none', animation: 'none',
     transition: 'none', mixBlendMode: 'normal', visibility: 'visible', pointerEvents: 'none',
     color: 'transparent', textShadow: 'none', boxShadow: 'none', borderColor: 'transparent',
-    backgroundColor: 'transparent', backgroundImage: GILDING_GRADIENTS[effect], overflow: 'visible',
+    backgroundColor: 'transparent', overflow: 'visible',
     boxSizing: 'border-box', zIndex: '2147483000',
   });
-  setMetalLight(clone);
+  setMetal(clone, effect);
+  // un pixel de marge : un arrondi de largeur ne doit pas renvoyer le texte à la ligne
+  clone.style.width = `${element.offsetWidth + 1}px`;
   clone.style.setProperty('-webkit-text-fill-color', 'transparent');
   clone.style.setProperty('-webkit-background-clip', 'text');
   clone.style.setProperty('background-clip', 'text');
