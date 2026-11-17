@@ -160,3 +160,16 @@ Un modèle peut dire **où** la carte brille : tout élément marqué `data-foil
 - **La forme d'une zone, c'est ce qui est dessiné** : un élément avec un fond opaque donne un rectangle. Pour que seul un texte brille, mettre `data-foil` sur un élément sans fond.
 - **Dans cider-ia** (éditeur de modèles, vignettes, classeur, boosters, simulateur), le reflet est posé sur le rectangle de chaque élément ; pour une image, il suit sa transparence. C'est un aperçu : la forme exacte n'apparaît que dans l'appli de collection.
 - **Une carte dont le modèle a des zones foil** brille seulement sur ces zones, dans cider-ia comme dans l'appli de collection : l'effet de l'attribut Foil ne couvre plus toute la carte. Les zones ne rendent pas la carte « foil » pour autant : sa valeur, son poids sur la balance et le badge FOIL suivent toujours l'attribut Foil.
+
+#### Dorure
+
+Un effet foil est un **reflet** : il éclaircit ce qui est dessous. Sur une encre noire, il ne montre rien. Pour un texte en métal, comme une dorure à chaud, utiliser **`data-foil="dorure-or"`**, `dorure-argent` ou `dorure-holo` : le métal **remplace** l'encre des lettres, et son éclat suit la lumière.
+
+```html
+<h1 class="card-title" data-foil="dorure-or">{{card.name}}</h1>
+```
+
+- L'ombre du texte (`text-shadow`) reste dessous, comme un relief ; seules les lettres sont dorées.
+- Sur une image (icône détourée), la dorure prend sa forme. Sur un autre élément sans texte, l'aperçu montre un reflet à la place.
+- Export : un calque `dorure-<effet>` (lettres seules, sans leur ombre). Dans l'aperçu de cider-ia (vue 3D comprise), les lettres sont dorées à leur forme exacte.
+- Une dorure n'empêche pas le foil de l'attribut Foil sur toute la carte : elle s'y ajoute.

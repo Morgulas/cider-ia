@@ -11,7 +11,7 @@ import { CardToHtmlPipe } from '../shared/pipes/template-to-html.pipe';
 import { ImageRendererService } from '../data-services/services/image-renderer.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
-import { FOIL_LAYER_PREFIX, clearFoilZones, drawFoilZones, foilGroups } from './foil-zones';
+import { GILDING_LAYER_PREFIX, clearFoilZones, drawFoilZones, zoneGroups } from './foil-zones';
 
 @Component({
     selector: 'app-card-preview',
@@ -260,7 +260,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
    *  - sa zone, en % de la carte : [x, y, largeur, hauteur] (union des éléments de même nom) ;
    *  - son image seule : un PNG de la taille de la carte, transparent ailleurs (les autres éléments sont
    *    masqués par visibility, voir .cc-layer-pass dans styles.scss).
-   * Les zones foil (data-foil) donnent un calque « foil-<effet> » par effet, même sans `calques`.
+   * Les zones foil et dorure (data-foil) donnent un calque « foil-<effet> » ou « dorure-<effet> », même sans `calques`.
    */
   public async captureLayers(pixelRatio: number, calques = true): Promise<Record<string, { zone: number[]; image: string }>> {
     const root = this.cardElement.get(0)?.nativeElement;
@@ -279,13 +279,16 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       if (!zone) {
         continue;
       }
+      // une dorure : la forme des lettres seules, sans leur ombre
+      const gilding = name.startsWith(GILDING_LAYER_PREFIX);
       root.classList.add('cc-layer-pass');
+      root.classList.toggle('cc-dorure-pass', gilding);
       elements.forEach(e => e.setAttribute('data-calque-on', ''));
       try {
         const image = await this.imageRendererService.toPng(root, { pixelRatio, filter });
         out[name] = { zone, image };
       } finally {
-        root.classList.remove('cc-layer-pass');
+        root.classList.remove('cc-layer-pass', 'cc-dorure-pass');
         elements.forEach(e => e.removeAttribute('data-calque-on'));
       }
     }
@@ -306,13 +309,13 @@ export const LAYER_NAME = /^[a-z0-9_-]{1,20}$/;
 
 /**
  * Éléments marqués data-calque (si `calques`), regroupés par nom (minuscules ; noms invalides ignorés),
- * puis zones foil (data-foil) regroupées par effet en « foil-<effet> » ; 6 calques au plus en tout.
+ * après les zones foil et dorure (data-foil) regroupées en « foil-<effet> » et « dorure-<effet> » ; 6 calques au plus.
  */
 export function layerGroups(root: HTMLElement, calques = true): Map<string, HTMLElement[]> {
   const groups = new Map<string, HTMLElement[]>();
-  for (const [effect, elements] of foilGroups(root)) {
+  for (const [name, { elements }] of zoneGroups(root)) {
     if (groups.size < 6) {
-      groups.set(FOIL_LAYER_PREFIX + effect, elements);
+      groups.set(name, elements);
     }
   }
   root.querySelectorAll<HTMLElement>(calques ? '[data-calque]' : ':not(*)').forEach(element => {
