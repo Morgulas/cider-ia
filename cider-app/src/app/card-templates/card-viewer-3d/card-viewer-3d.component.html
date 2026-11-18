@@ -17,7 +17,7 @@
         (auxclick)="$event.preventDefault()" (mousedown)="$event.button === 1 && $event.preventDefault()"
         (contextmenu)="$event.preventDefault()">
         <div #scene class="scene">
-          <div #card3d class="card3d" [style.width.px]="faceW" [style.height.px]="faceH">
+          <div #card3d class="card3d cc-parallaxe" [style.width.px]="faceW" [style.height.px]="faceH">
             @for (z of slices(); track $index) {
             <div class="slice" [style.transform]="'translateZ(' + z + 'px)'" [style.background]="edgeBackground()"></div>
             }

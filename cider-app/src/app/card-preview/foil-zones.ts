@@ -25,14 +25,21 @@ export const LENTICULAR_LAYER = 'lenticulaire';
 export const PIECE_CLASS = 'cc-foil-piece';
 export const ZONE_CLASS = 'cc-foil-zone';
 
-/** Effets proposés en dorure : le métal remplace l'encre au lieu de s'y refléter */
-export const GILDING_EFFECTS: FoilEffect[] = ['or', 'argent', 'holo'];
+/**
+ * Dorures proposées : le métal remplace l'encre au lieu de s'y refléter. « noir » : encre noire brillante (dorure
+ * noire, noire sur fond mat). Suffixe « mat » : métal satiné, sans éclat qui balaie les lettres (dorure-or-mat).
+ */
+export const GILDING_EFFECTS = ['or', 'argent', 'holo', 'noir'] as const;
+export type GildingEffect = typeof GILDING_EFFECTS[number];
+/** Valeur d'une dorure : métal, et « -mat » pour un métal satiné */
+export type Gilding = GildingEffect | `${GildingEffect}-mat`;
 
 /** Métal d'une dorure, déplacé par la lumière (--glare-x, --glare-y) */
-const GILDING_GRADIENTS: Record<string, string> = {
+const GILDING_GRADIENTS: Record<GildingEffect, string> = {
   or: 'linear-gradient(125deg, #a87a22 0%, #ffe9a3 18%, #d4a640 32%, #fffbe0 46%, #c99a36 60%, #ffe28a 76%, #94701e 100%)',
   argent: 'linear-gradient(125deg, #8a9098 0%, #f7f9fb 18%, #b4bac2 32%, #ffffff 46%, #a2a8b0 60%, #eceff2 76%, #7a8088 100%)',
   holo: 'linear-gradient(115deg, #d9d9e6 0%, #ffb3e6 16%, #fff2a8 32%, #b3ffd9 48%, #a8e6ff 64%, #d2b3ff 80%, #d9d9e6 100%)',
+  noir: 'linear-gradient(125deg, #050506 0%, #2c2c33 18%, #0b0b0d 32%, #3d3d46 46%, #09090b 60%, #26262d 76%, #040405 100%)',
 };
 
 /** Angle où se montre une image cachée (data-foil-cache-angle) */
@@ -55,7 +62,8 @@ const HIDDEN_ALIASES: Record<HiddenAngle, string[]> = {
  * angle) ou lenticulaire (seconde image quand on penche la carte)
  */
 export type ZoneKind =
-  | { kind: 'foil' | 'dorure'; effect: FoilEffect }
+  | { kind: 'foil'; effect: FoilEffect }
+  | { kind: 'dorure'; effect: Gilding }
   | { kind: 'gaufrage'; effect: 'relief' | 'creux' }
   | { kind: 'cache'; effect: HiddenAngle }
   | { kind: 'lenticulaire'; effect: 'h' | 'v' };
@@ -122,10 +130,14 @@ export function zoneOptions(element: Element): { masque: string | null; texture:
  * (le métal remplace l'encre). Vide ou inconnue : rien.
  */
 export function zoneKind(value: string | null | undefined): ZoneKind | null {
-  const gilding = /^\s*dorure[\s_-]+(.+)$/i.exec(value ?? '');
+  const gilding = /^\s*dorure[\s_-]+(.+?)(?:[\s_-]+(mat|matte|satin|satine))?\s*$/i.exec(lower(value));
   if (gilding) {
-    const effect = foilFromValue(gilding[1]);
-    return effect && GILDING_EFFECTS.includes(effect) ? { kind: 'dorure', effect } : null;
+    const base = lower(gilding[1]);
+    const effect = ['noir', 'noire', 'black'].includes(base) ? 'noir' : foilFromValue(base);
+    if (!effect || !(GILDING_EFFECTS as readonly string[]).includes(effect)) {
+      return null;
+    }
+    return { kind: 'dorure', effect: (gilding[2] ? `${effect}-mat` : effect) as Gilding };
   }
   const effect = foilFromValue(value);
   return effect ? { kind: 'foil', effect } : null;
@@ -262,9 +274,11 @@ export function drawFoilZones(root: HTMLElement): number {
       }
       const isImage = element instanceof HTMLImageElement;
       const text = zone.kind === 'dorure' && !isImage && !!element.textContent?.trim();
-      const piece = text ? gildedText(element, zone.effect)
-        : zone.kind === 'dorure' && isImage ? gildedShape(element, zone.effect)
-          : reflection(element, zone.effect);
+      const piece = zone.kind === 'foil' ? reflection(element, zone.effect)
+        : text ? gildedText(element, zone.effect)
+          : isImage ? gildedShape(element, zone.effect)
+            // dorure d'un élément sans texte ni image : un reflet du métal (noir : un vernis)
+            : reflection(element, gildingReflection(zone.effect));
       place(piece, element, text ? 'append' : 'after');
       count++;
     }
@@ -286,12 +300,18 @@ function reflection(element: HTMLElement, effect: FoilEffect): HTMLElement {
   // au niveau de l'élément : ce qui est posé par-dessus (un bandeau sur l'illustration) le recouvre aussi
   zone.style.zIndex = style.zIndex;
   applyMasks(zone, element, EFFECT_MASKS[effect]);
-  wrapper.appendChild(zone);
+  // éclat de lumière (étoile), à la forme de la zone
+  const star = doc.createElement('span');
+  star.className = 'cc-eclat';
+  star.style.borderRadius = style.borderRadius;
+  star.style.zIndex = style.zIndex;
+  applyMasks(star, element);
+  wrapper.append(zone, star);
   return wrapper;
 }
 
 /** Dorure d'une image : le métal à la forme de l'image (sa transparence) */
-function gildedShape(element: HTMLElement, effect: FoilEffect): HTMLElement {
+function gildedShape(element: HTMLElement, effect: Gilding): HTMLElement {
   const zone = element.ownerDocument.createElement('span');
   zone.className = 'cc-dorure';
   Object.assign(zone.style, { pointerEvents: 'none', zIndex: getComputedStyle(element).zIndex });
@@ -369,15 +389,24 @@ const SHINE = 'max(var(--glare-o, 0.5), var(--spec, 0))';
  * Le métal d'une dorure et sa lumière : un éclat blanc qui balaie les lettres et s'intensifie avec le
  * reflet, un métal plus sombre quand il ne renvoie pas la lumière, et le dégradé du métal qui se déplace.
  */
-function setMetal(zone: HTMLElement, effect: FoilEffect): void {
-  const glint = `linear-gradient(115deg, transparent 45%, rgb(255 255 255 / calc(${SHINE} * 0.95)) 50%, transparent 55%)`;
-  // hors de l'angle du reflet, le métal s'assombrit franchement (vue 3D : --glare-o tombe vers 0)
-  const shade = `rgb(0 0 0 / calc(0.4 - ${SHINE} * 0.4))`;
+function setMetal(zone: HTMLElement, gilding: Gilding): void {
+  const matte = gilding.endsWith('-mat');
+  const effect = gilding.replace(/-mat$/, '') as GildingEffect;
   const light = 'clamp(0%, var(--glare-x, 50%), 100%) clamp(0%, var(--glare-y, 50%), 100%)';
+  const layers: [string, string, string][] = [...starLayers(light)];
+  if (!matte) {
+    // éclat blanc qui balaie les lettres
+    layers.push([`linear-gradient(115deg, transparent 45%, rgb(255 255 255 / calc(${SHINE} * 0.95)) 50%, transparent 55%)`, '250% 250%', light]);
+  }
+  // hors de l'angle du reflet, le métal s'assombrit franchement (vue 3D : --glare-o tombe vers 0) ; satiné : à peine
+  const shade = matte ? `rgb(0 0 0 / calc(0.22 - ${SHINE} * 0.15))` : `rgb(0 0 0 / calc(0.4 - ${SHINE} * 0.4))`;
+  layers.push([`linear-gradient(${shade}, ${shade})`, '100% 100%', '0 0'],
+    // satiné : le métal bouge à peine (reflets doux, étalés)
+    [GILDING_GRADIENTS[effect], matte ? '130% 130%' : '200% 200%', light]);
   Object.assign(zone.style, {
-    backgroundImage: `${glint}, linear-gradient(${shade}, ${shade}), ${GILDING_GRADIENTS[effect]}`,
-    backgroundSize: '250% 250%, 100% 100%, 200% 200%',
-    backgroundPosition: `${light}, 0 0, ${light}`,
+    backgroundImage: layers.map(l => l[0]).join(', '),
+    backgroundSize: layers.map(l => l[1]).join(', '),
+    backgroundPosition: layers.map(l => l[2]).join(', '),
     backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
   });
   if (effect === 'holo') {
@@ -386,9 +415,30 @@ function setMetal(zone: HTMLElement, effect: FoilEffect): void {
   }
 }
 
+/** Effet foil qui tient lieu d'une dorure sur un élément sans texte ni image */
+function gildingReflection(gilding: Gilding): FoilEffect {
+  const effect = gilding.replace(/-mat$/, '');
+  return effect === 'noir' ? 'vernis' : effect as FoilEffect;
+}
+
+/**
+ * Éclat : une étoile de lumière (cœur et deux traits en croix) au point du reflet, quand la carte est pile dans l'axe
+ * (--eclat, 0 à 1 : vue 3D, classeur). Couches d'image de fond [image, taille, position].
+ */
+function starLayers(at: string): [string, string, string][] {
+  const a = (k: number) => `rgb(255 255 255 / calc(var(--eclat, 0) * ${k}))`;
+  return [
+    [`radial-gradient(circle at ${at}, ${a(1)} 0, ${a(0.8)} 4px, transparent 14px)`, '100% 100%', '0 0'],
+    [`radial-gradient(70px 2.5px at ${at}, ${a(0.95)}, transparent)`, '100% 100%', '0 0'],
+    [`radial-gradient(2.5px 70px at ${at}, ${a(0.95)}, transparent)`, '100% 100%', '0 0'],
+  ];
+}
+
 /** Masques propres à certains effets (classe CSS), repris quand la zone a ses propres masques */
 const EFFECT_MASKS: Partial<Record<FoilEffect, { layers: string[]; composite: string[] }>> = {
-  paillettes: { layers: ['radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%)'], composite: ['add'] },
+  paillettes: { layers: ['radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%)',
+    'radial-gradient(circle, #000 0 2.5px, transparent 3.5px) calc(var(--par-x, 0) * 37px + var(--fx) * 0.15) '
+    + 'calc(var(--par-y, 0) * 29px + var(--fy) * 0.15) / 9px 13px'], composite: ['intersect', 'add'] },
   glace: { layers: ['radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.15) 80%)'], composite: ['add'] },
   cadre: { layers: ['linear-gradient(#000 0 0) content-box', 'linear-gradient(#000 0 0)'], composite: ['exclude', 'add'] },
 };
@@ -485,7 +535,7 @@ function embossed(element: HTMLElement, effect: string): HTMLElement {
  * Dorure d'un texte : une copie du texte, à la même place et dans le même style, dont les lettres
  * sont remplies du métal (background-clip: text). Elle recouvre l'encre ; l'ombre du texte reste dessous.
  */
-function gildedText(element: HTMLElement, effect: FoilEffect): HTMLElement {
+function gildedText(element: HTMLElement, effect: Gilding): HTMLElement {
   const clone = element.cloneNode(true) as HTMLElement;
   copyStyles(element, clone);
   const originals = [...element.querySelectorAll<HTMLElement>('*')];

@@ -51,3 +51,35 @@
 .cc-lentilles-v {
   background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.08) 0 1px, rgba(0, 0, 0, 0.06) 1px 2px, transparent 2px 4px);
 }
+
+// Éclat de lumière (posé avec chaque zone foil) : une étoile au point du reflet quand la carte est pile dans l'axe
+// (--eclat, 0 à 1 : vue 3D, classeur). Les dorures ont la même étoile dans leur métal (foil-zones.ts, starLayers).
+.cc-eclat {
+  --ex: clamp(0%, var(--glare-x, 50%), 100%);
+  --ey: clamp(0%, var(--glare-y, 50%), 100%);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(circle at var(--ex) var(--ey), #fff 0, rgba(255, 255, 255, 0.8) 4px, transparent 14px),
+    radial-gradient(70px 2.5px at var(--ex) var(--ey), rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(2.5px 70px at var(--ex) var(--ey), rgba(255, 255, 255, 0.95), transparent);
+  opacity: var(--eclat, 0);
+}
+
+// Parallaxe (data-parallaxe) : dans la vue 3D et le classeur (.cc-parallaxe), l'élément se décale selon l'angle de
+// vue ; 1, 2, 3 : de plus en plus en avant (vide : 2) ; « fond » : en arrière, un peu agrandi pour ne pas montrer
+// ses bords. Dans l'éditeur et à l'export, il reste à sa place. Remplace le translate / scale propre de l'élément.
+.cc-parallaxe [data-parallaxe] {
+  --pp: 2;
+  translate: calc(var(--par-x, 0) * var(--pp) * 5px) calc(var(--par-y, 0) * var(--pp) * 5px);
+}
+
+.cc-parallaxe [data-parallaxe='1'] { --pp: 1; }
+.cc-parallaxe [data-parallaxe='3'] { --pp: 3; }
+
+.cc-parallaxe [data-parallaxe='fond' i] {
+  --pp: -1.5;
+  scale: 1.04;
+}

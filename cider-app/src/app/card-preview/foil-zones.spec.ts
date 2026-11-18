@@ -1,4 +1,4 @@
-import { differenceMask, layerGroups, maskToPlate, withAlpha } from './card-preview.component';
+import { differenceMask, layerGroups, maskToPlate, parallaxLevel, withAlpha } from './card-preview.component';
 import { clearFoilZones, drawFoilZones, embossKind, foilGroups, hiddenKind, lenticularKind, zoneKind, zoneOptions } from './foil-zones';
 
 describe('foil-zones', () => {
@@ -283,5 +283,53 @@ describe('foil-zones', () => {
     ctx.drawImage(img, 0, 0);
     expect([...ctx.getImageData(0, 0, 1, 1).data]).toEqual([0, 0, 255, 255]);
     expect(ctx.getImageData(1, 0, 1, 1).data[3]).toBe(0);
+  });
+
+  it('dorure noire et dorure mate : calques dorure-noir, dorure-or-mat ; le mat n\'a pas d\'éclat qui balaie', () => {
+    expect(zoneKind('dorure-noir')).toEqual({ kind: 'dorure', effect: 'noir' });
+    expect(zoneKind('Dorure noire')).toEqual({ kind: 'dorure', effect: 'noir' });
+    expect(zoneKind('dorure-or-mat')).toEqual({ kind: 'dorure', effect: 'or-mat' });
+    expect(zoneKind('dorure argent satiné')).toEqual({ kind: 'dorure', effect: 'argent-mat' });
+    expect(zoneKind('dorure-prisme')).toBeNull();
+    const titre = root.querySelector('.titre')!;
+    titre.setAttribute('data-foil', 'dorure-or-mat');
+    expect([...layerGroups(root, false).keys()]).toEqual(['dorure-or-mat', 'foil-holo']);
+    drawFoilZones(root);
+    const mat = root.querySelector<HTMLElement>('.cc-dorure')!.style.backgroundImage;
+    titre.setAttribute('data-foil', 'dorure-noir');
+    drawFoilZones(root);
+    const noir = root.querySelector<HTMLElement>('.cc-dorure')!.style.backgroundImage;
+    expect(mat).not.toContain('115deg');
+    expect(noir).toContain('115deg');
+    // l'étoile d'éclat est dans le métal des deux
+    expect(mat).toContain('--eclat');
+  });
+
+  it('éclat : une étoile par zone foil, éteinte sans --eclat, allumée avec', () => {
+    drawFoilZones(root);
+    const stars = root.querySelectorAll<HTMLElement>('.cc-foil-piece .cc-eclat');
+    expect(stars.length).toBe(2);
+    expect(Number(getComputedStyle(stars[0]).opacity)).toBe(0);
+    root.style.setProperty('--eclat', '0.8');
+    expect(Number(getComputedStyle(stars[0]).opacity)).toBeCloseTo(0.8, 2);
+  });
+
+  it('soleil (métal brossé radial) : un effet foil comme les autres', () => {
+    expect(zoneKind('sunburst')).toEqual({ kind: 'foil', effect: 'soleil' });
+  });
+
+  it('parallaxe : niveaux exportés (fond : aucun), décalage seulement dans la vue 3D et le classeur', () => {
+    expect(parallaxLevel('')).toBe(2);
+    expect(parallaxLevel('3')).toBe(3);
+    expect(parallaxLevel('7')).toBe(2);
+    expect(parallaxLevel('Fond')).toBeNull();
+    const titre = root.querySelector<HTMLElement>('.titre')!;
+    titre.setAttribute('data-parallaxe', '3');
+    root.querySelector('.art')!.setAttribute('data-parallaxe', 'fond');
+    expect([...layerGroups(root, false).keys()]).toEqual(['foil-or', 'foil-holo', 'parallaxe-3']);
+    root.style.setProperty('--par-x', '1');
+    expect(getComputedStyle(titre).translate).toBe('none');
+    root.classList.add('cc-parallaxe');
+    expect(getComputedStyle(titre).translate).toBe('15px');
   });
 });

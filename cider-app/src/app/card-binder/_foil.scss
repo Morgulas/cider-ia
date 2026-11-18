@@ -97,6 +97,10 @@
   opacity: shine(0.3, 0.5);
 }
 
+// grille de scintillement des paillettes, et sa position selon l'angle de vue et la lumière
+$twinkle: radial-gradient(circle, #000 0 2.5px, transparent 3.5px);
+$twinkle-at: calc(var(--par-x, 0) * 37px + var(--fx) * 0.15) calc(var(--par-y, 0) * 29px + var(--fy) * 0.15);
+
 // Paillettes : scintillent seulement là où tombe la lumière
 // (motifs de tailles premières entre elles : la grille ne se voit pas)
 .foil-paillettes {
@@ -109,8 +113,16 @@
   background-size: 7px 11px, 13px 17px, 11px 5px, 19px 23px, 29px 31px;
   background-position: 0 0, 5px 3px, 2px 7px, 11px 13px, 17px 4px;
   mix-blend-mode: color-dodge;
-  -webkit-mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%);
-  mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%);
+  // deux masques : la lumière (là où elle tombe) et une grille de points d'un autre pas qui glisse avec l'angle ;
+  // seules les paillettes qui tombent sur un point s'allument : elles scintillent une à une quand on penche
+  -webkit-mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%), $twinkle;
+  -webkit-mask-size: auto, 9px 13px;
+  -webkit-mask-position: 0 0, $twinkle-at;
+  -webkit-mask-composite: source-in;
+  mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%), $twinkle;
+  mask-size: auto, 9px 13px;
+  mask-position: 0 0, $twinkle-at;
+  mask-composite: intersect;
   opacity: shine(0.6, 0.4);
 }
 
@@ -163,6 +175,21 @@
   background-position: 0 0, 0 0, 0 0, var(--fx) var(--fy);
   mix-blend-mode: color-dodge;
   opacity: shine(0.35, 0.6);
+}
+
+// Soleil (métal brossé radial, « sunburst ») : fines stries qui partent du centre de la zone, et deux traits de
+// lumière opposés qui tournent autour du centre selon la direction du reflet (--glare-a)
+.foil-soleil {
+  --sa: calc(var(--glare-a, -45deg) + 90deg);
+  --sc: var(--soleil-x, 50%) var(--soleil-y, 50%);
+  background:
+    conic-gradient(from calc(var(--sa) - 30deg) at var(--sc),
+      rgba(0, 0, 0, 0.3) 0deg, #fff 30deg, rgba(0, 0, 0, 0.3) 60deg 180deg,
+      #fff 210deg, rgba(0, 0, 0, 0.3) 240deg),
+    repeating-conic-gradient(at var(--sc), rgba(255, 255, 255, 0.22) 0deg 0.7deg, rgba(0, 0, 0, 0.18) 0.7deg 1.4deg, transparent 1.4deg 2.2deg),
+    radial-gradient(circle at var(--sc), #f4f6f8 0%, #9aa1aa 45%, #e4e7eb 70%, #7d848d 100%);
+  mix-blend-mode: overlay;
+  opacity: shine(0.4, 0.6);
 }
 
 // Vernis sélectif (spot UV) : un vernis transparent, sans couleur ; il ne se voit qu'en renvoyant la lumière

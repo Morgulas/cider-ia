@@ -23,6 +23,10 @@ export interface Lighting {
   glareY: number;
   /** intensité des foils, 0 à 1 : forte quand la carte renvoie la lumière vers l'œil, faible hors de cet angle */
   glareO: number;
+  /** direction du reflet depuis le centre de la face (degrés, 0 = vers la droite, 90 = vers le bas) : métal brossé radial */
+  glareA: number;
+  /** éclat (étoile de lumière) : 1 quand la carte est pile dans l'axe du reflet, 0 dès ~17° à côté */
+  eclat: number;
   /** décalage des couleurs irisées (degrés) : suit l'angle de la carte, même au-delà de la course du reflet */
   hue: number;
   /** opacité de l'ombre sur la face visible */
@@ -96,11 +100,15 @@ export function lighting(rx: number, ry: number, light: LightSettings): Lighting
   // lobe du reflet : 1 quand la carte renvoie la lumière droit vers l'œil, ~0,3 à 30° de cet angle, ~0 à 60°
   const lobe = Math.pow(Math.max(0, hz), 5);
   // irisation : écart entre la direction du reflet et celle de la carte à plat (même lumière), en degrés
+  const glareX = 50 + 50 * Math.tanh(hx * 2.2);
+  const glareY = 50 + 50 * Math.tanh(hy * 2.2);
   return {
     side,
+    glareA: Math.atan2(glareY - 50, glareX - 50) * 180 / Math.PI,
+    eclat: clamp((Math.pow(Math.max(0, hz), 25) - 0.3) / 0.5 * Math.min(1, intensity) * (lz > 0 ? 1 : 0), 0, 1),
     // course douce : le reflet glisse encore quand la carte penche beaucoup, sans buter sur le bord à 20°
-    glareX: 50 + 50 * Math.tanh(hx * 2.2),
-    glareY: 50 + 50 * Math.tanh(hy * 2.2),
+    glareX,
+    glareY,
     glareO: clamp(intensity * (0.12 + 0.88 * lobe) * (lz > 0 ? 1 : 0.35), 0, 1),
     hue: (hx - H[0] * flip) * 220 + (hy - H[1]) * 160,
     parX: clamp(Math.atan2(-v[0] * flip, v[2] * flip) * 180 / Math.PI / 16, -3, 3),

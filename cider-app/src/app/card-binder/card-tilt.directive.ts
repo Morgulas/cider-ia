@@ -18,6 +18,8 @@ const CLICK_SLOP = 6;
  *  --tilt-x, --tilt-y   rotation en degrés (rotateX / rotateY)
  *  --glare-x, --glare-y position du reflet (%)
  *  --glare-o            intensité du reflet (0 à 1)
+ *  --glare-a            direction du reflet depuis le centre (degrés)
+ *  --eclat              étoile de lumière (0 à 1), qui passe quand on incline
  *  --par-x, --par-y     angle de vue en unités de 16° (images cachées, lenticulaires)
  *  --foil-irise         hue-rotate des foils irisés selon l'inclinaison (absente à plat)
  * et la classe `tilt-settling` pendant le retour à plat.
@@ -54,6 +56,8 @@ export class CardTiltDirective implements OnInit, OnDestroy {
       // reste, même relâché hors de la carte (il ne doit ni la retourner, ni fermer l'agrandissement)
       this.listen(window, 'click', e => this.onClick(e), true);
     });
+    // éléments data-parallaxe des modèles : ils se décalent selon l'inclinaison (foil-zones.scss)
+    el.classList.add('cc-parallaxe');
     this.apply(0, 0, 50, 50, 0);
   }
 
@@ -207,6 +211,9 @@ export class CardTiltDirective implements OnInit, OnDestroy {
     style.setProperty('--glare-x', `${gx.toFixed(1)}%`);
     style.setProperty('--glare-y', `${gy.toFixed(1)}%`);
     style.setProperty('--glare-o', glare.toFixed(3));
+    // direction du reflet (métal brossé radial) ; éclat : une étoile de lumière passe quand l'inclinaison traverse ~10°
+    style.setProperty('--glare-a', `${(Math.atan2(gy - 50, gx - 50) * 180 / Math.PI).toFixed(1)}deg`);
+    style.setProperty('--eclat', Math.max(0, 1 - Math.abs(glare - 0.3) / 0.1).toFixed(3));
     // angle de vue en unités de 16° (images cachées, lenticulaires des modèles), comme dans l'appli de collection
     style.setProperty('--par-x', (ry / 16).toFixed(3));
     style.setProperty('--par-y', (-rx / 16).toFixed(3));

@@ -270,7 +270,8 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
    *  - son image seule : un PNG de la taille de la carte, transparent ailleurs (les autres éléments sont
    *    masqués par visibility, voir .cc-layer-pass dans styles.scss).
    * Les zones foil et dorure (data-foil) donnent un calque « foil-<effet> » ou « dorure-<effet> », même sans `calques` ;
-   * une image cachée, « cache-<angle> » (masque du motif) ; un lenticulaire, « lenticulaire » (la seconde image).
+   * une image cachée, « cache-<angle> » (masque du motif) ; un lenticulaire, « lenticulaire » (la seconde image) ;
+   * un élément data-parallaxe, « parallaxe-<niveau> » (l'élément seul, comme un data-calque).
    */
   public async captureLayers(pixelRatio: number, calques = true): Promise<Record<string, { zone: number[]; image: string }>> {
     const root = this.cardElement.get(0)?.nativeElement;
@@ -428,6 +429,15 @@ export function layerGroups(root: HTMLElement, calques = true): Map<string, HTML
       groups.set(name, elements);
     }
   }
+  // parallaxe : chaque niveau en avant (1, 2, 3) donne un calque « parallaxe-<n> », l'élément seul
+  root.querySelectorAll<HTMLElement>('[data-parallaxe]').forEach(element => {
+    const level = parallaxLevel(element.getAttribute('data-parallaxe'));
+    const name = level ? `parallaxe-${level}` : '';
+    if (!name || (!groups.has(name) && groups.size >= 6)) {
+      return;
+    }
+    groups.set(name, [...(groups.get(name) ?? []), element]);
+  });
   root.querySelectorAll<HTMLElement>(calques ? '[data-calque]' : ':not(*)').forEach(element => {
     const name = (element.getAttribute('data-calque') ?? '').trim().toLowerCase();
     if (!LAYER_NAME.test(name) || (!groups.has(name) && groups.size >= 6)) {
@@ -436,6 +446,16 @@ export function layerGroups(root: HTMLElement, calques = true): Map<string, HTML
     groups.set(name, [...(groups.get(name) ?? []), element]);
   });
   return groups;
+}
+
+/** Niveau de parallaxe exporté : 1, 2 ou 3 (vide ou autre nombre : 2) ; « fond » : aucun (l'appli de collection a déjà le relief de l'illustration) */
+export function parallaxLevel(value: string | null): number | null {
+  const text = (value ?? '').trim().toLowerCase();
+  if (text === 'fond' || text === 'non' || text === 'aucun') {
+    return null;
+  }
+  const n = Math.round(Number(text || '2'));
+  return n === 1 || n === 3 ? n : 2;
 }
 
 /** Zone [x, y, largeur, hauteur] en % de la carte, union des rectangles (bornée à la carte) ; null si vide */

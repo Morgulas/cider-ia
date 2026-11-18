@@ -144,7 +144,7 @@ Exemple de modèle :
 
 ### Attribut Foil
 
-Chaque deck a un attribut système **Foil** (comme Name, Count et les modèles : impossible à supprimer ou à renommer) : une liste déroulante des 11 effets `holo`, `galaxie`, `or`, `argent`, `prisme`, `paillettes`, `cadre`, `glace`, `ecailles`, `hexagones`, `vernis`. Vide : la carte n'est pas foil. Un attribut foil qui existait déjà (Foil, Brillance, Effet foil ou Holo, en texte ou en liste) devient cet attribut système, avec ses valeurs ; s'il est d'un autre type (case à cocher), il est laissé tel quel. Dans un modèle : `{{card.foil}}`.
+Chaque deck a un attribut système **Foil** (comme Name, Count et les modèles : impossible à supprimer ou à renommer) : une liste déroulante des 12 effets `holo`, `galaxie`, `or`, `argent`, `prisme`, `paillettes`, `cadre`, `glace`, `ecailles`, `hexagones`, `vernis`, `soleil`. Vide : la carte n'est pas foil. Un attribut foil qui existait déjà (Foil, Brillance, Effet foil ou Holo, en texte ou en liste) devient cet attribut système, avec ses valeurs ; s'il est d'un autre type (case à cocher), il est laissé tel quel. Dans un modèle : `{{card.foil}}`.
 
 ### Zones foil
 
@@ -198,6 +198,31 @@ Le masque suit le cadrage de l'image (cover, contain, position) et se combine av
 
 Il est proposé dans l'attribut Foil et pour les sachets. Export : calque `foil-vernis`, compté dans la plaque foil. Valeur dans l'appli de collection : ×0,8 de la prime d'un holo (réglable).
 
+#### Soleil (métal brossé radial)
+
+`soleil` (synonymes `sunburst`, `brosse`, `radial`) : de fines stries de métal qui partent du centre de la zone, et deux traits de lumière opposés qui tournent autour du centre selon la direction du reflet, comme les fonds « sunburst » derrière un personnage. Mettre la zone sur l'élément dont le centre doit être celui des rayons (l'illustration, un médaillon). Calque `foil-soleil` ; dans l'appli de collection, les rayons partent du centre de la zone exportée. Valeur ×1,4 d'un holo (réglable).
+
+#### Paillettes qui scintillent
+
+L'effet `paillettes` ne montre plus un nuage fixe qui suit la lumière : seule une partie des paillettes s'allume à la fois, et elles s'allument et s'éteignent une à une quand on penche la carte. Rien à changer dans les modèles.
+
+#### Éclat de lumière
+
+Chaque zone foil et chaque dorure reçoit une petite étoile (un cœur et deux traits en croix) au point du reflet, au moment où la carte passe pile dans l'axe de la lumière : dans la vue 3D quand la lumière se reflète droit vers l'œil, dans le classeur et l'appli de collection quand on incline la carte (elle passe, puis s'éteint). Rien à changer dans les modèles.
+
+#### Parallaxe
+
+**`data-parallaxe`** sur un élément (un personnage détouré, un logo, un numéro) : il se décale selon l'angle de vue, comme s'il flottait au-dessus de la carte. Niveaux : `1`, `2` (par défaut, valeur vide), `3` (le plus en avant) ; **`fond`** : en arrière (un fond qui s'éloigne, légèrement agrandi pour ne pas montrer ses bords).
+
+```html
+<img class="heros" src="{{assets.heros-detoure}}" data-parallaxe="3">
+```
+
+- Le décalage n'existe que dans la vue 3D et le classeur (jusqu'à ~3 % de la largeur au niveau 3) ; dans l'éditeur et à l'export, l'élément reste à sa place.
+- Il remplace le `translate` et le `scale` propres de l'élément : pour un élément déjà décalé (centré par `translate: -50%`…), mettre `data-parallaxe` sur un élément qui l'enveloppe.
+- Export : un calque `parallaxe-1`, `-2` ou `-3` (l'élément seul, comme un `data-calque`), dans la limite de 6 calques. Pas de calque pour `fond` : l'appli de collection fait déjà reculer l'illustration (calque `illustration`).
+- Dans l'appli de collection (vue de la carte, révélation), le calque se décale au-dessus de la carte. L'élément reste aussi imprimé à sa place sur le recto : s'il sort de l'illustration (un personnage qui déborde du cadre), sa copie fixe se devine derrière quand on penche fort. À l'intérieur de l'illustration, le relief de l'illustration la recouvre.
+
 #### Image cachée
 
 **`data-foil-cache="{{assets.rune}}"`** : une image en niveaux de gris, étirée sur l'élément (blanc = motif), qui n'apparaît **que sous un angle**, en reflet irisé, comme un hologramme de sécurité. **`data-foil-cache-angle`** : `droite` (par défaut), `gauche`, `haut`, `bas` (la carte penchée de ~12° de ce côté) ou `face` (visible à plat, disparaît dès qu'on penche).
@@ -236,7 +261,7 @@ Export **Images** › **Plaque foil pour l'impression** : avec chaque recto qui 
 
 #### Dorure
 
-Un effet foil est un **reflet** : il éclaircit ce qui est dessous. Sur une encre noire, il ne montre rien. Pour un texte en métal, comme une dorure à chaud, utiliser **`data-foil="dorure-or"`**, `dorure-argent` ou `dorure-holo` : le métal **remplace** l'encre des lettres, et son éclat suit la lumière.
+Un effet foil est un **reflet** : il éclaircit ce qui est dessous. Sur une encre noire, il ne montre rien. Pour un texte en métal, comme une dorure à chaud, utiliser **`data-foil="dorure-or"`**, `dorure-argent`, `dorure-holo` ou **`dorure-noir`** (encre noire brillante : seul l'éclat se voit, très chic sur un fond mat) : le métal **remplace** l'encre des lettres, et son éclat suit la lumière. Suffixe **`-mat`** (`dorure-or-mat`, `dorure-argent-mat`…) : métal satiné, sans l'éclat qui balaie les lettres, qui bouge à peine. Calques `dorure-noir`, `dorure-or-mat`…
 
 ```html
 <h1 class="card-title" data-foil="dorure-or">{{card.name}}</h1>
