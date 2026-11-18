@@ -17,6 +17,10 @@ import { TEXTURE_ATTR } from './foil-texture';
 export const FOIL_LAYER_PREFIX = 'foil-';
 export const GILDING_LAYER_PREFIX = 'dorure-';
 export const EMBOSS_LAYER_PREFIX = 'gaufrage-';
+/** Image cachée : calque « cache-<angle> » (masque du motif) */
+export const HIDDEN_LAYER_PREFIX = 'cache-';
+/** Lenticulaire : calque « lenticulaire » (seconde image, en couleurs) ou « lenticulaire-v » (sens vertical) */
+export const LENTICULAR_LAYER = 'lenticulaire';
 /** Pièces de l'aperçu (reflets, dorures), posées juste après leur élément */
 export const PIECE_CLASS = 'cc-foil-piece';
 export const ZONE_CLASS = 'cc-foil-zone';
@@ -31,10 +35,58 @@ const GILDING_GRADIENTS: Record<string, string> = {
   holo: 'linear-gradient(115deg, #d9d9e6 0%, #ffb3e6 16%, #fff2a8 32%, #b3ffd9 48%, #a8e6ff 64%, #d2b3ff 80%, #d9d9e6 100%)',
 };
 
-/** Une zone du modèle : reflet ou dorure (effet foil), ou gaufrage (relief ou creux) */
+/** Angle où se montre une image cachée (data-foil-cache-angle) */
+export const HIDDEN_ANGLES = ['droite', 'gauche', 'haut', 'bas', 'face'] as const;
+export type HiddenAngle = typeof HIDDEN_ANGLES[number];
+/**
+ * Inclinaison où l'image cachée est la plus nette, en unités de 16° (--par-x, --par-y) : 12°, atteint au survol
+ * (10° au plus), au gyroscope d'un téléphone et dans la vue 3D
+ */
+const HIDDEN_TARGETS: Record<HiddenAngle, [number, number]> = {
+  droite: [0.75, 0], gauche: [-0.75, 0], haut: [0, -0.75], bas: [0, 0.75], face: [0, 0],
+};
+const HIDDEN_ALIASES: Record<HiddenAngle, string[]> = {
+  droite: ['droite', 'right', 'd'], gauche: ['gauche', 'left', 'g'], haut: ['haut', 'up', 'top', 'dessus', 'h'],
+  bas: ['bas', 'down', 'bottom', 'dessous', 'b'], face: ['face', 'front', 'plat', 'centre', 'center'],
+};
+
+/**
+ * Une zone du modèle : reflet ou dorure (effet foil), gaufrage (relief ou creux), image cachée (visible sous un
+ * angle) ou lenticulaire (seconde image quand on penche la carte)
+ */
 export type ZoneKind =
   | { kind: 'foil' | 'dorure'; effect: FoilEffect }
-  | { kind: 'gaufrage'; effect: 'relief' | 'creux' };
+  | { kind: 'gaufrage'; effect: 'relief' | 'creux' }
+  | { kind: 'cache'; effect: HiddenAngle }
+  | { kind: 'lenticulaire'; effect: 'h' | 'v' };
+
+const lower = (value: string | null | undefined) =>
+  (value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+/**
+ * Image cachée : data-foil-cache="{{assets.rune}}" (image en niveaux de gris étirée sur l'élément, blanc = motif),
+ * visible seulement quand la carte penche du côté de data-foil-cache-angle (droite par défaut). Vide : rien.
+ */
+export function hiddenKind(element: Element): ZoneKind | null {
+  if (!(element.getAttribute('data-foil-cache') ?? '').trim()) {
+    return null;
+  }
+  const angle = lower(element.getAttribute('data-foil-cache-angle'));
+  const effect = HIDDEN_ANGLES.find(a => HIDDEN_ALIASES[a].includes(angle)) ?? 'droite';
+  return { kind: 'cache', effect };
+}
+
+/**
+ * Lenticulaire : data-lenticulaire="{{assets.attaque}}" sur une image (ou un élément à image de fond) : la seconde
+ * image remplace la première quand on penche la carte (gauche ou droite ; data-lenticulaire-sens="vertical" :
+ * haut ou bas). Vide : rien.
+ */
+export function lenticularKind(element: Element): ZoneKind | null {
+  if (!(element.getAttribute('data-lenticulaire') ?? '').trim()) {
+    return null;
+  }
+  return { kind: 'lenticulaire', effect: /^v/.test(lower(element.getAttribute('data-lenticulaire-sens'))) ? 'v' : 'h' };
+}
 
 /**
  * Valeur de data-gaufrage : « creux » (en creux), « non » / « aucun » (pas de gaufrage : une valeur venue
@@ -79,8 +131,14 @@ export function zoneKind(value: string | null | undefined): ZoneKind | null {
   return effect ? { kind: 'foil', effect } : null;
 }
 
-/** Nom du calque exporté d'une zone : foil-<effet> ou dorure-<effet> */
+/** Nom du calque exporté d'une zone : foil-<effet>, dorure-<effet>, gaufrage-<effet>, cache-<angle>, lenticulaire(-v) */
 export function zoneLayerName(zone: ZoneKind): string {
+  if (zone.kind === 'cache') {
+    return HIDDEN_LAYER_PREFIX + zone.effect;
+  }
+  if (zone.kind === 'lenticulaire') {
+    return zone.effect === 'v' ? LENTICULAR_LAYER + '-v' : LENTICULAR_LAYER;
+  }
   const prefix = zone.kind === 'dorure' ? GILDING_LAYER_PREFIX : zone.kind === 'gaufrage' ? EMBOSS_LAYER_PREFIX : FOIL_LAYER_PREFIX;
   return prefix + zone.effect;
 }
@@ -96,12 +154,14 @@ export function zoneGroups(root: HTMLElement): Map<string, { zone: ZoneKind; ele
       groups.set(name, group);
     }
   };
-  root.querySelectorAll<HTMLElement>('[data-foil], [data-gaufrage]').forEach(element => {
+  root.querySelectorAll<HTMLElement>('[data-foil], [data-gaufrage], [data-foil-cache], [data-lenticulaire]').forEach(element => {
     if (element.closest('.' + PIECE_CLASS)) {
       return;
     }
     add(embossKind(element.getAttribute('data-gaufrage')), element);
     add(zoneKind(element.getAttribute('data-foil')), element);
+    add(hiddenKind(element), element);
+    add(lenticularKind(element), element);
   });
   return groups;
 }
@@ -177,9 +237,10 @@ export function clearFoilZones(root: HTMLElement): void {
 export function drawFoilZones(root: HTMLElement): number {
   clearFoilZones(root);
   let count = 0;
-  // le gaufrage d'abord : la dorure et le reflet d'un même élément se posent par-dessus
-  const groups = [...zoneGroups(root).values()].sort((a, b) =>
-    Number(b.zone.kind === 'gaufrage') - Number(a.zone.kind === 'gaufrage'));
+  // ordre de pose : le gaufrage d'abord (la dorure et le reflet d'un même élément se posent par-dessus), le
+  // lenticulaire en dernier : posé juste après l'élément, il passe sous les reflets et l'image cachée
+  const rank = (z: ZoneKind) => ({ gaufrage: 0, cache: 1, foil: 2, dorure: 2, lenticulaire: 3 })[z.kind];
+  const groups = [...zoneGroups(root).values()].sort((a, b) => rank(a.zone) - rank(b.zone));
   for (const { zone, elements } of groups) {
     for (const element of elements) {
       // éléments HTML affichés seulement (un SVG n'a pas de décalages)
@@ -191,6 +252,11 @@ export function drawFoilZones(root: HTMLElement): number {
         const texture = zoneOptions(element).texture;
         place(texture ? texturedRelief(element, texture, zone.effect) : embossed(element, zone.effect), element,
           texture ? 'after' : 'prepend');
+        count++;
+        continue;
+      }
+      if (zone.kind === 'cache' || zone.kind === 'lenticulaire') {
+        place(zone.kind === 'cache' ? hiddenImage(element, zone.effect) : lenticular(element, zone.effect), element, 'after');
         count++;
         continue;
       }
@@ -233,6 +299,67 @@ function gildedShape(element: HTMLElement, effect: FoilEffect): HTMLElement {
   zone.style.opacity = String(zoneOptions(element).force);
   applyMasks(zone, element, undefined, true);
   return zone;
+}
+
+const cssUrl = (u: string) => `url("${u.replace(/"/g, '%22')}")`;
+
+/**
+ * Image cachée : le motif (luminosité de data-foil-cache, étiré sur l'élément) en reflet irisé, net seulement quand
+ * la carte penche du côté voulu (--par-x, --par-y : voir .cc-cache dans foil-zones.scss).
+ */
+function hiddenImage(element: HTMLElement, angle: HiddenAngle): HTMLElement {
+  const doc = element.ownerDocument;
+  const wrapper = doc.createElement('span');
+  const zone = doc.createElement('span');
+  zone.className = 'cc-cache';
+  const style = getComputedStyle(element);
+  zone.style.borderRadius = style.borderRadius;
+  zone.style.zIndex = style.zIndex;
+  const [cx, cy] = HIDDEN_TARGETS[angle];
+  zone.style.setProperty('--cx', String(cx));
+  zone.style.setProperty('--cy', String(cy));
+  const layers = [`${cssUrl(element.getAttribute('data-foil-cache')!.trim())} center / 100% 100% no-repeat luminance`];
+  const src = element instanceof HTMLImageElement ? element.currentSrc || element.src : '';
+  if (src) {
+    layers.push(`${cssUrl(src)} center / 100% 100% no-repeat intersect`);
+  }
+  zone.style.setProperty('mask', layers.join(', '));
+  wrapper.appendChild(zone);
+  return wrapper;
+}
+
+/** Taille d'image de fond qui reproduit object-fit */
+const FIT_SIZE: Record<string, string> = { fill: '100% 100%', contain: 'contain', cover: 'cover', none: 'auto', 'scale-down': 'contain' };
+
+/**
+ * Lenticulaire : la seconde image (data-lenticulaire) à la place exacte de la première (même cadrage : object-fit
+ * d'une image, ou taille et position de l'image de fond), visible quand la carte penche ; de fines lignes de
+ * lentilles par-dessus. Opacité : voir .cc-lenticulaire dans foil-zones.scss.
+ */
+function lenticular(element: HTMLElement, sens: 'h' | 'v'): HTMLElement {
+  const doc = element.ownerDocument;
+  const style = getComputedStyle(element);
+  const url = cssUrl(element.getAttribute('data-lenticulaire')!.trim());
+  const wrapper = doc.createElement('span');
+  const image = doc.createElement('span');
+  image.className = 'cc-lenticulaire' + (sens === 'v' ? ' cc-lenticulaire-v' : '');
+  const common = { position: 'absolute', inset: '0', pointerEvents: 'none', borderRadius: style.borderRadius, zIndex: style.zIndex };
+  Object.assign(image.style, common, { backgroundRepeat: 'no-repeat', backgroundColor: 'transparent' });
+  if (element instanceof HTMLImageElement) {
+    Object.assign(image.style, { backgroundImage: url, backgroundSize: FIT_SIZE[style.objectFit] ?? '100% 100%',
+      backgroundPosition: style.objectPosition });
+  } else if (/url\(/.test(style.backgroundImage)) {
+    // la première image de fond de l'élément est remplacée, les autres couches (dégradés…) gardées
+    Object.assign(image.style, { backgroundImage: style.backgroundImage.replace(/url\((?:"[^"]*"|'[^']*'|[^)]*)\)/, url),
+      backgroundSize: style.backgroundSize, backgroundPosition: style.backgroundPosition, backgroundRepeat: style.backgroundRepeat });
+  } else {
+    Object.assign(image.style, { backgroundImage: url, backgroundSize: 'cover', backgroundPosition: 'center' });
+  }
+  const lines = doc.createElement('span');
+  lines.className = 'cc-lentilles' + (sens === 'v' ? ' cc-lentilles-v' : '');
+  Object.assign(lines.style, common);
+  wrapper.append(image, lines);
+  return wrapper;
 }
 
 /** Force du reflet : la plus forte de l'inclinaison (--glare-o) et du reflet de la vue 3D (--spec) */

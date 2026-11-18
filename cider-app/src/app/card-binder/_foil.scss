@@ -165,6 +165,18 @@
   opacity: shine(0.35, 0.6);
 }
 
+// Vernis sélectif (spot UV) : un vernis transparent, sans couleur ; il ne se voit qu'en renvoyant la lumière
+// (éclat blanc et bande de brillance), à peine hors du reflet. Il marche aussi sur une encre noire.
+.foil-vernis {
+  background:
+    radial-gradient(circle at var(--fx) var(--fy), rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.35) 20%, rgba(255, 255, 255, 0) 48%),
+    linear-gradient(115deg, rgba(255, 255, 255, 0) 38%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0) 62%);
+  background-size: auto, 250% 250%;
+  background-position: 0 0, var(--fx) var(--fy);
+  mix-blend-mode: screen;
+  opacity: shine(0.12, 0.85);
+}
+
 // Pochettes : le foil ondule doucement au survol
 @keyframes foil-drift {
   0% { --glare-x: 20%; --glare-y: 30%; }

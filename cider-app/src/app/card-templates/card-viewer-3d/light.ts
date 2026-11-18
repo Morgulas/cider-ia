@@ -29,6 +29,12 @@ export interface Lighting {
   shade: number;
   /** intensité du reflet spéculaire, 0 à 1 */
   specular: number;
+  /**
+   * inclinaison de la face visible vue de l'œil, en unités de 16° (comme --par-x, --par-y de l'appli de
+   * collection) : x > 0 quand la carte tourne comme poussée vers la droite, y < 0 vers le haut
+   */
+  parX: number;
+  parY: number;
   /** côté d'où vient la lumière sur la face visible (-1 à 1) : liseré clair des gaufrages */
   reliefX: number;
   reliefY: number;
@@ -77,6 +83,7 @@ export function lighting(rx: number, ry: number, light: LightSettings): Lighting
   const H = norm([L[0], L[1], L[2] + 1]); // entre la lumière et l'observateur
   const l = toLocal(m, L);
   const h = toLocal(m, H);
+  const v = toLocal(m, [0, 0, 1]); // direction de l'œil
   // le verso est retourné autour de l'axe vertical : x et z inversés
   const flip = side === 'back' ? -1 : 1;
   const lz = l[2] * flip;
@@ -96,6 +103,8 @@ export function lighting(rx: number, ry: number, light: LightSettings): Lighting
     glareY: 50 + 50 * Math.tanh(hy * 2.2),
     glareO: clamp(intensity * (0.12 + 0.88 * lobe) * (lz > 0 ? 1 : 0.35), 0, 1),
     hue: (hx - H[0] * flip) * 220 + (hy - H[1]) * 160,
+    parX: clamp(Math.atan2(-v[0] * flip, v[2] * flip) * 180 / Math.PI / 16, -3, 3),
+    parY: clamp(Math.atan2(-v[1], v[2] * flip) * 180 / Math.PI / 16, -3, 3),
     shade: clamp((1 - brightness) * 0.85, 0, 0.85),
     specular: clamp(Math.pow(Math.max(0, hz), 12) * intensity * 0.55 * (lz > 0 ? 1 : 0), 0, 1),
     reliefX: clamp(lx / spread, -1, 1),

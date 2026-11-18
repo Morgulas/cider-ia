@@ -19,7 +19,7 @@ const FOIL_DESCRIPTION = 'Effet foil de la carte (vide : pas de foil)';
 const COLORS: Record<string, string> = {
   holo: '#C77DFF', galaxie: '#5A4FCF', or: '#D4AF37', argent: '#C0C0C0',
   prisme: '#7FDBFF', paillettes: '#FFB3D9', cadre: '#9AD1D4',
-  glace: '#BDE8FF', ecailles: '#7FE0C0', hexagones: '#FFD27F',
+  glace: '#BDE8FF', ecailles: '#7FE0C0', hexagones: '#FFD27F', vernis: '#F4F4F5',
 };
 export const FOIL_OPTIONS: DropdownOption[] = FOIL_EFFECTS.map(value => ({ value, color: COLORS[value] }));
 

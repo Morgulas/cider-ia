@@ -12,7 +12,8 @@ import { ImageRendererService } from '../data-services/services/image-renderer.s
 import { DomSanitizer } from '@angular/platform-browser';
 import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
 import { ensureTextures } from './foil-texture';
-import { EMBOSS_LAYER_PREFIX, FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, clearFoilZones, drawFoilZones, zoneGroups, zoneOptions } from './foil-zones';
+import { EMBOSS_LAYER_PREFIX, FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, HIDDEN_LAYER_PREFIX, LENTICULAR_LAYER, clearFoilZones, drawFoilZones,
+  zoneGroups, zoneKind, zoneOptions } from './foil-zones';
 
 @Component({
     selector: 'app-card-preview',
@@ -116,7 +117,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       }
     });
     this.foilObserver.observe(root, { childList: true, subtree: true, attributes: true,
-      attributeFilter: ['data-foil', 'src', 'style', 'class'] });
+      attributeFilter: ['data-foil', 'data-foil-cache', 'data-lenticulaire', 'src', 'style', 'class'] });
     root.addEventListener('load', this.onFoilImageLoad, true);
     void document.fonts?.ready.then(() => this.scheduleFoils());
     this.scheduleFoils();
@@ -268,7 +269,8 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
    *  - sa zone, en % de la carte : [x, y, largeur, hauteur] (union des éléments de même nom) ;
    *  - son image seule : un PNG de la taille de la carte, transparent ailleurs (les autres éléments sont
    *    masqués par visibility, voir .cc-layer-pass dans styles.scss).
-   * Les zones foil et dorure (data-foil) donnent un calque « foil-<effet> » ou « dorure-<effet> », même sans `calques`.
+   * Les zones foil et dorure (data-foil) donnent un calque « foil-<effet> » ou « dorure-<effet> », même sans `calques` ;
+   * une image cachée, « cache-<angle> » (masque du motif) ; un lenticulaire, « lenticulaire » (la seconde image).
    */
   public async captureLayers(pixelRatio: number, calques = true): Promise<Record<string, { zone: number[]; image: string }>> {
     const root = this.cardElement.get(0)?.nativeElement;
@@ -289,10 +291,12 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       }
       elements.forEach(e => e.setAttribute('data-calque-on', ''));
       try {
-        out[name] = { zone, image: isZoneLayer(name)
-          ? await this.visibleMask(root, pixelRatio, !name.startsWith(FOIL_LAYER_PREFIX), elements,
-            name.startsWith(EMBOSS_LAYER_PREFIX))
-          : await this.layerImage(root, pixelRatio) };
+        out[name] = { zone, image: name.startsWith(LENTICULAR_LAYER)
+          ? await this.lenticularLayer(root, pixelRatio, elements)
+          : isZoneLayer(name)
+            ? await this.visibleMask(root, pixelRatio, name.startsWith(GILDING_LAYER_PREFIX) || name.startsWith(EMBOSS_LAYER_PREFIX),
+              elements, name.startsWith(EMBOSS_LAYER_PREFIX) ? 'texture' : name.startsWith(HIDDEN_LAYER_PREFIX) ? 'cache' : 'zone')
+            : await this.layerImage(root, pixelRatio) };
       } finally {
         elements.forEach(e => e.removeAttribute('data-calque-on'));
       }
@@ -312,15 +316,35 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
   }
 
   /**
+   * Calque d'un lenticulaire : la carte rendue avec la seconde image (data-lenticulaire) à la place de la première,
+   * gardée seulement sur la part visible des éléments (ce qui les recouvre reste devant).
+   */
+  private async lenticularLayer(root: HTMLElement, pixelRatio: number, elements: HTMLElement[]): Promise<string> {
+    const shape = await this.visibleMask(root, pixelRatio, false, elements, 'shape');
+    const restore: (() => void)[] = [];
+    try {
+      for (const element of elements) {
+        restore.push(await swapLenticular(element));
+      }
+      await nextFrame();
+      const render = await this.imageRendererService.toPng(root, { pixelRatio, filter: (node: HTMLElement) => 'style' !== node.localName });
+      return await withAlpha(render, shape);
+    } finally {
+      restore.reverse().forEach(undo => undo());
+    }
+  }
+
+  /**
    * Masque d'une zone foil ou dorure : la part de ses éléments qui se voit vraiment sur la carte.
    * La carte entière est rendue deux fois, les éléments de la zone peints en blanc puis en noir :
    * là où ils se voient, les deux rendus diffèrent ; là où un autre élément les recouvre (un bandeau
    * sur l'illustration), ils sont identiques. L'écart donne l'opacité du masque.
-   * Une dorure ou un gaufrage : sans l'ombre du texte (les lettres seules). Le masque peint et la force
-   * des éléments (data-foil-masque, data-foil-force) s'y appliquent.
+   * Une dorure ou un gaufrage : sans l'ombre du texte (les lettres seules). Ce qui s'y multiplie selon `mode` :
+   * zone : masque peint et force des éléments (data-foil-masque, data-foil-force) ; texture : la texture seule
+   * (gaufrage) ; cache : le motif de l'image cachée (data-foil-cache) ; shape : rien (la forme visible seule).
    */
   private async visibleMask(root: HTMLElement, pixelRatio: number, gilding: boolean,
-    elements: HTMLElement[] = [], textureOnly = false): Promise<string> {
+    elements: HTMLElement[] = [], mode: 'zone' | 'texture' | 'cache' | 'shape' = 'zone'): Promise<string> {
     const filter = (node: HTMLElement) => 'style' !== node.localName;
     root.classList.toggle('cc-dorure-pass', gilding);
     try {
@@ -334,7 +358,13 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       const factors = elements
         .map(element => {
           const o = zoneOptions(element);
-          return textureOnly ? { element, masques: o.texture ? [o.texture] : [], force: 1 } : { element, masques: o.masques, force: o.force };
+          const hidden = (element.getAttribute('data-foil-cache') ?? '').trim();
+          return mode === 'texture' ? { element, masques: o.texture ? [o.texture] : [], force: 1 }
+            : mode === 'cache' ? { element, masques: hidden ? [hidden] : [], force: 1 }
+              : mode === 'shape' ? { element, masques: [], force: 1 }
+                // un élément qui n'a qu'une image cachée (plaque foil) : son motif seul, pas tout l'élément
+                : hidden && !zoneKind(element.getAttribute('data-foil')) ? { element, masques: [hidden], force: 1 }
+                  : { element, masques: o.masques, force: o.force };
         })
         .filter(z => z.masques.length || z.force < 1)
         .map(z => {
@@ -359,9 +389,10 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       return null;
     }
     await ensureTextures(root);
-    const elements = [...zoneGroups(root).entries()]
-      .filter(([name]) => !name.startsWith(EMBOSS_LAYER_PREFIX))
-      .flatMap(([, group]) => group.elements);
+    // foils, dorures, vernis et images cachées (imprimées en foil) ; ni gaufrage, ni lenticulaire
+    const groups = [...zoneGroups(root).entries()]
+      .filter(([name]) => !name.startsWith(EMBOSS_LAYER_PREFIX) && !name.startsWith(LENTICULAR_LAYER));
+    const elements = [...new Set(groups.flatMap(([, group]) => group.elements))];
     if (!elements.length) {
       return null;
     }
@@ -439,9 +470,58 @@ function whenImageDecoded(url: string): Promise<void> {
   return image.decode().catch(() => undefined).then(() => nextFrame());
 }
 
-/** Calque d'une zone foil ou dorure (masque de la part visible), et non d'un data-calque */
+/** Calque d'une zone foil, dorure, gaufrage ou image cachée (masque de la part visible), et non d'un data-calque */
 function isZoneLayer(name: string): boolean {
-  return [FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, EMBOSS_LAYER_PREFIX].some(prefix => name.startsWith(prefix));
+  return [FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, EMBOSS_LAYER_PREFIX, HIDDEN_LAYER_PREFIX].some(prefix => name.startsWith(prefix));
+}
+
+/**
+ * Met la seconde image d'un lenticulaire à la place de la première (src d'une image, sinon première image de fond),
+ * une fois chargée ; renvoie de quoi tout remettre.
+ */
+async function swapLenticular(element: HTMLElement): Promise<() => void> {
+  const second = (element.getAttribute('data-lenticulaire') ?? '').trim();
+  if (!second) {
+    return () => undefined;
+  }
+  if (element instanceof HTMLImageElement) {
+    const [src, srcset] = [element.getAttribute('src'), element.getAttribute('srcset')];
+    element.removeAttribute('srcset');
+    element.src = second;
+    await element.decode().catch(() => undefined);
+    return () => {
+      if (src === null) { element.removeAttribute('src'); } else { element.setAttribute('src', src); }
+      if (srcset !== null) { element.setAttribute('srcset', srcset); }
+    };
+  }
+  await loadImage(second).catch(() => undefined);
+  const inline = element.style.getPropertyValue('background-image');
+  const priority = element.style.getPropertyPriority('background-image');
+  const current = getComputedStyle(element).backgroundImage;
+  const url = `url("${second.replace(/"/g, '%22')}")`;
+  element.style.setProperty('background-image', /url\(/.test(current)
+    ? current.replace(/url\((?:"[^"]*"|'[^']*'|[^)]*)\)/, url) : url, 'important');
+  return () => element.style.setProperty('background-image', inline, priority);
+}
+
+/** Un rendu (PNG, data URL) dont l'opacité est celle d'un masque de même taille */
+export async function withAlpha(render: string, mask: string): Promise<string> {
+  const [ir, im] = await Promise.all([loadImage(render), loadImage(mask)]);
+  const w = ir.naturalWidth, h = ir.naturalHeight;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(im, 0, 0, w, h);
+  const alpha = ctx.getImageData(0, 0, w, h).data;
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(ir, 0, 0);
+  const data = ctx.getImageData(0, 0, w, h);
+  for (let i = 3; i < data.data.length; i += 4) {
+    data.data[i] = Math.round(data.data[i] * alpha[i] / 255);
+  }
+  ctx.putImageData(data, 0, 0);
+  return canvas.toDataURL('image/png');
 }
 
 /** Plaque d'impression : noir là où le masque est au moins à moitié opaque, blanc ailleurs */

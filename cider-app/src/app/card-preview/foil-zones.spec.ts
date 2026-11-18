@@ -1,5 +1,5 @@
-import { differenceMask, layerGroups, maskToPlate } from './card-preview.component';
-import { clearFoilZones, drawFoilZones, embossKind, foilGroups, zoneKind, zoneOptions } from './foil-zones';
+import { differenceMask, layerGroups, maskToPlate, withAlpha } from './card-preview.component';
+import { clearFoilZones, drawFoilZones, embossKind, foilGroups, hiddenKind, lenticularKind, zoneKind, zoneOptions } from './foil-zones';
 
 describe('foil-zones', () => {
   let root: HTMLElement;
@@ -212,5 +212,76 @@ describe('foil-zones', () => {
     const gilded = root.querySelector<HTMLElement>('.cc-dorure')!;
     const pad = Number(gilded.dataset['pad']);
     expect(Math.abs(gilded.getBoundingClientRect().left + pad - title.left)).toBeLessThan(1);
+  });
+
+  it('vernis sélectif : un effet foil comme les autres (calque foil-vernis)', () => {
+    expect(zoneKind('Spot UV')).toEqual({ kind: 'foil', effect: 'vernis' });
+    root.querySelector('.titre')!.setAttribute('data-foil', 'vernis');
+    expect([...layerGroups(root, false).keys()]).toEqual(['foil-vernis', 'foil-holo']);
+  });
+
+  it('image cachée : angle (droite par défaut, synonymes), calque cache-<angle>, pièce irisée masquée par le motif', () => {
+    const el = root.querySelector<HTMLElement>('.art')!;
+    expect(hiddenKind(el)).toBeNull();
+    el.setAttribute('data-foil-cache', 'data:image/png;base64,AAAA');
+    expect(hiddenKind(el)).toEqual({ kind: 'cache', effect: 'droite' });
+    el.setAttribute('data-foil-cache-angle', 'Left');
+    expect(hiddenKind(el)).toEqual({ kind: 'cache', effect: 'gauche' });
+    expect([...layerGroups(root, false).keys()]).toEqual(['foil-or', 'foil-holo', 'cache-gauche']);
+    expect(drawFoilZones(root)).toBe(3);
+    const hidden = root.querySelector<HTMLElement>('.cc-foil-piece .cc-cache')!;
+    expect(hidden.style.getPropertyValue('--cx')).toBe('-0.75');
+    expect(hidden.style.getPropertyValue('mask')).toContain('luminance');
+    // à plat (vue 2D) : invisible ; inclinée à gauche de 12° : nette
+    expect(Number(getComputedStyle(hidden).opacity)).toBe(0);
+    root.style.setProperty('--par-x', '-0.75');
+    root.style.setProperty('--glare-o', '1');
+    expect(Number(getComputedStyle(hidden).opacity)).toBeCloseTo(1, 2);
+  });
+
+  it('lenticulaire : seconde image au même cadrage, visible quand la carte penche, sous le reflet foil', () => {
+    const el = root.querySelector<HTMLElement>('.art')!;
+    el.style.backgroundImage = 'linear-gradient(red, red), url("a.png")';
+    el.style.backgroundSize = 'auto, 80% 60%';
+    el.setAttribute('data-lenticulaire', 'b.png');
+    expect(lenticularKind(el)).toEqual({ kind: 'lenticulaire', effect: 'h' });
+    el.setAttribute('data-lenticulaire-sens', 'Vertical');
+    expect(lenticularKind(el)).toEqual({ kind: 'lenticulaire', effect: 'v' });
+    expect([...layerGroups(root, false).keys()]).toContain('lenticulaire-v');
+    el.removeAttribute('data-lenticulaire-sens');
+    drawFoilZones(root);
+    const image = root.querySelector<HTMLElement>('.cc-lenticulaire')!;
+    expect(image.style.backgroundImage).toContain('linear-gradient');
+    expect(image.style.backgroundImage).toContain('b.png');
+    expect(image.style.backgroundImage).not.toContain('a.png');
+    expect(image.style.backgroundSize).toBe('auto, 80% 60%');
+    // juste après l'élément : sous son reflet holo (posé après lui dans le document)
+    const pieces = [...root.querySelectorAll('.cc-foil-piece')];
+    expect(pieces.indexOf(image.parentElement!)).toBeLessThan(pieces.indexOf(root.querySelector('.foil-holo')!.parentElement!));
+    expect(el.nextElementSibling).toBe(image.parentElement);
+    expect(Number(getComputedStyle(image).opacity)).toBe(0);
+    root.style.setProperty('--par-x', '1');
+    expect(Number(getComputedStyle(image).opacity)).toBe(1);
+  });
+
+  it('withAlpha : garde les couleurs du rendu, l\'opacité du masque', async () => {
+    const png = (draw: (c: CanvasRenderingContext2D) => void) => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 2;
+      draw(c.getContext('2d')!);
+      return c.toDataURL('image/png');
+    };
+    const render = png(c => { c.fillStyle = 'rgb(0, 0, 255)'; c.fillRect(0, 0, 2, 2); });
+    const mask = png(c => { c.fillStyle = 'white'; c.fillRect(0, 0, 1, 2); });
+    const out = await withAlpha(render, mask);
+    const img = new Image();
+    img.src = out;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = c.height = 2;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    expect([...ctx.getImageData(0, 0, 1, 1).data]).toEqual([0, 0, 255, 255]);
+    expect(ctx.getImageData(1, 0, 1, 1).data[3]).toBe(0);
   });
 });

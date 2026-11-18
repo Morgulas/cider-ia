@@ -18,6 +18,7 @@ const CLICK_SLOP = 6;
  *  --tilt-x, --tilt-y   rotation en degrés (rotateX / rotateY)
  *  --glare-x, --glare-y position du reflet (%)
  *  --glare-o            intensité du reflet (0 à 1)
+ *  --par-x, --par-y     angle de vue en unités de 16° (images cachées, lenticulaires)
  *  --foil-irise         hue-rotate des foils irisés selon l'inclinaison (absente à plat)
  * et la classe `tilt-settling` pendant le retour à plat.
  *
@@ -206,6 +207,9 @@ export class CardTiltDirective implements OnInit, OnDestroy {
     style.setProperty('--glare-x', `${gx.toFixed(1)}%`);
     style.setProperty('--glare-y', `${gy.toFixed(1)}%`);
     style.setProperty('--glare-o', glare.toFixed(3));
+    // angle de vue en unités de 16° (images cachées, lenticulaires des modèles), comme dans l'appli de collection
+    style.setProperty('--par-x', (ry / 16).toFixed(3));
+    style.setProperty('--par-y', (-rx / 16).toFixed(3));
     // couleurs irisées qui tournent avec l'inclinaison ; à plat, aucun filtre (rien à calculer pour la carte graphique)
     if (rx || ry) {
       style.setProperty('--foil-irise', `hue-rotate(${(ry * 3 - rx * 2).toFixed(1)}deg)`);

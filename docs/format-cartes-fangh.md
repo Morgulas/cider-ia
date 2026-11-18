@@ -144,7 +144,7 @@ Exemple de modèle :
 
 ### Attribut Foil
 
-Chaque deck a un attribut système **Foil** (comme Name, Count et les modèles : impossible à supprimer ou à renommer) : une liste déroulante des 7 effets `holo`, `galaxie`, `or`, `argent`, `prisme`, `paillettes`, `cadre`. Vide : la carte n'est pas foil. Un attribut foil qui existait déjà (Foil, Brillance, Effet foil ou Holo, en texte ou en liste) devient cet attribut système, avec ses valeurs ; s'il est d'un autre type (case à cocher), il est laissé tel quel. Dans un modèle : `{{card.foil}}`.
+Chaque deck a un attribut système **Foil** (comme Name, Count et les modèles : impossible à supprimer ou à renommer) : une liste déroulante des 11 effets `holo`, `galaxie`, `or`, `argent`, `prisme`, `paillettes`, `cadre`, `glace`, `ecailles`, `hexagones`, `vernis`. Vide : la carte n'est pas foil. Un attribut foil qui existait déjà (Foil, Brillance, Effet foil ou Holo, en texte ou en liste) devient cet attribut système, avec ses valeurs ; s'il est d'un autre type (case à cocher), il est laissé tel quel. Dans un modèle : `{{card.foil}}`.
 
 ### Zones foil
 
@@ -187,6 +187,36 @@ Le masque suit le cadrage de l'image (cover, contain, position) et se combine av
 #### Effets à motif
 
 `glace` (glace craquelée), `ecailles`, `hexagones` (nid d'abeille) : une texture gravée dans la brillance, en plus des sept effets. Ils sont aussi proposés dans l'attribut Foil et pour les sachets.
+
+#### Vernis sélectif
+
+`vernis` (synonymes : `spot uv`, `vernis selectif`) : un vernis transparent, sans couleur. Il ne se voit qu'en renvoyant la lumière (un éclat blanc), presque pas hors du reflet, et marche aussi sur une encre noire. Avec un masque peint, on obtient un motif brillant qui n'apparaît qu'à la lumière :
+
+```html
+<div class="fond" data-foil="vernis" data-foil-masque="{{assets.motif}}"></div>
+```
+
+Il est proposé dans l'attribut Foil et pour les sachets. Export : calque `foil-vernis`, compté dans la plaque foil. Valeur dans l'appli de collection : ×0,8 de la prime d'un holo (réglable).
+
+#### Image cachée
+
+**`data-foil-cache="{{assets.rune}}"`** : une image en niveaux de gris, étirée sur l'élément (blanc = motif), qui n'apparaît **que sous un angle**, en reflet irisé, comme un hologramme de sécurité. **`data-foil-cache-angle`** : `droite` (par défaut), `gauche`, `haut`, `bas` (la carte penchée de ~12° de ce côté) ou `face` (visible à plat, disparaît dès qu'on penche).
+
+```html
+<div class="footer" data-foil-cache="{{assets.rune}}" data-foil-cache-angle="gauche">…</div>
+```
+
+Elle se combine avec une zone foil ou une dorure sur le même élément. À plat dans l'éditeur, elle ne se voit pas : l'essayer dans la vue 3D. Export : calque `cache-<angle>` (le motif, découpé à la part visible de l'élément), compté dans la plaque foil.
+
+#### Lenticulaire
+
+**`data-lenticulaire="{{assets.attaque}}"`** sur une image (`<img>`) ou un élément à image de fond : la **seconde image** remplace la première quand on penche la carte de plus de ~6° (complètement à ~12°), d'un côté comme de l'autre. Même cadrage que la première (`object-fit` d'une image, taille et position du fond). De fines lignes de lentilles se voient par-dessus. **`data-lenticulaire-sens="vertical"`** : la carte bascule vers le haut ou le bas.
+
+```html
+<div class="image" data-lenticulaire="{{assets.monstre-attaque}}"></div>
+```
+
+Les zones foil, dorures et images cachées restent par-dessus. Export : calque `lenticulaire` (ou `lenticulaire-v`), la seconde image en couleurs à sa place exacte, découpée à la part visible de l'élément (ce qui la recouvre reste devant). Pas dans la plaque foil.
 
 #### Foil selon une valeur
 

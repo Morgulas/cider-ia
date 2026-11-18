@@ -179,6 +179,9 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
     // qui tournent avec la carte
     el.style.setProperty('--foil-floor', '0.25');
     el.style.setProperty('--foil-irise', `hue-rotate(${light.hue.toFixed(1)}deg)`);
+    // angle de vue : images cachées et lenticulaires
+    el.style.setProperty('--par-x', light.parX.toFixed(3));
+    el.style.setProperty('--par-y', light.parY.toFixed(3));
     el.style.setProperty('--shade', String(light.shade));
     el.style.setProperty('--spec', String(light.specular));
     el.style.setProperty('--relief-x', light.reliefX.toFixed(3));

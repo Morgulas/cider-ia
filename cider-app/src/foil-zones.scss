@@ -14,3 +14,40 @@
 :has(.cc-foil-zone) > .foil:not(.cc-foil-zone) {
   display: none !important;
 }
+
+// Image cachée (data-foil-cache) : le motif en reflet irisé, net quand la carte penche du côté voulu.
+// --cx, --cy : inclinaison visée (unités de 16°, posées par drawFoilZones) ; --par-x, --par-y : inclinaison
+// actuelle (vue 3D, classeur). Angle visé : 12° du côté choisi. Net à moins de ~5° de cet angle, éteint au-delà
+// de ~11° ; plus vif dans la lumière.
+.cc-cache {
+  --dx: max(var(--par-x, 0) - var(--cx, 1), var(--cx, 1) - var(--par-x, 0));
+  --dy: max(var(--par-y, 0) - var(--cy, 0), var(--cy, 0) - var(--par-y, 0));
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, #ffffff 0%, #ffc8f0 18%, #fff3b0 34%, #b8ffe0 50%, #b0e8ff 66%, #dcc8ff 82%, #ffffff 100%)
+    clamp(0%, var(--glare-x, 50%), 100%) clamp(0%, var(--glare-y, 50%), 100%) / 250% 250%;
+  mix-blend-mode: screen;
+  filter: var(--foil-irise, none);
+  opacity: calc(clamp(0, 1 - (var(--dx) + var(--dy)) * 1.4, 1) * (0.45 + var(--glare-o, 0.4) * 0.55));
+}
+
+// Lenticulaire (data-lenticulaire) : la seconde image apparaît quand la carte penche de plus de ~6°
+// (de ~12° : complètement), d'un côté comme de l'autre ; à plat, la première.
+.cc-lenticulaire {
+  opacity: clamp(0, (max(var(--par-x, 0), -1 * var(--par-x, 0)) - 0.4) * 3, 1);
+}
+
+.cc-lenticulaire-v {
+  opacity: clamp(0, (max(var(--par-y, 0), -1 * var(--par-y, 0)) - 0.4) * 3, 1);
+}
+
+// lignes des lentilles : très fines, à peine visibles, comme sur une vraie carte lenticulaire
+.cc-lentilles {
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, rgba(0, 0, 0, 0.06) 1px 2px, transparent 2px 4px);
+  mix-blend-mode: overlay;
+}
+
+.cc-lentilles-v {
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.08) 0 1px, rgba(0, 0, 0, 0.06) 1px 2px, transparent 2px 4px);
+}
