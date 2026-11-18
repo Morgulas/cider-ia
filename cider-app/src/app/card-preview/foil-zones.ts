@@ -1,4 +1,5 @@
 import { FoilEffect, foilFromValue } from '../card-binder/foil';
+import { TEXTURE_ATTR } from './foil-texture';
 
 /**
  * Zones foil d'un modèle de carte : tout élément marqué data-foil="<effet>" brille avec cet effet
@@ -43,9 +44,13 @@ export function embossKind(value: string | null): ZoneKind | null {
   return { kind: 'gaufrage', effect: /creux|deboss|enfonc/i.test(value) ? 'creux' : 'relief' };
 }
 
-/** Réglages d'une zone : masque peint (data-foil-masque) et force (data-foil-force, 0 à 1 ou en %) */
-export function zoneOptions(element: Element): { masque: string | null; force: number } {
+/**
+ * Réglages d'une zone : masque peint (data-foil-masque), texture tirée de l'illustration (data-foil-texture,
+ * masque calculé par ensureTextures) et force (data-foil-force, 0 à 1 ou en %)
+ */
+export function zoneOptions(element: Element): { masque: string | null; texture: string | null; masques: string[]; force: number } {
   const masque = (element.getAttribute('data-foil-masque') ?? '').trim() || null;
+  const texture = element.getAttribute(TEXTURE_ATTR) || null;
   const raw = (element.getAttribute('data-foil-force') ?? '').trim();
   let force = 1;
   if (raw) {
@@ -54,7 +59,7 @@ export function zoneOptions(element: Element): { masque: string | null; force: n
       force = raw.endsWith('%') || n > 1 ? n / 100 : n;
     }
   }
-  return { masque, force: Math.min(1, Math.max(0, force)) };
+  return { masque, texture, masques: [masque, texture].filter((m): m is string => !!m), force: Math.min(1, Math.max(0, force)) };
 }
 
 /**
@@ -177,7 +182,10 @@ export function drawFoilZones(root: HTMLElement): number {
         continue;
       }
       if (zone.kind === 'gaufrage') {
-        place(embossed(element, zone.effect), element, 'prepend');
+        // texturé : les traits de l'illustration en relief ; sinon l'élément entier
+        const texture = zoneOptions(element).texture;
+        place(texture ? texturedRelief(element, texture, zone.effect) : embossed(element, zone.effect), element,
+          texture ? 'after' : 'prepend');
         count++;
         continue;
       }
@@ -254,14 +262,14 @@ const EFFECT_MASKS: Partial<Record<FoilEffect, { layers: string[]; composite: st
  */
 function applyMasks(zone: HTMLElement, element: HTMLElement, effect?: { layers: string[]; composite: string[] },
   forceInOpacity = false): void {
-  const { masque, force } = zoneOptions(element);
+  const { masques, force } = zoneOptions(element);
   const url = (u: string) => `url("${u.replace(/"/g, '%22')}")`;
   const own: string[] = [];
   const src = element instanceof HTMLImageElement ? element.currentSrc || element.src : '';
   if (src) {
     own.push(`${url(src)} center / 100% 100% no-repeat`);
   }
-  if (masque) {
+  for (const masque of masques) {
     own.push(`${url(masque)} center / 100% 100% no-repeat luminance`);
   }
   if (force < 1 && !forceInOpacity) {
@@ -275,6 +283,29 @@ function applyMasks(zone: HTMLElement, element: HTMLElement, effect?: { layers: 
   const layers = [...own.map(layer => `${layer} intersect`),
     ...(effect?.layers ?? []).map((layer, i) => `${layer} ${effect!.composite[i]}`)];
   zone.style.setProperty('mask', layers.join(', '));
+}
+
+/**
+ * Gaufrage d'une texture : liseré clair du côté de la lumière et sombre de l'autre, le long des traits du masque
+ * de texture (chaque liseré : le masque décalé, moins le masque à sa place).
+ */
+function texturedRelief(element: HTMLElement, texture: string, effect: string): HTMLElement {
+  const doc = element.ownerDocument;
+  const wrapper = doc.createElement('span');
+  wrapper.classList.add('cc-gaufrage');
+  wrapper.style.zIndex = getComputedStyle(element).zIndex;
+  const url = `url("${texture.replace(/"/g, '%22')}")`;
+  const d = effect === 'creux' ? -1 : 1;
+  const rim = (sign: number, color: string) => {
+    const span = doc.createElement('span');
+    const dx = `calc(var(--relief-x, -0.7) * ${sign * d * 2}px)`;
+    const dy = `calc(var(--relief-y, -0.7) * ${sign * d * 2}px)`;
+    Object.assign(span.style, { position: 'absolute', inset: '0', background: color, pointerEvents: 'none' });
+    span.style.setProperty('mask', `${url} ${dx} ${dy} / 100% 100% no-repeat luminance subtract, ${url} 0 0 / 100% 100% no-repeat luminance`);
+    return span;
+  };
+  wrapper.append(rim(1, 'rgb(255 255 255 / 0.75)'), rim(-1, 'rgb(0 0 0 / 0.6)'));
+  return wrapper;
 }
 
 /**
@@ -296,6 +327,8 @@ function embossed(element: HTMLElement, effect: string): HTMLElement {
     node.removeAttribute('data-foil');
     node.removeAttribute('data-calque');
     node.removeAttribute('data-gaufrage');
+    node.removeAttribute('data-foil-texture');
+    node.removeAttribute(TEXTURE_ATTR);
   });
   clone.classList.add('cc-gaufrage');
   keepOneLine(element, clone);
@@ -329,10 +362,12 @@ function gildedText(element: HTMLElement, effect: FoilEffect): HTMLElement {
       copy.style.visibility = 'hidden';
     }
   });
-  [clone, ...clone.querySelectorAll<HTMLElement>('[id], [data-foil], [data-calque]')].forEach(node => {
+  [clone, ...clone.querySelectorAll<HTMLElement>('[id], [data-foil], [data-calque], [data-foil-texture]')].forEach(node => {
     node.removeAttribute('id');
     node.removeAttribute('data-foil');
     node.removeAttribute('data-calque');
+    node.removeAttribute('data-foil-texture');
+    node.removeAttribute(TEXTURE_ATTR);
   });
   // pas ZONE_CLASS : une dorure n'empêche pas le foil de la carte (attribut Foil) sur toute la carte
   clone.classList.add('cc-dorure');

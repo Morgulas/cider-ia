@@ -168,6 +168,22 @@ Un modèle peut dire **où** la carte brille : tout élément marqué `data-foil
 - **`data-foil-force="0.4"`** (ou `40%`) : force de la zone, de 0 à 1.
 - Les deux valent pour les reflets et les dorures, dans l'aperçu comme à l'export.
 
+#### Foil texturé (tiré de l'illustration)
+
+**`data-foil-texture="contours"`** sur l'élément qui porte l'illustration (une `<img>` ou un fond `background-image`) : le masque du foil est calculé à partir de l'image elle-même, comme les cartes « texturées » :
+
+- `contours` : le foil suit les traits du dessin ;
+- `lumieres` : seules les zones claires brillent (ciel, reflets) ;
+- `ombres` : le foil se loge dans les zones sombres.
+
+Une **finesse** de 0 à 1 peut suivre (0,5 par défaut) : `data-foil-texture="contours 0.3"` garde les traits forts seulement, `contours 0.9` presque tous les détails. Avec **`data-gaufrage`** sur le même élément, ce sont les traits qui ressortent en relief (`data-gaufrage="creux"` : en creux), et non l'élément entier.
+
+```html
+<div class="image" data-foil="holo" data-foil-texture="contours 0.6" data-gaufrage></div>
+```
+
+Le masque suit le cadrage de l'image (cover, contain, position) et se combine avec `data-foil-masque` et `data-foil-force`. Il est recalculé quand l'image ou la taille change ; à l'export, il est inclus dans le calque comme un masque peint (rien à faire côté appli de collection).
+
 #### Effets à motif
 
 `glace` (glace craquelée), `ecailles`, `hexagones` (nid d'abeille) : une texture gravée dans la brillance, en plus des sept effets. Ils sont aussi proposés dans l'attribut Foil et pour les sachets.

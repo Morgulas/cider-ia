@@ -120,10 +120,10 @@ describe('foil-zones', () => {
 
   it('lit le masque peint et la force (0 à 1 ou en %)', () => {
     const el = document.createElement('div');
-    expect(zoneOptions(el)).toEqual({ masque: null, force: 1 });
+    expect(zoneOptions(el)).toEqual({ masque: null, texture: null, masques: [], force: 1 });
     el.setAttribute('data-foil-force', '40%');
     el.setAttribute('data-foil-masque', 'masque.png');
-    expect(zoneOptions(el)).toEqual({ masque: 'masque.png', force: 0.4 });
+    expect(zoneOptions(el)).toEqual({ masque: 'masque.png', texture: null, masques: ['masque.png'], force: 0.4 });
     el.setAttribute('data-foil-force', '0,25');
     expect(zoneOptions(el).force).toBe(0.25);
   });
@@ -172,8 +172,8 @@ describe('foil-zones', () => {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 1, 1);
     ctx.fillStyle = '#000'; ctx.fillRect(1, 0, 1, 1);
     const mask = await differenceMask(solid('#fff'), solid('#000'), [
-      { masque: c.toDataURL(), force: 1, rect: [0, 0, 0.5, 1] },
-      { masque: null, force: 0.5, rect: [0.5, 0, 0.5, 1] },
+      { masques: [c.toDataURL()], force: 1, rect: [0, 0, 0.5, 1] },
+      { masques: [], force: 0.5, rect: [0.5, 0, 0.5, 1] },
     ]);
     const img = new Image();
     await new Promise(resolve => { img.onload = resolve; img.src = mask; });

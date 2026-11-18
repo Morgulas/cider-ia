@@ -11,6 +11,7 @@ import { CardToHtmlPipe } from '../shared/pipes/template-to-html.pipe';
 import { ImageRendererService } from '../data-services/services/image-renderer.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { SafeUrlPipe } from '../shared/pipes/safe-url.pipe';
+import { ensureTextures } from './foil-texture';
 import { EMBOSS_LAYER_PREFIX, FOIL_LAYER_PREFIX, GILDING_LAYER_PREFIX, clearFoilZones, drawFoilZones, zoneGroups, zoneOptions } from './foil-zones';
 
 @Component({
@@ -129,8 +130,15 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     }
     this.foilFrame = requestAnimationFrame(() => {
       this.foilFrame = 0;
-      if (this.foilRoot) {
-        drawFoilZones(this.foilRoot);
+      const root = this.foilRoot;
+      if (root) {
+        drawFoilZones(root);
+        // foils texturés : masques tirés des illustrations, calculés à part ; redessin s'ils ont changé
+        void ensureTextures(root).then(changed => {
+          if (changed && root === this.foilRoot) {
+            this.scheduleFoils();
+          }
+        });
       }
     });
   }
@@ -271,6 +279,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     if (!box.width || !box.height) {
       return {};
     }
+    await ensureTextures(root);
     const groups = layerGroups(root, calques);
     const out: Record<string, { zone: number[]; image: string }> = {};
     for (const [name, elements] of groups) {
@@ -281,8 +290,8 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       elements.forEach(e => e.setAttribute('data-calque-on', ''));
       try {
         out[name] = { zone, image: isZoneLayer(name)
-          ? await this.visibleMask(root, pixelRatio, !name.startsWith(FOIL_LAYER_PREFIX),
-            name.startsWith(EMBOSS_LAYER_PREFIX) ? [] : elements)
+          ? await this.visibleMask(root, pixelRatio, !name.startsWith(FOIL_LAYER_PREFIX), elements,
+            name.startsWith(EMBOSS_LAYER_PREFIX))
           : await this.layerImage(root, pixelRatio) };
       } finally {
         elements.forEach(e => e.removeAttribute('data-calque-on'));
@@ -311,7 +320,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
    * des éléments (data-foil-masque, data-foil-force) s'y appliquent.
    */
   private async visibleMask(root: HTMLElement, pixelRatio: number, gilding: boolean,
-    elements: HTMLElement[] = []): Promise<string> {
+    elements: HTMLElement[] = [], textureOnly = false): Promise<string> {
     const filter = (node: HTMLElement) => 'style' !== node.localName;
     root.classList.toggle('cc-dorure-pass', gilding);
     try {
@@ -321,12 +330,16 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
       const black = await this.imageRendererService.toPng(root, { pixelRatio, filter });
       // masque peint et force de chaque élément (data-foil-masque, data-foil-force)
       const box = root.getBoundingClientRect();
+      // un gaufrage : seulement sa texture (les traits en relief), ni masque peint ni force
       const factors = elements
-        .map(element => ({ element, ...zoneOptions(element) }))
-        .filter(z => z.masque || z.force < 1)
+        .map(element => {
+          const o = zoneOptions(element);
+          return textureOnly ? { element, masques: o.texture ? [o.texture] : [], force: 1 } : { element, masques: o.masques, force: o.force };
+        })
+        .filter(z => z.masques.length || z.force < 1)
         .map(z => {
           const r = z.element.getBoundingClientRect();
-          return { masque: z.masque, force: z.force,
+          return { masques: z.masques, force: z.force,
             rect: [(r.left - box.left) / box.width, (r.top - box.top) / box.height, r.width / box.width, r.height / box.height] };
         });
       return await differenceMask(white, black, factors);
@@ -345,6 +358,7 @@ export class CardPreviewComponent implements OnInit, AfterViewInit, OnChanges, O
     if (!root) {
       return null;
     }
+    await ensureTextures(root);
     const elements = [...zoneGroups(root).entries()]
       .filter(([name]) => !name.startsWith(EMBOSS_LAYER_PREFIX))
       .flatMap(([, group]) => group.elements);
@@ -451,7 +465,7 @@ export async function maskToPlate(mask: string): Promise<string> {
 
 /** Masque peint ou force d'un élément, sur sa zone (en fraction de la carte : x, y, largeur, hauteur) */
 export interface MaskFactor {
-  masque: string | null;
+  masques: string[];
   force: number;
   rect: number[];
 }
@@ -490,25 +504,25 @@ export async function differenceMask(a: string, b: string, factors: MaskFactor[]
   for (const factor of factors) {
     const [x, y, fw, fh] = [Math.round(factor.rect[0] * w), Math.round(factor.rect[1] * h),
       Math.max(1, Math.round(factor.rect[2] * w)), Math.max(1, Math.round(factor.rect[3] * h))];
-    let lum: Uint8ClampedArray | null = null;
-    if (factor.masque) {
+    const lums: Uint8ClampedArray[] = [];
+    for (const masque of factor.masques) {
       try {
-        const m = await loadImage(factor.masque);
+        const m = await loadImage(masque);
         const c = document.createElement('canvas');
         c.width = fw;
         c.height = fh;
         const mc = c.getContext('2d', { willReadFrequently: true })!;
         mc.drawImage(m, 0, 0, fw, fh);
-        lum = mc.getImageData(0, 0, fw, fh).data;
+        lums.push(mc.getImageData(0, 0, fw, fh).data);
       } catch { /* masque illisible : sans masque */ }
     }
     for (let yy = Math.max(0, y); yy < Math.min(h, y + fh); yy++) {
       for (let xx = Math.max(0, x); xx < Math.min(w, x + fw); xx++) {
         const i = (yy * w + xx) * 4;
         let k = factor.force;
-        if (lum) {
-          const j = ((yy - y) * fw + (xx - x)) * 4;
-          // luminosité du masque peint (et sa transparence : transparent = pas de foil)
+        const j = ((yy - y) * fw + (xx - x)) * 4;
+        for (const lum of lums) {
+          // luminosité du masque (et sa transparence : transparent = pas de foil)
           k *= (0.2126 * lum[j] + 0.7152 * lum[j + 1] + 0.0722 * lum[j + 2]) / 255 * (lum[j + 3] / 255);
         }
         px[i + 3] = Math.round(px[i + 3] * k);
