@@ -21,8 +21,10 @@ export interface Lighting {
   /** position du reflet sur la face visible, en % */
   glareX: number;
   glareY: number;
-  /** intensité des foils, 0 à 1 */
+  /** intensité des foils, 0 à 1 : forte quand la carte renvoie la lumière vers l'œil, faible hors de cet angle */
   glareO: number;
+  /** décalage des couleurs irisées (degrés) : suit l'angle de la carte, même au-delà de la course du reflet */
+  hue: number;
   /** opacité de l'ombre sur la face visible */
   shade: number;
   /** intensité du reflet spéculaire, 0 à 1 */
@@ -84,12 +86,16 @@ export function lighting(rx: number, ry: number, light: LightSettings): Lighting
   const intensity = clamp(light.intensity, 0, 2);
   const diffuse = Math.max(0, lz) * intensity;
   const brightness = clamp(light.ambient + (1 - light.ambient) * diffuse, 0, 1);
-  const grazing = clamp(Math.hypot(hx, hy) / 0.7, 0, 1);
+  // lobe du reflet : 1 quand la carte renvoie la lumière droit vers l'œil, ~0,3 à 30° de cet angle, ~0 à 60°
+  const lobe = Math.pow(Math.max(0, hz), 5);
+  // irisation : écart entre la direction du reflet et celle de la carte à plat (même lumière), en degrés
   return {
     side,
-    glareX: clamp(50 + hx * 110, 0, 100),
-    glareY: clamp(50 + hy * 110, 0, 100),
-    glareO: clamp(intensity * (0.3 + 0.7 * grazing) * (lz > 0 ? 1 : 0.35), 0, 1),
+    // course douce : le reflet glisse encore quand la carte penche beaucoup, sans buter sur le bord à 20°
+    glareX: 50 + 50 * Math.tanh(hx * 2.2),
+    glareY: 50 + 50 * Math.tanh(hy * 2.2),
+    glareO: clamp(intensity * (0.12 + 0.88 * lobe) * (lz > 0 ? 1 : 0.35), 0, 1),
+    hue: (hx - H[0] * flip) * 220 + (hy - H[1]) * 160,
     shade: clamp((1 - brightness) * 0.85, 0, 0.85),
     specular: clamp(Math.pow(Math.max(0, hz), 12) * intensity * 0.55 * (lz > 0 ? 1 : 0), 0, 1),
     reliefX: clamp(lx / spread, -1, 1),

@@ -5,6 +5,14 @@
 //   --glare-o             intensité de l'inclinaison (0 à 1)
 // Hors agrandissement (pochettes), les valeurs par défaut donnent un foil au repos,
 // qui ondule doucement au survol de la pochette.
+//
+// La vue 3D de l'éditeur ajoute :
+//   --foil-floor   part du foil « au repos » (1 par défaut ; plus bas : terne hors de l'angle du reflet)
+//   --foil-irise   filtre qui fait tourner les couleurs irisées avec l'angle (hue-rotate) ; absent : aucun filtre
+// opacité d'un effet : présent au repos (min, réduit par --foil-floor), plus vif quand la carte renvoie la lumière
+@function shine($min, $gain) {
+  @return calc(#{$min} * var(--foil-floor, 1) + var(--fo) * #{$gain});
+}
 
 .foil {
   // position de la lumière bornée à 0–100 % : au-delà, le dégradé (répété) montre le bord
@@ -18,7 +26,7 @@
   border-radius: 3%;
   overflow: hidden;
   // présent au repos, plus vif quand la carte penche
-  opacity: calc(0.45 + var(--fo) * 0.55);
+  opacity: shine(0.45, 0.55);
 }
 
 // Holographique : bande arc-en-ciel qui balaye la carte
@@ -35,8 +43,8 @@
   background-size: 260% 260%;
   background-position: var(--fx) var(--fy);
   mix-blend-mode: color-dodge;
-  filter: saturate(1.2);
-  opacity: calc(0.3 + var(--fo) * 0.6);
+  filter: saturate(1.2) var(--foil-irise,);
+  opacity: shine(0.3, 0.6);
 }
 
 // Galaxie : ciel étoilé en parallaxe, teinté arc-en-ciel
@@ -86,7 +94,7 @@
   background-size: 200% 200%;
   background-position: var(--fx) var(--fy);
   mix-blend-mode: color-dodge;
-  opacity: calc(0.3 + var(--fo) * 0.5);
+  opacity: shine(0.3, 0.5);
 }
 
 // Paillettes : scintillent seulement là où tombe la lumière
@@ -103,7 +111,7 @@
   mix-blend-mode: color-dodge;
   -webkit-mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%);
   mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.3) 30%, transparent 60%);
-  opacity: calc(0.6 + var(--fo) * 0.4);
+  opacity: shine(0.6, 0.4);
 }
 
 // Cadre (reverse holo) : holographique sur le pourtour seulement, l'illustration reste nette
@@ -128,7 +136,7 @@
   mix-blend-mode: color-dodge;
   -webkit-mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.15) 80%);
   mask-image: radial-gradient(circle at var(--fx) var(--fy), #000 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.15) 80%);
-  opacity: calc(0.45 + var(--fo) * 0.55);
+  opacity: shine(0.45, 0.55);
 }
 
 // Écailles : demi-cercles en quinconce, teintés arc-en-ciel
@@ -140,7 +148,7 @@
   background-size: 18px 12px, 18px 12px, 250% 250%;
   background-position: 0 0, 9px 6px, var(--fx) var(--fy);
   mix-blend-mode: color-dodge;
-  opacity: calc(0.35 + var(--fo) * 0.6);
+  opacity: shine(0.35, 0.6);
 }
 
 // Hexagones : nid d'abeille irisé
@@ -154,7 +162,7 @@
   background-size: calc(var(--h) * 1.732) var(--h), calc(var(--h) * 1.732) var(--h), calc(var(--h) * 1.732) calc(var(--h) * 2), 250% 250%;
   background-position: 0 0, 0 0, 0 0, var(--fx) var(--fy);
   mix-blend-mode: color-dodge;
-  opacity: calc(0.35 + var(--fo) * 0.6);
+  opacity: shine(0.35, 0.6);
 }
 
 // Pochettes : le foil ondule doucement au survol
@@ -174,4 +182,9 @@
   syntax: '<percentage>';
   inherits: true;
   initial-value: 50%;
+}
+
+// couleurs irisées qui tournent avec l'angle (vue 3D) ; l'or et l'argent restent métal
+.foil-galaxie, .foil-prisme, .foil-glace, .foil-ecailles, .foil-hexagones {
+  filter: var(--foil-irise, none);
 }

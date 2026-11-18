@@ -236,7 +236,7 @@ function gildedShape(element: HTMLElement, effect: FoilEffect): HTMLElement {
 }
 
 /** Force du reflet : la plus forte de l'inclinaison (--glare-o) et du reflet de la vue 3D (--spec) */
-const SHINE = 'max(var(--glare-o, 0.4), var(--spec, 0))';
+const SHINE = 'max(var(--glare-o, 0.5), var(--spec, 0))';
 
 /**
  * Le métal d'une dorure et sa lumière : un éclat blanc qui balaie les lettres et s'intensifie avec le
@@ -244,7 +244,8 @@ const SHINE = 'max(var(--glare-o, 0.4), var(--spec, 0))';
  */
 function setMetal(zone: HTMLElement, effect: FoilEffect): void {
   const glint = `linear-gradient(115deg, transparent 45%, rgb(255 255 255 / calc(${SHINE} * 0.95)) 50%, transparent 55%)`;
-  const shade = `rgb(0 0 0 / calc(0.28 - ${SHINE} * 0.28))`;
+  // hors de l'angle du reflet, le métal s'assombrit franchement (vue 3D : --glare-o tombe vers 0)
+  const shade = `rgb(0 0 0 / calc(0.4 - ${SHINE} * 0.4))`;
   const light = 'clamp(0%, var(--glare-x, 50%), 100%) clamp(0%, var(--glare-y, 50%), 100%)';
   Object.assign(zone.style, {
     backgroundImage: `${glint}, linear-gradient(${shade}, ${shade}), ${GILDING_GRADIENTS[effect]}`,
@@ -252,6 +253,10 @@ function setMetal(zone: HTMLElement, effect: FoilEffect): void {
     backgroundPosition: `${light}, 0 0, ${light}`,
     backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
   });
+  if (effect === 'holo') {
+    // dorure holographique : couleurs qui tournent avec l'angle (vue 3D)
+    zone.style.filter = 'var(--foil-irise, none)';
+  }
 }
 
 /** Masques propres à certains effets (classe CSS), repris quand la zone a ses propres masques */

@@ -175,6 +175,10 @@ export class CardViewer3dComponent implements AfterViewInit, OnDestroy {
     el.style.setProperty('--glare-x', `${light.glareX}%`);
     el.style.setProperty('--glare-y', `${light.glareY}%`);
     el.style.setProperty('--glare-o', String(light.glareO));
+    // foils : ternes hors de l'angle du reflet (au lieu du foil « au repos » du classeur), couleurs irisées
+    // qui tournent avec la carte
+    el.style.setProperty('--foil-floor', '0.25');
+    el.style.setProperty('--foil-irise', `hue-rotate(${light.hue.toFixed(1)}deg)`);
     el.style.setProperty('--shade', String(light.shade));
     el.style.setProperty('--spec', String(light.specular));
     el.style.setProperty('--relief-x', light.reliefX.toFixed(3));
