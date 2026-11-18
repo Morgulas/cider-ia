@@ -198,7 +198,7 @@ Le helper **`selon`** choisit une valeur d'après une autre, sans accents ni maj
 
 #### Gaufrage
 
-**`data-gaufrage`** (en relief) ou **`data-gaufrage="creux"`** : l'élément ressort (ou s'enfonce), avec un liseré clair du côté de la lumière et sombre de l'autre. Il se combine avec une dorure (`data-gaufrage data-foil="dorure-or"` : un titre doré en relief). Dans la vue 3D, le liseré suit la direction de la lumière. À l'export : un calque `gaufrage-relief` ou `gaufrage-creux`.
+**`data-gaufrage`** (en relief) ou **`data-gaufrage="creux"`** (`"non"` ou `"aucun"` : pas de gaufrage, pratique quand la valeur vient d'un attribut de la carte) : l'élément ressort (ou s'enfonce), avec un liseré clair du côté de la lumière et sombre de l'autre. Il se combine avec une dorure (`data-gaufrage data-foil="dorure-or"` : un titre doré en relief). Dans la vue 3D, le liseré suit la direction de la lumière. À l'export : un calque `gaufrage-relief` ou `gaufrage-creux`.
 
 #### Plaque foil pour l'impression
 

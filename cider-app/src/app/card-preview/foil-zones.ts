@@ -36,9 +36,12 @@ export type ZoneKind =
   | { kind: 'foil' | 'dorure'; effect: FoilEffect }
   | { kind: 'gaufrage'; effect: 'relief' | 'creux' };
 
-/** Valeur de data-gaufrage : « creux » (en creux), sinon en relief */
+/**
+ * Valeur de data-gaufrage : « creux » (en creux), « non » / « aucun » (pas de gaufrage : une valeur venue
+ * d'un attribut de la carte), sinon en relief (l'attribut seul, data-gaufrage, compris)
+ */
 export function embossKind(value: string | null): ZoneKind | null {
-  if (value === null) {
+  if (value === null || /^\s*(non|aucun|aucune|none|no|false|faux|0|-)\s*$/i.test(value)) {
     return null;
   }
   return { kind: 'gaufrage', effect: /creux|deboss|enfonc/i.test(value) ? 'creux' : 'relief' };

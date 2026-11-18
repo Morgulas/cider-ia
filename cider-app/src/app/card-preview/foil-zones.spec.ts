@@ -146,6 +146,9 @@ describe('foil-zones', () => {
     expect(embossKind(null)).toBeNull();
     expect(embossKind('')).toEqual({ kind: 'gaufrage', effect: 'relief' });
     expect(embossKind('creux')).toEqual({ kind: 'gaufrage', effect: 'creux' });
+    expect(embossKind('relief')).toEqual({ kind: 'gaufrage', effect: 'relief' });
+    expect(embossKind('non')).toBeNull();
+    expect(embossKind(' Aucun ')).toBeNull();
     const titre = root.querySelector<HTMLElement>('.titre')!;
     titre.setAttribute('data-gaufrage', '');
     titre.setAttribute('data-foil', 'dorure-or');
