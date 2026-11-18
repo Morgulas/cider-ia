@@ -202,4 +202,15 @@ describe('foil-zones', () => {
     expect([d[0], d[4], d[8]]).toEqual([0, 255, 255]);
     expect([d[3], d[7], d[11]]).toEqual([255, 255, 255]);
   });
+
+  it('ne double pas une transformation individuelle (translate) de l\'élément', () => {
+    root.innerHTML = `<div style="position:absolute;left:0;top:10px;width:400px;height:40px">
+      <h1 data-foil="dorure-or" style="margin:0;font-size:20px;width:200px;translate:50px 0">Le Mariage</h1></div>`;
+    root.style.width = '400px';
+    drawFoilZones(root);
+    const title = root.querySelector('h1')!.getBoundingClientRect();
+    const gilded = root.querySelector<HTMLElement>('.cc-dorure')!;
+    const pad = Number(gilded.dataset['pad']);
+    expect(Math.abs(gilded.getBoundingClientRect().left + pad - title.left)).toBeLessThan(1);
+  });
 });

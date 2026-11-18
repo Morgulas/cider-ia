@@ -401,5 +401,5 @@
 
 @if (viewer3dOpen && selectedCard) {
 <app-card-viewer-3d [card]="selectedCard" [front]="viewer3dSide('front')" [back]="viewer3dSide('back')"
-  [title]="selectedTemplate.name ?? ''" (closed)="viewer3dOpen = false" />
+  [title]="selectedTemplate.name" (closed)="viewer3dOpen = false" />
 }

@@ -24,6 +24,10 @@ const TEXTURE_KEY = 'data-foil-texture-cle';
 
 const MAX_SIDE = 640;
 
+/** Masques déjà calculés (une même illustration revient à chaque nouveau rendu de la carte) */
+const CACHE = new Map<string, string>();
+const CACHE_SIZE = 64;
+
 /** « contours 0.6 », « lumières », « ombres 30% » ; inconnu : rien */
 export function textureSpec(value: string | null | undefined): TextureSpec | null {
   const parts = (value ?? '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/);
@@ -207,7 +211,16 @@ export async function ensureTextures(root: HTMLElement): Promise<boolean> {
       continue;
     }
     try {
-      const mask = await textureMask(src, spec, element, bw, bh);
+      const style = getComputedStyle(element);
+      const cacheKey = `${key}|${style.backgroundSize}|${style.backgroundPosition}|${style.objectFit}|${style.objectPosition}`;
+      let mask = CACHE.get(cacheKey);
+      if (!mask) {
+        mask = await textureMask(src, spec, element, bw, bh);
+        CACHE.set(cacheKey, mask);
+        if (CACHE.size > CACHE_SIZE) {
+          CACHE.delete(CACHE.keys().next().value!);
+        }
+      }
       element.setAttribute(TEXTURE_ATTR, mask);
       element.setAttribute(TEXTURE_KEY, key);
       changed = true;

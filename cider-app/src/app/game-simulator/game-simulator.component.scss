@@ -1,3 +1,4 @@
+@use 'sass:list';
 // background, foreground, side
 $colors: (
     copper: (#cd7f32, #e8a87c, #a0522d),
@@ -21,9 +22,9 @@ $colors: (
 $shadow-3d: 0 20px 30px rgba(0, 0, 0, 0.25), 0 6px 6px rgba(0, 0, 0, 0.1);
 
 @each $name, $values in $colors {
-    $bg: nth($values, 1);
-    $fg: nth($values, 2);
-    $side: nth($values, 3);
+    $bg: list.nth($values, 1);
+    $fg: list.nth($values, 2);
+    $side: list.nth($values, 3);
 
     .game-simulator .game-component .color-#{"" + $name} {
         background-color: $bg;

@@ -149,6 +149,8 @@ function place(piece: HTMLElement, element: HTMLElement, where: 'append' | 'prep
     position: 'absolute', left: '0px', top: '0px', right: 'auto', bottom: 'auto', margin: '0',
     ...pieceSize(piece, element), boxSizing: 'border-box',
     transform: inside ? 'none' : style.transform, transformOrigin: style.transformOrigin,
+    // transformations individuelles (translate: -50%…) : déjà appliquées par l'élément à ce qu'il contient
+    translate: inside ? 'none' : style.translate, rotate: inside ? 'none' : style.rotate, scale: inside ? 'none' : style.scale,
   });
   if (where === 'append') {
     element.appendChild(piece);
