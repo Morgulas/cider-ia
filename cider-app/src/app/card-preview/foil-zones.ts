@@ -298,6 +298,7 @@ function embossed(element: HTMLElement, effect: string): HTMLElement {
     node.removeAttribute('data-gaufrage');
   });
   clone.classList.add('cc-gaufrage');
+  keepOneLine(element, clone);
   const size = Math.max(1, parseFloat(getComputedStyle(element).fontSize || '16') * 0.05);
   const d = effect === 'creux' ? -size : size;
   const x = 'var(--relief-x, -0.7)';
@@ -335,6 +336,7 @@ function gildedText(element: HTMLElement, effect: FoilEffect): HTMLElement {
   });
   // pas ZONE_CLASS : une dorure n'empêche pas le foil de la carte (attribut Foil) sur toute la carte
   clone.classList.add('cc-dorure');
+  keepOneLine(element, clone);
   Object.assign(clone.style, {
     opacity: '1', filter: 'none', animation: 'none',
     transition: 'none', mixBlendMode: 'normal', visibility: 'visible', pointerEvents: 'none',
@@ -363,8 +365,21 @@ function gildedText(element: HTMLElement, effect: FoilEffect): HTMLElement {
 /** Dimensions d'une pièce : celles de l'élément, plus sa marge (et un pixel contre les retours à la ligne) */
 function pieceSize(piece: HTMLElement, element: HTMLElement): { width: string; height: string } {
   const pad = Number(piece.dataset['pad'] ?? 0);
-  const extra = pad ? 1 : 0;
+  const extra = piece.classList.contains('cc-dorure') || piece.classList.contains('cc-gaufrage') ? 1 : 0;
   return { width: `${element.offsetWidth + 2 * pad + extra}px`, height: `${element.offsetHeight + 2 * pad}px` };
+}
+
+/**
+ * Un texte sur une seule ligne (un titre, un élément en ligne) le reste dans sa copie : la largeur arrondie de
+ * la copie ne doit pas renvoyer un mot à la ligne.
+ */
+function keepOneLine(element: HTMLElement, copy: HTMLElement): void {
+  const lines = element.getClientRects().length;
+  const style = getComputedStyle(element);
+  const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3;
+  if (lines <= 1 && element.offsetHeight < lineHeight * 1.6) {
+    copy.style.whiteSpace = 'nowrap';
+  }
 }
 
 /** Recopie le style calculé d'un élément (la copie n'a plus le contexte des sélecteurs du modèle) */
