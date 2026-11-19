@@ -1,0 +1,126 @@
+<div class="layers-toolbar">
+  <div class="view-switch" role="tablist">
+    <button type="button" role="tab" [class.active]="view === 'tree'" (click)="view = 'tree'"
+      [pTooltip]="'template-editor.layers.view-tree-help' | translate">
+      <i class="pi pi-sitemap"></i> {{ 'template-editor.layers.view-tree' | translate }}</button>
+    <button type="button" role="tab" [class.active]="view === 'paint'" (click)="view = 'paint'"
+      [pTooltip]="'template-editor.layers.view-paint-help' | translate">
+      <i class="pi pi-sort-amount-down"></i> {{ 'template-editor.layers.view-paint' | translate }}</button>
+  </div>
+  <button type="button" class="icon-button" (click)="refresh()" [pTooltip]="'template-editor.layers.refresh' | translate">
+    <i class="pi pi-refresh"></i></button>
+</div>
+
+@if (!analysis) {
+<p class="layers-help">{{ 'template-editor.layers.empty' | translate }}</p>
+} @else {
+<div class="layers-summary">
+  <span>{{ 'template-editor.layers.count' | translate: { count: analysis.nodes.length } }}</span>
+  @if (warningCount()) {
+  <span class="warn"><i class="pi pi-exclamation-triangle"></i> {{ warningCount() }}</span>
+  }
+  @if (hidden.size || solo) {
+  <button type="button" class="link-button" (click)="showAll()">{{ 'template-editor.layers.show-all' | translate }}</button>
+  }
+</div>
+
+@if (view === 'tree') {
+<div class="layer-list" role="tree">
+  @for (node of analysis.roots; track node.key) {
+  <ng-container *ngTemplateOutlet="row; context: { $implicit: node, depth: node.depth, step: null }"></ng-container>
+  }
+</div>
+} @else {
+<p class="layers-help">{{ 'template-editor.layers.paint-help' | translate }}</p>
+<div class="layer-list">
+  @for (entry of paintTopFirst; track entry.node.key) {
+  <ng-container *ngTemplateOutlet="row; context: { $implicit: entry.node, depth: entry.depth, step: entry, flat: true }"></ng-container>
+  }
+</div>
+}
+
+@if (absent.length) {
+<h5>{{ 'template-editor.layers.absent-title' | translate: { count: absent.length } }}</h5>
+<p class="layers-help">{{ 'template-editor.layers.absent-help' | translate }}</p>
+<div class="layer-list">
+  @for (tag of absent; track tag.line + tag.label) {
+  <button type="button" class="absent-row" (click)="goToTag.emit({ line: tag.line, tag: tag.tag })">
+    <code>{{ tag.label }}</code> <span class="line">l. {{ tag.line }}</span>
+    <span class="condition">{{ absentText(tag) }}</span>
+  </button>
+  }
+</div>
+}
+
+@if (duplicates.length) {
+<h5>{{ 'template-editor.layers.duplicates-title' | translate: { count: duplicates.length } }}</h5>
+<div class="layer-list">
+  @for (duplicate of duplicates; track duplicate.repeatLine + duplicate.selector + (duplicate.property ?? '')) {
+  <button type="button" class="issue-row warning" (click)="goToCss.emit(duplicate.repeatLine)">
+    <i class="pi pi-exclamation-triangle"></i> {{ duplicateText(duplicate) }}
+  </button>
+  }
+</div>
+}
+}
+
+<ng-template #row let-node let-depth="depth" let-step="step" let-flat="flat">
+  <div class="layer-row" role="treeitem" [attr.aria-selected]="selected === node.key" [attr.data-layer-key]="node.key" [style.--depth]="depth"
+    [class.selected]="selected === node.key" [class.is-hidden]="node.hidden || hidden.has(node.key)"
+    [class.is-solo]="solo === node.key" [class.has-warning]="node.issues.length"
+    tabindex="0" (click)="select(node)" (keydown.enter)="select(node)" (mouseenter)="hover(node)" (mouseleave)="hover(null)">
+    @if (!flat && node.children.length) {
+    <button type="button" class="caret" (click)="toggleCollapsed(node, $event)" [attr.aria-expanded]="!collapsed.has(node.key)">
+      <i class="pi" [class.pi-chevron-right]="collapsed.has(node.key)" [class.pi-chevron-down]="!collapsed.has(node.key)"></i>
+    </button>
+    } @else {
+    <span class="caret"></span>
+    }
+    <i class="kind" [class]="kindIcon(node)"></i>
+    <span class="label">
+      <code>{{ node.label }}</code>
+      @if (node.kind === 'text' && node.text) {
+      <span class="text">« {{ node.text }} »</span>
+      }
+    </span>
+    <span class="chips">
+      @if (step) {
+      <span class="chip step" [class.context]="step.step === 'context'">{{ stepText(step) }}</span>
+      } @else {
+      @if (node.context) {
+      <span class="chip context" [pTooltip]="'template-editor.layers.context-help' | translate">
+        {{ contextText(node) }}</span>
+      } @else if (node.positioned && node.zIndex !== 'auto') {
+      <span class="chip">z {{ node.zIndex }}</span>
+      }
+      }
+      @if (node.calque) {
+      <span class="chip calque" [pTooltip]="'template-editor.layers.calque-help' | translate"><i class="pi pi-clone"></i> {{ node.calque }}</span>
+      }
+      @if (node.foil) {
+      <span class="chip foil" [pTooltip]="'template-editor.layers.foil-help' | translate">✦ {{ node.foil }}</span>
+      }
+      @if (node.hidden) {
+      <span class="chip muted">{{ 'template-editor.layers.hidden-' + node.hidden | translate }}</span>
+      }
+    </span>
+    <span class="actions">
+      <button type="button" class="icon-button" [class.on]="solo === node.key" (click)="toggleSolo(node, $event)"
+        [pTooltip]="'template-editor.layers.solo' | translate"><i class="pi pi-bullseye"></i></button>
+      <button type="button" class="icon-button" [class.on]="hidden.has(node.key)" (click)="toggleHidden(node, $event)"
+        [pTooltip]="'template-editor.layers.hide' | translate">
+        <i class="pi" [class.pi-eye]="!hidden.has(node.key)" [class.pi-eye-slash]="hidden.has(node.key)"></i></button>
+    </span>
+  </div>
+  @for (issue of node.issues; track issue.code) {
+  <div class="issue-row" [class.warning]="issue.severity === 'warning'" [style.--depth]="depth">
+    <i class="pi" [class.pi-exclamation-triangle]="issue.severity === 'warning'" [class.pi-info-circle]="issue.severity === 'info'"></i>
+    {{ issueText(issue) }}
+  </div>
+  }
+  @if (!flat && !collapsed.has(node.key)) {
+  @for (child of node.children; track child.key) {
+  <ng-container *ngTemplateOutlet="row; context: { $implicit: child, depth: child.depth, step: null }"></ng-container>
+  }
+  }
+</ng-template>

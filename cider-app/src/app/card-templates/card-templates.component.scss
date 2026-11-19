@@ -450,6 +450,11 @@ textarea {
         font-size: 0.85rem;
         color: var(--p-text-muted-color);
     }
+
+    /* layers panel: a tree needs more room */
+    &.wide {
+        width: 340px;
+    }
 }
 
 .insert-list {

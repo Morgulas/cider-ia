@@ -83,6 +83,12 @@ html {
     outline-offset: -3px !important;
 }
 
+/* Template editor, layers panel: a layer hidden, or shown alone (attributes, never classes: classes redraw the foils) */
+[data-cider-solo-mode] * { visibility: hidden !important; }
+[data-cider-solo-mode] [data-cider-solo], [data-cider-solo-mode] [data-cider-solo] * { visibility: visible !important; }
+[data-cider-hidden], [data-cider-hidden] *,
+[data-cider-solo-mode] [data-cider-hidden], [data-cider-solo-mode] [data-cider-hidden] * { visibility: hidden !important; }
+
 /* Export « avec calques » vers l'appli de collection : rendu d'un seul calque (voir CardPreviewComponent.captureLayers) */
 .cc-layer-pass, .cc-layer-pass * { visibility: hidden !important; }
 .cc-layer-pass [data-calque-on], .cc-layer-pass [data-calque-on] * { visibility: visible !important; }

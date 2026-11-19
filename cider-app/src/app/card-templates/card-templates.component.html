@@ -199,13 +199,15 @@
             </div>
 
             @if (insertPanelVisible) {
-            <aside class="insert-panel">
+            <aside class="insert-panel" [class.wide]="sideTab === 'layers'">
               <div class="side-tabs" role="tablist">
                 <button type="button" role="tab" class="side-tab" [class.active]="sideTab === 'insert'"
                   (click)="sideTab = 'insert'">{{ 'template-editor.insert' | translate }}</button>
                 <button type="button" role="tab" class="side-tab" [class.active]="sideTab === 'settings'"
                   (click)="sideTab = 'settings'">{{ 'template-editor.settings' | translate }}
                   @if (cssVariables.length) {<span class="count">{{ cssVariables.length }}</span>}</button>
+                <button type="button" role="tab" class="side-tab" [class.active]="sideTab === 'layers'"
+                  (click)="sideTab = 'layers'">{{ 'template-editor.layers.tab' | translate }}</button>
               </div>
               @if (sideTab === 'insert') {
               <p class="insert-help">{{ 'template-editor.insert-help' | translate: { target: insertTargetLabel() } }}</p>
@@ -245,6 +247,10 @@
                 <span class="muted">{{ 'template-editor.no-images' | translate }}</span>
                 }
               </div>
+              } @else if (sideTab === 'layers') {
+              <app-template-layers-panel [html]="selectedTemplate.html" [css]="selectedTemplate.css" [roots]="previewRootsFn"
+                [renderKey]="templateVersion + ':' + selectedCard.id + ':' + viewMode + ':' + popoutOpen"
+                (goToTag)="goToTag($event.line, $event.tag)" (goToCss)="goToCssLine($event)"></app-template-layers-panel>
               } @else {
               @for (variable of cssVariables; track variable.name) {
               <div class="css-variable">
@@ -353,7 +359,8 @@
                   @case ('pair') {
                   @if (pair && selectedCard) {
                   @for (side of pairSides; track side) {
-                  <figure class="preview-item" [attr.data-preview-card]="selectedCard.id">
+                  <figure class="preview-item" [attr.data-preview-card]="selectedCard.id"
+                    [attr.data-preview-edited]="pair[side].id === selectedTemplate.id ? '' : null">
                     <app-card-preview [foils]="true" [card]="selectedCard"
                       [template]="pair[side].id === selectedTemplate.id ? inspectTemplate : pair[side]" [scale]="1.0"
                       [cache]="false" [version]="templateVersion"></app-card-preview>
@@ -364,7 +371,7 @@
                   }
                   @case ('overflow') {
                   @for (candidate of overflowCandidates; track candidate.card.id) {
-                  <figure class="preview-item" [attr.data-preview-card]="candidate.card.id"
+                  <figure class="preview-item" [attr.data-preview-card]="candidate.card.id" data-preview-edited
                     [class.bad]="(overflowResults.get(candidate.card.id) ?? 0) > 0">
                     <app-card-preview [foils]="true" [card]="candidate.card" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
                       [version]="templateVersion"></app-card-preview>
@@ -388,7 +395,7 @@
                   }
                   @default {
                   @if (selectedCard) {
-                  <div class="preview-item" [attr.data-preview-card]="selectedCard.id">
+                  <div class="preview-item" [attr.data-preview-card]="selectedCard.id" data-preview-edited>
                     <app-card-preview [foils]="true" [card]="selectedCard" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
                       [tiltable]="previewSettings.tiltEnabled && !inspecting" [showTrimLines]="previewSettings.trimLinesEnabled"
                       [trimOffsetPx]="getTrimOffsetPx()" [showSafeLines]="previewSettings.safeLinesEnabled"

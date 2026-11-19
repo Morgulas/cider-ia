@@ -45,38 +45,15 @@ import { TemplateChatbotDialogComponent } from './template-chatbot-dialog.compon
 import { annotateLines, CssRule, CssVariable, findCssVariables, formatColorLike, formatCss, LINE_ATTRIBUTE, matchableSelector, OverflowCandidate, parseCssRules, pickOverflowCards, sliderRange, splitSelectorList } from './template-tools';
 import { CurrentProjectService } from '../server/current-project.service';
 import { CardViewer3dComponent } from './card-viewer-3d/card-viewer-3d.component';
+import { findOverflowing, HOVER_CLASS, SELECTED_CLASS } from './template-layers';
+import { TemplateLayersPanelComponent } from './template-layers-panel.component';
 
 type ViewMode = 'card' | 'pair' | 'overflow';
 type Side = 'front' | 'back';
 /** classes put on preview elements (global styles: they live inside the card's HTML) */
 const OVERFLOW_CLASS = 'cider-overflow';
-const HOVER_CLASS = 'cider-inspect-hover';
-const SELECTED_CLASS = 'cider-inspect-selected';
 /** the layout of a card changes as its images and fonts load: checked a few times */
 const OVERFLOW_SCAN_DELAYS_MS = [400, 1500, 3500];
-
-/** Elements of a rendered card whose text does not fit: innermost ones only */
-function findOverflowing(root: Element): HTMLElement[] {
-  const view = root.ownerDocument.defaultView ?? window;
-  const flagged: HTMLElement[] = [];
-  root.querySelectorAll('*').forEach(node => {
-    const element = node as HTMLElement;
-    if (['STYLE', 'SCRIPT', 'IMG', 'svg', 'BR'].includes(element.tagName) || element.closest('svg')) {
-      return;
-    }
-    if (element.clientHeight === 0 || element.clientWidth === 0 || !element.textContent?.trim()) {
-      return;
-    }
-    const style = view.getComputedStyle(element);
-    if (['auto', 'scroll'].includes(style.overflowY) || ['auto', 'scroll'].includes(style.overflowX)) {
-      return;
-    }
-    if (element.scrollHeight - element.clientHeight > 2 || element.scrollWidth - element.clientWidth > 2) {
-      flagged.push(element);
-    }
-  });
-  return flagged.filter(element => !flagged.some(other => other !== element && element.contains(other)));
-}
 
 type EditorKind = 'html' | 'css';
 type EditorLayout = 'tabs' | 'split';
@@ -166,13 +143,14 @@ const templateHtmlFront =
     templateUrl: './card-templates.component.html',
     styleUrls: ['./card-templates.component.scss'],
     providers: [MessageService, ConfirmationService],
-    imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, TranslatePipe, InputText, TemplateChatbotDialogComponent, NgTemplateOutlet, CardViewer3dComponent]
+    imports: [Bind, Toast, Splitter, PrimeTemplate, Card_1, Select, FormsModule, ButtonGroup, ButtonDirective, Tooltip, CardPreviewComponent, EditorComponent, EntityDialogComponent, ConfirmDialog, Dialog, Checkbox, InputNumber, TranslatePipe, InputText, TemplateChatbotDialogComponent, NgTemplateOutlet, CardViewer3dComponent, TemplateLayersPanelComponent]
 })
 export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   @ViewChild('previewSpace') previewSpace!: ElementRef;
   @ViewChild('previewContent') previewContent?: ElementRef<HTMLElement>;
   @ViewChild('popoutInner') popoutInner?: ElementRef<HTMLElement>;
+  @ViewChild(TemplateLayersPanelComponent) layersPanel?: TemplateLayersPanelComponent;
   @ViewChild('popoutHost') set popoutHost(host: ElementRef<HTMLElement> | undefined) {
     if (host) {
       // rendered in this page, then moved to the window (it keeps updating there)
@@ -272,7 +250,9 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   overflowResults = new Map<number, number>();
   overflowScanned = false;
   private overflowTimers: ReturnType<typeof setTimeout>[] = [];
-  sideTab: 'insert' | 'settings' = 'insert';
+  sideTab: 'insert' | 'settings' | 'layers' = 'insert';
+  /** where the previews are, for the layers panel */
+  readonly previewRootsFn = () => this.previewRoots();
   cssVariables: CssVariable[] = [];
   chatbotRequest = '';
   popoutOpen = false;
@@ -1066,6 +1046,7 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     this.clearSelectedMarks();
     element.classList.add(SELECTED_CLASS);
     this.goToTag(line, tag);
+    this.layersPanel?.reveal(element);
   }
 
   /** Shows a CSS rule, its selector selected */
