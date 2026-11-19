@@ -489,3 +489,65 @@ button.issue-row {
 .link-button.inline {
     margin-left: 4px;
 }
+
+.geometry-box {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 2px 4px 6px calc(var(--depth, 0) * 12px + 22px);
+    padding: 6px 8px;
+    border: 1px solid color-mix(in srgb, #0ea5e9 45%, transparent);
+    border-radius: 6px;
+
+    .geometry-title {
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+
+    .layers-help {
+        margin: 2px 0 0;
+
+        &.warn {
+            color: var(--p-orange-600, #d97706);
+        }
+    }
+}
+
+.geo-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+
+    .prop {
+        flex: 0 0 90px;
+        color: var(--p-text-muted-color);
+    }
+
+    code {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        font-size: 0.72rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    input {
+        flex: 0 0 70px;
+        width: 70px;
+        padding: 2px 4px;
+        border: 1px solid var(--p-content-border-color);
+        border-radius: 4px;
+        background: var(--p-content-background);
+        color: var(--p-text-color);
+        font-family: monospace;
+        font-size: 0.75rem;
+    }
+
+    .fixed-value {
+        flex: 1;
+        font-family: monospace;
+        font-size: 0.75rem;
+    }
+}

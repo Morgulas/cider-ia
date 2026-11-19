@@ -89,6 +89,31 @@ html {
 [data-cider-hidden], [data-cider-hidden] *,
 [data-cider-solo-mode] [data-cider-hidden], [data-cider-solo-mode] [data-cider-hidden] * { visibility: hidden !important; }
 
+/* Template editor, layers panel: grid and handles over the preview (card pixels) */
+.cider-geometry { position: absolute; z-index: 20; pointer-events: none; }
+.cider-geometry.grid {
+    background-image:
+        linear-gradient(to right, rgba(14, 165, 233, 0.45) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(14, 165, 233, 0.45) 1px, transparent 1px),
+        linear-gradient(to right, rgba(14, 165, 233, 0.18) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(14, 165, 233, 0.18) 1px, transparent 1px);
+    background-size: 100px 100px, 100px 100px, 25px 25px, 25px 25px;
+}
+.cider-geometry .cider-handle { position: absolute; pointer-events: auto; }
+.cider-geometry .cider-handle.y { height: 24px; margin-top: -12px; cursor: ns-resize; }
+.cider-geometry .cider-handle.x { width: 24px; margin-left: -12px; cursor: ew-resize; }
+.cider-geometry .cider-handle::before { content: ''; position: absolute; background: #0ea5e9; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); }
+.cider-geometry .cider-handle.y::before { left: 0; right: 0; top: 10px; height: 4px; }
+.cider-geometry .cider-handle.x::before { top: 0; bottom: 0; left: 10px; width: 4px; }
+.cider-geometry .cider-handle.locked { cursor: not-allowed; opacity: 0.5; }
+.cider-geometry .cider-handle.active::before, .cider-geometry .cider-handle:hover::before { background: #f59e0b; }
+.cider-geometry .cider-handle span {
+    position: absolute; left: 4px; top: -18px; padding: 2px 8px; border-radius: 6px; white-space: nowrap;
+    background: #0ea5e9; color: #fff; font: 600 22px/1.2 system-ui, sans-serif;
+}
+.cider-geometry .cider-handle.x span { left: 16px; top: 40px; }
+.cider-geometry .cider-handle.x.end span { left: auto; right: 16px; }
+
 /* Export « avec calques » vers l'appli de collection : rendu d'un seul calque (voir CardPreviewComponent.captureLayers) */
 .cc-layer-pass, .cc-layer-pass * { visibility: hidden !important; }
 .cc-layer-pass [data-calque-on], .cc-layer-pass [data-calque-on] * { visibility: visible !important; }

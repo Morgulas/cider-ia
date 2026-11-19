@@ -1,5 +1,6 @@
-import { absentTags, analyzeCard, compareSnapshots, findCssDuplicates, findSourceTag, inheritedFromContainer, LayerNode, paintTopFirst, setTagAttributes,
-  snapshotCard, sourceTags } from './template-layers';
+import { absentTags, analyzeCard, compareSnapshots, createVariableEdits, cssDeclarations, elementGeometry, findCssDuplicates, findSourceTag,
+  inheritedFromContainer, LayerNode, newVariableName, paintTopFirst, setTagAttributes, snapshotCard, sourceTags, specificity, TextEdit,
+  variableEdit } from './template-layers';
 import { annotateLines } from './template-tools';
 
 /** Renders a template the way the preview does (lines annotated, CSS in a <style>), in a container of the page */
@@ -164,6 +165,45 @@ describe('template layers', () => {
     const img = findSourceTag(html, 2, 'img')!;
     expect(setTagAttributes(html, img, { 'data-foil': 'argent' })).toBe('<img src="{{u}}" data-foil="argent" />');
     expect(findSourceTag(html, 3, 'div')).toBeNull();
+  });
+
+  it('reads the declarations of the CSS and their specificity', () => {
+    const css = '#c {\n  --haut: 80px; /* x */\n  color: {{card.c}};\n}\n@media print { .a { top: 1px } }\n.b { {{#if x}}left: 3px;{{/if}} padding: var(--a) 2px; }';
+    const declarations = cssDeclarations(css);
+    expect(declarations.map(d => [d.property, d.value, d.atRule, d.conditional])).toEqual([
+      ['--haut', '80px', false, false], ['color', '{{card.c}}', false, false], ['top', '1px', true, false],
+      ['left', '3px', false, true], ['padding', 'var(--a) 2px', false, false]]);
+    expect(css.slice(declarations[0].valueStart, declarations[0].valueEnd)).toBe('80px');
+    expect(specificity('#c.legendaire .header-band')).toBe(10200);
+    expect(specificity('div > p.a:hover::before')).toBe(202);
+  });
+
+  const apply = (css: string, edits: TextEdit[]) => edits.reduce((text, edit) => text.slice(0, edit.start) + edit.text + text.slice(edit.end), css);
+
+  it('finds the edges driven by variables, the variant declaration included', () => {
+    const css = '#c {\n    --art-haut: 80px;\n    --texte-haut: 700px;\n    --cotes: 80px;\n    position: relative; width: 800px; height: 1000px;\n}\n'
+      + '#c.leg {\n    --art-haut: 0px;\n}\n.art { position: absolute; top: var(--art-haut); height: 55%; left: 0; }\n'
+      + '.box { position: absolute; inset: 0; padding: var(--texte-haut) var(--cotes) 125px; }';
+    const card = use('<div id="c" class="leg">\n<div class="art"></div>\n<div class="box"></div>\n</div>', css);
+    const root = card.querySelector('#c')!;
+    const art = elementGeometry(card.querySelector('.art')!, css, root);
+    expect(art.bindings.map(b => [b.property, b.variable, b.value, b.index, b.unit])).toEqual([['top', '--art-haut', '0px', 1, 'px']]);
+    expect(art.fixed.map(f => [f.property, f.value])).toEqual([['height', '55%']]);
+
+    const box = elementGeometry(card.querySelector('.box')!, css, root);
+    expect(box.bindings.map(b => [b.property, b.variable])).toEqual([['padding-top', '--texte-haut'], ['padding-left', '--cotes'], ['padding-right', '--cotes']]);
+    expect(box.fixed.map(f => [f.property, f.value, f.side])).toEqual([['padding-bottom', '125px', 2]]);
+
+    // the Légendaire declaration is the one changed
+    const edit = variableEdit(css, '--art-haut', art.bindings[0].index, '10px')!;
+    expect(apply(css, [edit])).toContain('#c.leg {\n    --art-haut: 10px;');
+
+    // a fixed side of a shorthand becomes a variable declared with the others
+    const name = newVariableName(card.querySelector('.box')!, 'padding-bottom', css);
+    expect(name).toBe('--box-padding-bottom');
+    const created = apply(css, createVariableEdits(css, box.fixed[0], root, name)!);
+    expect(created).toContain('#c {\n    --box-padding-bottom: 125px;\n    --art-haut: 80px;');
+    expect(created).toContain('padding: var(--texte-haut) var(--cotes) var(--box-padding-bottom) var(--cotes);');
   });
 });
 

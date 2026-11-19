@@ -260,6 +260,7 @@
                 [renderKey]="templateVersion + ':' + selectedCard.id + ':' + viewMode + ':' + popoutOpen + ':' + (previewOverride?.value ?? '')"
                 [card]="selectedCard" [variantFields]="variantFields" [override]="previewOverride"
                 (overrideChange)="setPreviewOverride($event)" (editTag)="applyTagEdit($event)"
+                (variableChange)="applyVariableChange($event)" (cssEdits)="applyCssEdits($event)"
                 (goToTag)="goToTag($event.line, $event.tag)" (goToCss)="goToCssLine($event)"></app-template-layers-panel>
               } @else {
               @for (variable of cssVariables; track variable.name) {

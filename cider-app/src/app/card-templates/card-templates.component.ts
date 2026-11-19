@@ -45,8 +45,8 @@ import { TemplateChatbotDialogComponent } from './template-chatbot-dialog.compon
 import { annotateLines, CssRule, CssVariable, findCssVariables, formatColorLike, formatCss, LINE_ATTRIBUTE, matchableSelector, OverflowCandidate, parseCssRules, pickOverflowCards, sliderRange, splitSelectorList } from './template-tools';
 import { CurrentProjectService } from '../server/current-project.service';
 import { CardViewer3dComponent } from './card-viewer-3d/card-viewer-3d.component';
-import { findOverflowing, findSourceTag, HOVER_CLASS, SELECTED_CLASS, setTagAttributes } from './template-layers';
-import { PreviewOverride, TagEdit, TemplateLayersPanelComponent, VariantField } from './template-layers-panel.component';
+import { findOverflowing, findSourceTag, HOVER_CLASS, SELECTED_CLASS, setTagAttributes, TextEdit, variableEdit } from './template-layers';
+import { PreviewOverride, TagEdit, TemplateLayersPanelComponent, VariableChange, VariantField } from './template-layers-panel.component';
 
 type ViewMode = 'card' | 'pair' | 'overflow';
 type Side = 'front' | 'back';
@@ -258,6 +258,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   /** preview card shown with another value of a field (the card itself is not changed) */
   previewOverride: PreviewOverride | null = null;
   private previewCardCache: { card: Card; override: PreviewOverride; result: Card } | null = null;
+  /** a variable is being dragged in the preview: its changes make one undo step */
+  private variableDragOpen = false;
   cssVariables: CssVariable[] = [];
   chatbotRequest = '';
   popoutOpen = false;
@@ -1020,6 +1022,54 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
       this.selectedTemplate.html = html.slice(0, tag.start) + text + html.slice(tag.end);
       this.debounceSave();
     }
+    this.runCheck();
+  }
+
+  /** One declaration of a variable changed from the layers panel (dragged handle or typed value) */
+  public applyVariableChange(change: VariableChange) {
+    const editor = this.editors.css;
+    const model = editor?.getModel();
+    const css: string = model ? model.getValue() : this.selectedTemplate.css ?? '';
+    const edit = variableEdit(css, change.name, change.index, change.value);
+    if (edit && css.slice(edit.start, edit.end) !== edit.text) {
+      if (model && !this.variableDragOpen) {
+        editor.pushUndoStop();
+      }
+      this.variableDragOpen = !change.commit;
+      this.applyCssTextEdits([edit]);
+    }
+    if (change.commit) {
+      this.variableDragOpen = false;
+      editor?.pushUndoStop();
+    }
+  }
+
+  /** Changes of the CSS made by the layers panel (a fixed length turned into a variable): one undo step */
+  public applyCssEdits(edits: TextEdit[]) {
+    this.editors.css?.pushUndoStop();
+    this.applyCssTextEdits(edits);
+    this.editors.css?.pushUndoStop();
+  }
+
+  private applyCssTextEdits(edits: TextEdit[]) {
+    const editor = this.editors.css;
+    const model = editor?.getModel();
+    if (model) {
+      editor.executeEdits('cider-layers', edits.map(edit => {
+        const start = model.getPositionAt(edit.start);
+        const end = model.getPositionAt(edit.end);
+        return { range: { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column },
+          text: edit.text };
+      }));
+    } else {
+      let css = this.selectedTemplate.css ?? '';
+      for (const edit of [...edits].sort((a, b) => b.start - a.start)) {
+        css = css.slice(0, edit.start) + edit.text + css.slice(edit.end);
+      }
+      this.selectedTemplate.css = css;
+      this.debounceSave();
+    }
+    // immediate preview
     this.runCheck();
   }
 

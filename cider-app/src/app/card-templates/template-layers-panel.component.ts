@@ -10,9 +10,10 @@ import { AssetsService } from '../data-services/services/assets.service';
 import { Card } from '../data-services/types/card.type';
 import { CardTemplate } from '../data-services/types/card-template.type';
 import {
-  AbsentTag, absentTags, analyzeCard, compareSnapshots, CssDuplicate, findCssDuplicates, findSourceTag, HIDDEN_ATTRIBUTE, HOVER_CLASS,
-  LayerAnalysis, LayerIssue, LayerNode, layerElements, PaintEntry, paintTopFirst, SELECTED_CLASS, snapshotCard, SOLO_ATTRIBUTE,
-  SOLO_MODE_ATTRIBUTE, VariantDiff,
+  AbsentTag, absentTags, analyzeCard, compareSnapshots, createVariableEdits, CssDuplicate, ElementGeometry, elementGeometry,
+  findCssDuplicates, findSourceTag, FixedGeometry, GEOMETRY_EDGES, GeometryBinding, HIDDEN_ATTRIBUTE, HOVER_CLASS, LayerAnalysis,
+  LayerIssue, LayerNode, layerElements, newVariableName, PaintEntry, paintTopFirst, SELECTED_CLASS, snapshotCard, SOLO_ATTRIBUTE,
+  SOLO_MODE_ATTRIBUTE, TextEdit, VariantDiff,
 } from './template-layers';
 import { annotateLines } from './template-tools';
 
@@ -58,6 +59,19 @@ interface FoilDraft {
   force: number;
 }
 
+/** A new value for one declaration of a variable (dragged in the preview, or typed) */
+export interface VariableChange {
+  name: string;
+  /** which declaration of the variable, in code order */
+  index: number;
+  value: string;
+  /** end of the change: one undo step */
+  commit: boolean;
+}
+
+/** class of the handles and grid drawn over the preview (not part of the card) */
+export const GEOMETRY_CLASS = 'cider-geometry';
+
 /** Effects of data-foil: reflections, then gildings (the metal replaces the ink) */
 export const FOIL_CHOICES: string[] = [...FOIL_EFFECTS,
   ...GILDING_EFFECTS.flatMap(metal => [`dorure-${metal}`, `dorure-${metal}-mat`])];
@@ -100,6 +114,8 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
   @Output() goToTag = new EventEmitter<{ line: number; tag: string }>();
   @Output() goToCss = new EventEmitter<number>();
   @Output() editTag = new EventEmitter<TagEdit>();
+  @Output() variableChange = new EventEmitter<VariableChange>();
+  @Output() cssEdits = new EventEmitter<TextEdit[]>();
 
   view: 'tree' | 'paint' | 'variants' = 'tree';
   variantKey = '';
@@ -107,6 +123,12 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
   openVariant: string | null = null;
   foilDraft: FoilDraft | null = null;
   readonly foilChoices = FOIL_CHOICES;
+  /** position and size of the selected layer */
+  geometry: ElementGeometry | null = null;
+  showGrid = false;
+  /** a fixed length could not become a variable: no CSS rule styles the card root */
+  noRootRule = false;
+  private dragging = false;
   private variantTimer: ReturnType<typeof setTimeout> | undefined;
   private static renders = 0;
   analysis: LayerAnalysis | null = null;
@@ -153,10 +175,13 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
     // the preview goes back to normal
     this.hidden.clear();
     this.solo = null;
+    this.geometry = null;
+    this.showGrid = false;
     this.cards().forEach(card => {
       this.applyVisibility(card);
       card.querySelectorAll('.' + HOVER_CLASS).forEach(element => element.classList.remove(HOVER_CLASS));
     });
+    this.drawOverlay();
   }
 
   /*********************************************************************
@@ -182,6 +207,8 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
     const cards = this.cards();
     const card = cards[0];
     if (!card || !card.firstElementChild) {
+      this.geometry = null;
+      this.drawOverlay();
       this.analysis = null;
       this.paintTopFirst = [];
       this.absent = [];
@@ -201,6 +228,7 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
       this.applyVisibility(element);
       this.applySelection(element);
     });
+    this.updateGeometry();
     this.changeDetector.markForCheck();
   }
 
@@ -214,8 +242,9 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
     this.observed = roots;
     this.zone.runOutsideAngular(() => {
       this.observer = new MutationObserver(records => {
-        const onlyPieces = records.every(record => record.target instanceof Element && record.target.closest('.' + PIECE_CLASS)
-          || [...record.addedNodes, ...record.removedNodes].every(node => node instanceof Element && node.classList.contains(PIECE_CLASS)));
+        const ours = (node: Node) => node instanceof Element && (node.classList.contains(PIECE_CLASS) || node.classList.contains(GEOMETRY_CLASS));
+        const onlyPieces = records.every(record => record.target instanceof Element && record.target.closest(`.${PIECE_CLASS}, .${GEOMETRY_CLASS}`)
+          || [...record.addedNodes, ...record.removedNodes].every(ours));
         if (onlyPieces) {
           // foil reflections drawn again: they take the visibility of their element
           if (this.hidden.size || this.solo) {
@@ -319,6 +348,7 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
       card.querySelectorAll('.' + SELECTED_CLASS).forEach(element => element.classList.remove(SELECTED_CLASS));
       this.applySelection(card);
     });
+    this.updateGeometry();
     if (node.line) {
       this.goToTag.emit({ line: node.line, tag: node.tag });
     }
@@ -363,6 +393,7 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
       return null;
     };
     path(this.analysis?.roots ?? [])?.forEach(node => this.collapsed.delete(node.key));
+    this.updateGeometry();
     this.changeDetector.detectChanges();
     this.host.nativeElement.querySelector(`[data-layer-key="${key}"]`)?.scrollIntoView({ block: 'nearest' });
   }
@@ -507,6 +538,177 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
       },
     });
     this.foilDraft = null;
+  }
+
+  /*********************************************************************
+   * Position and size: edges driven by CSS variables, dragged in the preview
+   *********************************************************************/
+
+  private selectedElement(card = this.cards()[0]): HTMLElement | null {
+    return card && this.selected ? layerElements(card).get(this.selected) ?? null : null;
+  }
+
+  private updateGeometry(): void {
+    this.noRootRule = false;
+    const card = this.cards()[0];
+    const element = this.selectedElement(card);
+    this.geometry = element ? elementGeometry(element, this.css ?? '', card.firstElementChild ?? undefined) : null;
+    this.drawOverlay();
+  }
+
+  public toggleGrid(): void {
+    this.showGrid = !this.showGrid;
+    this.drawOverlay();
+  }
+
+  /** Grid and handles over each preview of the card (in card pixels, whatever the zoom) */
+  private drawOverlay(): void {
+    if (this.dragging) {
+      return;
+    }
+    for (const card of this.cards()) {
+      const host = card.parentElement;
+      host?.querySelectorAll(`:scope > .${GEOMETRY_CLASS}`).forEach(element => element.remove());
+      const bindings = this.geometry?.bindings ?? [];
+      if (!host || (!this.showGrid && !bindings.length)) {
+        continue;
+      }
+      const cardRect = card.getBoundingClientRect();
+      const zoom = card.offsetWidth ? cardRect.width / card.offsetWidth : 1;
+      const hostRect = host.getBoundingClientRect();
+      const overlay = host.ownerDocument.createElement('div');
+      overlay.className = GEOMETRY_CLASS + (this.showGrid ? ' grid' : '');
+      Object.assign(overlay.style, {
+        left: `${(cardRect.left - hostRect.left) / zoom}px`, top: `${(cardRect.top - hostRect.top) / zoom}px`,
+        width: `${card.offsetWidth}px`, height: `${card.offsetHeight}px`,
+      });
+      host.appendChild(overlay);
+      const element = this.selectedElement(card);
+      if (element) {
+        bindings.forEach(binding => this.drawHandle(overlay, card, element, binding, zoom));
+      }
+    }
+  }
+
+  private drawHandle(overlay: HTMLElement, card: HTMLElement, element: HTMLElement, binding: GeometryBinding, zoom: number): void {
+    const view = card.ownerDocument.defaultView ?? window;
+    const style = view.getComputedStyle(element);
+    const cardRect = card.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const px = (value: string) => parseFloat(value) || 0;
+    // border box, in card pixels
+    let left = (rect.left - cardRect.left) / zoom;
+    let top = (rect.top - cardRect.top) / zoom;
+    let right = left + rect.width / zoom;
+    let bottom = top + rect.height / zoom;
+    const { edge, box, sign } = GEOMETRY_EDGES[binding.property];
+    if (box === 'content') {
+      left += px(style.borderLeftWidth) + px(style.paddingLeft);
+      right -= px(style.borderRightWidth) + px(style.paddingRight);
+      top += px(style.borderTopWidth) + px(style.paddingTop);
+      bottom -= px(style.borderBottomWidth) + px(style.paddingBottom);
+    }
+    const vertical = edge === 'left' || edge === 'right';
+    const position = { top, bottom, left, right }[edge];
+    const handle = overlay.ownerDocument.createElement('div');
+    handle.className = 'cider-handle ' + (vertical ? 'x' : 'y') + (edge === 'right' || edge === 'bottom' ? ' end' : '')
+      + (binding.number === null ? ' locked' : '');
+    Object.assign(handle.style, vertical
+      ? { left: `${position}px`, top: `${top}px`, height: `${Math.max(bottom - top, 1)}px` }
+      : { top: `${position}px`, left: `${left}px`, width: `${Math.max(right - left, 1)}px` });
+    const label = overlay.ownerDocument.createElement('span');
+    label.textContent = `${binding.variable} ${binding.value}`;
+    handle.appendChild(label);
+    handle.title = this.translate.instant('template-editor.layers.geometry.drag', { variable: binding.variable });
+    overlay.appendChild(handle);
+    if (binding.number === null) {
+      return;
+    }
+    // what 1 % is worth (top/bottom/height: height of the containing block; else its width)
+    const container = element.offsetParent as HTMLElement | null;
+    const percentBase = (binding.property === 'top' || binding.property === 'bottom' || binding.property === 'height'
+      ? container?.clientHeight : container?.clientWidth) || 1;
+    const stop = (event: Event) => event.stopPropagation();
+    handle.addEventListener('mousedown', stop);
+    handle.addEventListener('click', stop);
+    handle.addEventListener('pointerdown', event => this.startDrag(event, handle, binding, vertical, sign, zoom, percentBase));
+  }
+
+  private startDrag(event: PointerEvent, handle: HTMLElement, binding: GeometryBinding, vertical: boolean, sign: number,
+    zoom: number, percentBase: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const start = binding.number ?? 0;
+    const origin = vertical ? event.clientX : event.clientY;
+    const view = handle.ownerDocument.defaultView ?? window;
+    let last = binding.value;
+    let frame = 0;
+    this.dragging = true;
+    handle.classList.add('active');
+    const label = handle.querySelector('span');
+    const valueAt = (moveEvent: PointerEvent) => {
+      const delta = ((vertical ? moveEvent.clientX : moveEvent.clientY) - origin) / zoom;
+      const raw = start + sign * (binding.unit === '%' ? delta / percentBase * 100 : delta);
+      const step = binding.unit === '%' ? (moveEvent.shiftKey ? 1 : 0.1) : (moveEvent.shiftKey ? 5 : 1);
+      const value = Math.round(raw / step) * step;
+      return { delta, text: `${parseFloat(value.toFixed(2))}${binding.unit}` };
+    };
+    const move = (moveEvent: PointerEvent) => {
+      const { delta, text } = valueAt(moveEvent);
+      handle.style.transform = vertical ? `translateX(${delta}px)` : `translateY(${delta}px)`;
+      if (label) {
+        label.textContent = `${binding.variable} ${text}`;
+      }
+      if (text !== last && !frame) {
+        frame = view.requestAnimationFrame(() => {
+          frame = 0;
+          this.zone.run(() => this.variableChange.emit({ name: binding.variable, index: binding.index, value: last, commit: false }));
+        });
+      }
+      last = text;
+    };
+    const up = () => {
+      view.removeEventListener('pointermove', move);
+      view.removeEventListener('pointerup', up);
+      view.removeEventListener('pointercancel', up);
+      view.cancelAnimationFrame(frame);
+      this.dragging = false;
+      this.zone.run(() => this.variableChange.emit({ name: binding.variable, index: binding.index, value: last, commit: true }));
+      this.schedule(0);
+    };
+    view.addEventListener('pointermove', move);
+    view.addEventListener('pointerup', up);
+    view.addEventListener('pointercancel', up);
+  }
+
+  /** A value typed in the panel */
+  public setBindingValue(binding: GeometryBinding, value: string): void {
+    const text = value.trim();
+    if (text && text !== binding.value) {
+      this.variableChange.emit({ name: binding.variable, index: binding.index, value: text, commit: true });
+    }
+  }
+
+  /** A fixed length of the selected layer becomes a CSS variable (declared on the card root) */
+  public makeVariable(fixed: FixedGeometry): void {
+    const card = this.cards()[0];
+    const element = this.selectedElement(card);
+    const root = card?.firstElementChild;
+    if (!element || !root) {
+      return;
+    }
+    const css = this.css ?? '';
+    const edits = createVariableEdits(css, fixed, root, newVariableName(element, fixed.property, css));
+    if (edits) {
+      this.cssEdits.emit(edits);
+    } else {
+      this.noRootRule = true;
+    }
+  }
+
+
+  public propertyLabel(property: string): string {
+    return this.translate.instant('template-editor.layers.geometry.' + property);
   }
 
   /*********************************************************************

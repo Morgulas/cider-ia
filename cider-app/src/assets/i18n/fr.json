@@ -401,6 +401,26 @@
     },
     "template-editor": {
         "layers": {
+            "geometry": {
+                "title": "Position et taille",
+                "grid": "Grille de repère (25 px, traits forts tous les 100 px)",
+                "drag": "Glisser pour changer {{variable}} (Maj : pas de 5)",
+                "drag-help": "Glissez les poignées bleues dans l'aperçu (Maj : pas de 5 px ou de 1 %). Une seule étape à annuler par glissement.",
+                "none": "Ni position ni taille écrite en px ou % pour cet élément.",
+                "make-variable": "→ variable",
+                "make-variable-help": "Remplace la valeur par une variable CSS, déclarée sur la racine de la carte : elle devient réglable ici, dans les réglages et dans les variantes",
+                "no-root-rule": "Aucune règle CSS ne vise la racine de la carte : ajoutez-en une (par ex. #card-template { }) pour y déclarer la variable.",
+                "top": "haut",
+                "bottom": "bas",
+                "left": "gauche",
+                "right": "droite",
+                "width": "largeur",
+                "height": "hauteur",
+                "padding-top": "marge int. haut",
+                "padding-bottom": "marge int. bas",
+                "padding-left": "marge int. gauche",
+                "padding-right": "marge int. droite"
+            },
             "view-variants": "Variantes",
             "view-variants-help": "La carte avec chaque valeur d'un attribut (rareté, foil…) : ce qui change dans le modèle",
             "variant": {

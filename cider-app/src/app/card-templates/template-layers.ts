@@ -931,3 +931,369 @@ export function setTagAttributes(html: string, tag: SourceTag, changes: Record<s
   }
   return text;
 }
+
+/*********************************************************************
+ * Geometry: the edges of an element driven by CSS variables (level 3)
+ *********************************************************************/
+
+/** One declaration of the template CSS ("property: value") */
+export interface CssDeclaration {
+  property: string;
+  /** as written */
+  value: string;
+  /** offsets of the value in the CSS */
+  valueStart: number;
+  valueEnd: number;
+  selector: string;
+  /** 1-based line of the rule */
+  ruleLine: number;
+  /** offset just after the "{" of the rule */
+  ruleOpen: number;
+  /** code order of the declaration */
+  order: number;
+  /** inside @media/@supports */
+  atRule: boolean;
+  /** inside a Handlebars block: may not be there for this card */
+  conditional: boolean;
+}
+
+/** Ranges of {{#block}}...{{/block}} in a text */
+function handlebarsBlockRanges(source: string): [number, number][] {
+  const ranges: [number, number][] = [];
+  const stack: number[] = [];
+  for (const match of source.matchAll(/\{\{~?\s*([#^/])[\s\S]*?\}\}/g)) {
+    if (match[1] === '/') {
+      const start = stack.pop();
+      if (start !== undefined) {
+        ranges.push([start, (match.index ?? 0) + match[0].length]);
+      }
+    } else {
+      stack.push(match.index ?? 0);
+    }
+  }
+  return ranges;
+}
+
+/** Every declaration of the template CSS, with its rule (comments and {{ }} are not taken for CSS) */
+export function cssDeclarations(css: string): CssDeclaration[] {
+  const source = css ?? '';
+  const conditional = handlebarsBlockRanges(source);
+  const isConditional = (index: number) => conditional.some(([start, end]) => index >= start && index < end);
+  const text = source
+    .replace(/\/\*[\s\S]*?\*\//g, match => match.replace(/[^\n]/g, ' '))
+    .replace(/\{\{[\s\S]*?\}\}/g, match => match.replace(/[^\n]/g, ' '));
+  const lineAt = (index: number) => text.slice(0, index).split('\n').length;
+  const declarations: CssDeclaration[] = [];
+  const stack: { selector: string | null; atRule: boolean; line: number; open: number }[] = [];
+  let start = 0;
+  const readBody = (from: number, to: number, rule: { selector: string; line: number; open: number }, atRule: boolean) => {
+    let depth = 0;
+    let declarationStart = from;
+    const take = (end: number) => {
+      const chunk = text.slice(declarationStart, end);
+      const match = /^(\s*)([-\w]+)(\s*:)/.exec(chunk);
+      if (match) {
+        // whitespace read in the source: {{ }} are blanked in `text`
+        let valueStart = declarationStart + match[0].length;
+        while (valueStart < end && /\s/.test(source[valueStart])) {
+          valueStart++;
+        }
+        let valueEnd = end;
+        while (valueEnd > valueStart && /\s/.test(source[valueEnd - 1])) {
+          valueEnd--;
+        }
+        declarations.push({
+          property: match[2].toLowerCase(), value: source.slice(valueStart, valueEnd), valueStart, valueEnd,
+          selector: rule.selector, ruleLine: rule.line, ruleOpen: rule.open, order: declarations.length, atRule,
+          conditional: isConditional(declarationStart + match[1].length),
+        });
+      }
+    };
+    for (let i = from; i < to; i++) {
+      if (text[i] === '(') {
+        depth++;
+      } else if (text[i] === ')') {
+        depth = Math.max(0, depth - 1);
+      } else if (text[i] === ';' && depth === 0) {
+        take(i);
+        declarationStart = i + 1;
+      }
+    }
+    take(to);
+  };
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '{') {
+      const prelude = text.slice(start, i);
+      const selector = prelude.trim().replace(/\s+/g, ' ');
+      const offset = start + prelude.indexOf(prelude.trim());
+      stack.push({ selector: selector.startsWith('@') ? null : selector, atRule: selector.startsWith('@'), line: lineAt(offset), open: i + 1 });
+      start = i + 1;
+    } else if (char === '}') {
+      const entry = stack.pop();
+      if (entry?.selector) {
+        readBody(entry.open, i, { selector: entry.selector, line: entry.line, open: entry.open },
+          stack.some(parent => parent.atRule));
+      }
+      start = i + 1;
+    } else if (char === ';' && !stack.length) {
+      start = i + 1;
+    }
+  }
+  return declarations.sort((a, b) => a.valueStart - b.valueStart).map((declaration, order) => ({ ...declaration, order }));
+}
+
+/** Specificity of one selector, as a number (ids, then classes/attributes/pseudo-classes, then types) */
+export function specificity(selector: string): number {
+  const text = selector.replace(/::[\w-]+(\([^)]*\))?/g, ' ').replace(/"[^"]*"|'[^']*'/g, '');
+  const ids = (text.match(/#[\w-]+/g) ?? []).length;
+  const classes = (text.match(/\.[\w-]+|\[[^\]]*\]|:(?!not\b|is\b|where\b)[\w-]+/g) ?? []).length;
+  const types = (text.replace(/\[[^\]]*\]/g, '').match(/(^|[\s>+~(,])([a-zA-Z][\w-]*)/g) ?? []).length;
+  return ids * 10000 + classes * 100 + types;
+}
+
+/** The highest specificity of the selectors of a list that match the element, or -1 */
+function matchSpecificity(element: Element, selectorList: string): number {
+  let best = -1;
+  for (const selector of splitSelectorList(selectorList)) {
+    const matchable = matchableSelector(selector);
+    try {
+      if (matchable && element.matches(matchable)) {
+        best = Math.max(best, specificity(selector));
+      }
+    } catch {
+      // selector the browser does not know
+    }
+  }
+  return best;
+}
+
+/** The declaration of `property` that wins on the element (conditional ones left out), with its specificity */
+export function winningDeclaration(element: Element, declarations: CssDeclaration[], property: string): CssDeclaration | null {
+  let best: CssDeclaration | null = null;
+  let bestSpecificity = -1;
+  for (const declaration of declarations) {
+    if (declaration.property !== property || declaration.conditional) {
+      continue;
+    }
+    const found = matchSpecificity(element, declaration.selector);
+    if (found >= 0 && (found > bestSpecificity || (found === bestSpecificity && (!best || declaration.order > best.order)))) {
+      best = declaration;
+      bestSpecificity = found;
+    }
+  }
+  return best;
+}
+
+/** The declaration that gives its value to a variable on the element: on it, or inherited from a parent */
+export function variableDeclaration(element: Element, declarations: CssDeclaration[], name: string, stopAt?: Element): CssDeclaration | null {
+  for (let current: Element | null = element; current; current = current.parentElement) {
+    const found = winningDeclaration(current, declarations, name);
+    if (found) {
+      return found;
+    }
+    if (current === stopAt) {
+      break;
+    }
+  }
+  return null;
+}
+
+export type GeometryProperty = 'top' | 'bottom' | 'left' | 'right' | 'width' | 'height'
+  | 'padding-top' | 'padding-bottom' | 'padding-left' | 'padding-right';
+
+/** The edge a property moves, and in which direction a drag changes it */
+export const GEOMETRY_EDGES: Record<GeometryProperty, { edge: 'top' | 'bottom' | 'left' | 'right'; box: 'border' | 'content'; sign: 1 | -1 }> = {
+  'top': { edge: 'top', box: 'border', sign: 1 },
+  'bottom': { edge: 'bottom', box: 'border', sign: -1 },
+  'left': { edge: 'left', box: 'border', sign: 1 },
+  'right': { edge: 'right', box: 'border', sign: -1 },
+  'width': { edge: 'right', box: 'border', sign: 1 },
+  'height': { edge: 'bottom', box: 'border', sign: 1 },
+  'padding-top': { edge: 'top', box: 'content', sign: 1 },
+  'padding-bottom': { edge: 'bottom', box: 'content', sign: -1 },
+  'padding-left': { edge: 'left', box: 'content', sign: 1 },
+  'padding-right': { edge: 'right', box: 'content', sign: -1 },
+};
+
+/** Shorthands read side by side (top, right, bottom, left) */
+const SHORTHANDS: Record<string, GeometryProperty[]> = {
+  'inset': ['top', 'right', 'bottom', 'left'],
+  'padding': ['padding-top', 'padding-right', 'padding-bottom', 'padding-left'],
+};
+
+/** Splits a value at its top-level spaces ("var(--a) calc(1px + 2px)" → 2 parts) */
+function valueParts(value: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const char of value.trim()) {
+    if (char === '(') {
+      depth++;
+    } else if (char === ')') {
+      depth--;
+    }
+    if (/\s/.test(char) && depth === 0) {
+      if (current) {
+        parts.push(current);
+      }
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  if (current) {
+    parts.push(current);
+  }
+  return parts;
+}
+
+/** Sides of a shorthand with 1 to 4 values: top, right, bottom, left */
+function sides(parts: string[]): string[] | null {
+  if (parts.length < 1 || parts.length > 4) {
+    return null;
+  }
+  const [top, right = top, bottom = top, left = right] = parts;
+  return [top, right, bottom, left];
+}
+
+const LENGTH = /^(-?\d*\.?\d+)(px|%)?$/;
+
+/** An edge of the element driven by a variable: dragging it changes the variable */
+export interface GeometryBinding {
+  property: GeometryProperty;
+  variable: string;
+  /** the declaration of the variable that applies (the one changed) */
+  declaration: CssDeclaration;
+  /** which declaration of this variable it is, in code order (to find it again after an edit) */
+  index: number;
+  value: string;
+  /** number and unit when the value can be dragged (px or %) */
+  number: number | null;
+  unit: 'px' | '%' | null;
+}
+
+/** An edge written as a fixed length: can become a variable */
+export interface FixedGeometry {
+  property: GeometryProperty;
+  value: string;
+  declaration: CssDeclaration;
+  /** side of a shorthand (0 top, 1 right, 2 bottom, 3 left), or null */
+  side: number | null;
+}
+
+export interface ElementGeometry {
+  bindings: GeometryBinding[];
+  fixed: FixedGeometry[];
+}
+
+/** The position and size properties of an element, driven by variables or written as fixed lengths */
+export function elementGeometry(element: Element, css: string, root?: Element): ElementGeometry {
+  const declarations = cssDeclarations(css);
+  const bindings: GeometryBinding[] = [];
+  const fixed: FixedGeometry[] = [];
+  const done = new Set<GeometryProperty>();
+  const take = (property: GeometryProperty, part: string, declaration: CssDeclaration, side: number | null) => {
+    if (done.has(property)) {
+      return;
+    }
+    done.add(property);
+    const variable = /^var\(\s*(--[\w-]+)\s*\)$/.exec(part)?.[1];
+    if (variable) {
+      const source = variableDeclaration(element, declarations, variable, root);
+      if (source) {
+        const length = LENGTH.exec(source.value.trim());
+        const sameName = declarations.filter(candidate => candidate.property === variable);
+        bindings.push({
+          property, variable, declaration: source, index: sameName.indexOf(source), value: source.value.trim(),
+          number: length ? Number(length[1]) : null, unit: length ? (length[2] as 'px' | '%' | undefined) ?? 'px' : null,
+        });
+      }
+    } else if (/^-?\d*\.?\d+(px|%)$/.test(part)) {
+      fixed.push({ property, value: part, declaration, side });
+    }
+  };
+  // the longhand wins over the shorthand when it comes later or is more specific: compared like the browser
+  const candidates: { property: GeometryProperty; part: string; declaration: CssDeclaration; side: number | null; rank: number }[] = [];
+  for (const property of Object.keys(GEOMETRY_EDGES) as GeometryProperty[]) {
+    const own = winningDeclaration(element, declarations, property);
+    if (own) {
+      candidates.push({ property, part: own.value.trim(), declaration: own, side: null, rank: matchSpecificity(element, own.selector) * 1e6 + own.order });
+    }
+  }
+  for (const [shorthand, longhands] of Object.entries(SHORTHANDS)) {
+    const declaration = winningDeclaration(element, declarations, shorthand);
+    const parts = declaration ? sides(valueParts(declaration.value)) : null;
+    if (declaration && parts) {
+      longhands.forEach((property, side) => candidates.push({
+        property, part: parts[side], declaration, side, rank: matchSpecificity(element, declaration.selector) * 1e6 + declaration.order,
+      }));
+    }
+  }
+  candidates.sort((a, b) => b.rank - a.rank).forEach(candidate => take(candidate.property, candidate.part, candidate.declaration, candidate.side));
+  const order = Object.keys(GEOMETRY_EDGES);
+  bindings.sort((a, b) => order.indexOf(a.property) - order.indexOf(b.property));
+  fixed.sort((a, b) => order.indexOf(a.property) - order.indexOf(b.property));
+  return { bindings, fixed };
+}
+
+/** A change of the CSS text: [start, end) replaced by text */
+export interface TextEdit {
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** The value of the n-th declaration of a variable, replaced */
+export function variableEdit(css: string, name: string, index: number, value: string): TextEdit | null {
+  const declaration = cssDeclarations(css).filter(candidate => candidate.property === name)[index];
+  return declaration ? { start: declaration.valueStart, end: declaration.valueEnd, text: value } : null;
+}
+
+/**
+ * Turns a fixed length into a variable: the value becomes var(--name), and
+ * "--name: value;" is declared at the top of the first rule styling the card
+ * root (the one holding variables, if any). Null when no rule styles the root.
+ */
+export function createVariableEdits(css: string, fixed: FixedGeometry, root: Element, name: string): TextEdit[] | null {
+  const declarations = cssDeclarations(css);
+  const rootRules = [...new Map(declarations.filter(declaration => !declaration.conditional && !declaration.atRule
+    && matchSpecificity(root, declaration.selector) >= 0).map(declaration => [declaration.ruleOpen, declaration])).values()];
+  const target = rootRules.find(rule => declarations.some(declaration => declaration.ruleOpen === rule.ruleOpen
+    && declaration.property.startsWith('--'))) ?? rootRules[0];
+  if (!target) {
+    return null;
+  }
+  const current = declarations.find(declaration => declaration.valueStart === fixed.declaration.valueStart);
+  if (!current) {
+    return null;
+  }
+  let replacement: TextEdit;
+  if (fixed.side === null) {
+    replacement = { start: current.valueStart, end: current.valueEnd, text: `var(${name})` };
+  } else {
+    const parts = sides(valueParts(current.value));
+    if (!parts) {
+      return null;
+    }
+    parts[fixed.side] = `var(${name})`;
+    // written back in full (4 values): the other sides keep their value
+    replacement = { start: current.valueStart, end: current.valueEnd, text: parts.join(' ') };
+  }
+  // indentation of the rule's first declaration
+  const after = css.slice(target.ruleOpen);
+  const indent = /^\s*\n([ \t]*)\S/.exec(after)?.[1] ?? '    ';
+  const insert: TextEdit = { start: target.ruleOpen, end: target.ruleOpen, text: `\n${indent}${name}: ${fixed.value};` };
+  return [insert, replacement].sort((a, b) => b.start - a.start);
+}
+
+/** A variable name for a property of an element, not used yet in the CSS */
+export function newVariableName(element: Element, property: GeometryProperty, css: string): string {
+  const base = (Array.from(element.classList).find(name => !name.startsWith('cider-') && !name.startsWith('cc-'))
+    ?? element.id ?? element.tagName.toLowerCase()).toLowerCase().replace(/[^a-z0-9-]+/g, '-') || 'element';
+  let name = `--${base}-${property}`;
+  for (let i = 2; new RegExp(`${name.replace(/[-]/g, '\\-')}\\s*:`).test(css); i++) {
+    name = `--${base}-${property}-${i}`;
+  }
+  return name;
+}

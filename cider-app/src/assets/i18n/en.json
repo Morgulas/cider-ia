@@ -401,6 +401,26 @@
     },
     "template-editor": {
         "layers": {
+            "geometry": {
+                "title": "Position and size",
+                "grid": "Guide grid (25 px, strong lines every 100 px)",
+                "drag": "Drag to change {{variable}} (Shift: steps of 5)",
+                "drag-help": "Drag the blue handles in the preview (Shift: steps of 5 px or 1 %). One undo step per drag.",
+                "none": "No position or size written in px or % for this element.",
+                "make-variable": "→ variable",
+                "make-variable-help": "Replaces the value with a CSS variable, declared on the card root: it becomes adjustable here, in the settings and in the variants",
+                "no-root-rule": "No CSS rule styles the card root: add one (e.g. #card-template { }) to declare the variable there.",
+                "top": "top",
+                "bottom": "bottom",
+                "left": "left",
+                "right": "right",
+                "width": "width",
+                "height": "height",
+                "padding-top": "padding top",
+                "padding-bottom": "padding bottom",
+                "padding-left": "padding left",
+                "padding-right": "padding right"
+            },
             "view-variants": "Variants",
             "view-variants-help": "The card with each value of an attribute (rarity, foil…): what changes in the template",
             "variant": {

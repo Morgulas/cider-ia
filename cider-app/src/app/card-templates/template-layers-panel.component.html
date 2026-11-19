@@ -10,6 +10,8 @@
       [pTooltip]="'template-editor.layers.view-variants-help' | translate">
       <i class="pi pi-objects-column"></i> {{ 'template-editor.layers.view-variants' | translate }}</button>
   </div>
+  <button type="button" class="icon-button" [class.on]="showGrid" (click)="toggleGrid()" [pTooltip]="'template-editor.layers.geometry.grid' | translate">
+    <i class="pi pi-th-large"></i></button>
   <button type="button" class="icon-button" (click)="refresh()" [pTooltip]="'template-editor.layers.refresh' | translate">
     <i class="pi pi-refresh"></i></button>
 </div>
@@ -130,6 +132,36 @@
         <i class="pi" [class.pi-eye]="!hidden.has(node.key)" [class.pi-eye-slash]="hidden.has(node.key)"></i></button>
     </span>
   </div>
+  @if (!flat && selected === node.key && geometry) {
+  <div class="geometry-box" [style.--depth]="depth">
+    <div class="geometry-title">{{ 'template-editor.layers.geometry.title' | translate }}</div>
+    @for (binding of geometry.bindings; track binding.property) {
+    <div class="geo-row">
+      <span class="prop">{{ propertyLabel(binding.property) }}</span>
+      <code [title]="'l. ' + binding.declaration.ruleLine + ' — ' + binding.declaration.selector">{{ binding.variable }}</code>
+      <input type="text" [value]="binding.value" (change)="setBindingValue(binding, $any($event.target).value)"
+        [attr.aria-label]="binding.variable" />
+    </div>
+    }
+    @for (fixed of geometry.fixed; track fixed.property) {
+    <div class="geo-row fixed">
+      <span class="prop">{{ propertyLabel(fixed.property) }}</span>
+      <span class="fixed-value">{{ fixed.value }}</span>
+      <button type="button" class="link-button inline" (click)="makeVariable(fixed)"
+        [pTooltip]="'template-editor.layers.geometry.make-variable-help' | translate">{{ 'template-editor.layers.geometry.make-variable' | translate }}</button>
+    </div>
+    }
+    @if (!geometry.bindings.length && !geometry.fixed.length) {
+    <p class="layers-help">{{ 'template-editor.layers.geometry.none' | translate }}</p>
+    }
+    @if (geometry.bindings.length) {
+    <p class="layers-help">{{ 'template-editor.layers.geometry.drag-help' | translate }}</p>
+    }
+    @if (noRootRule) {
+    <p class="layers-help warn">{{ 'template-editor.layers.geometry.no-root-rule' | translate }}</p>
+    }
+  </div>
+  }
   @if (foilDraft && foilDraft.key === node.key) {
   <div class="foil-editor" [style.--depth]="depth">
     <div class="foil-title">{{ 'template-editor.layers.foil.title' | translate: { label: node.label } }}</div>
