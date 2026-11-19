@@ -2,11 +2,65 @@ import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, NgZone, 
 import { NgTemplateOutlet } from '@angular/common';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Tooltip } from 'primeng/tooltip';
-import { PIECE_CLASS } from '../card-preview/foil-zones';
+import { FormsModule } from '@angular/forms';
+import { GILDING_EFFECTS, PIECE_CLASS } from '../card-preview/foil-zones';
+import { FOIL_EFFECTS } from '../card-binder/foil';
+import { CardToHtmlPipe } from '../shared/pipes/template-to-html.pipe';
+import { AssetsService } from '../data-services/services/assets.service';
+import { Card } from '../data-services/types/card.type';
+import { CardTemplate } from '../data-services/types/card-template.type';
 import {
-  AbsentTag, absentTags, analyzeCard, CssDuplicate, findCssDuplicates, HIDDEN_ATTRIBUTE, HOVER_CLASS, LayerAnalysis, LayerIssue,
-  LayerNode, layerElements, PaintEntry, paintTopFirst, SELECTED_CLASS, SOLO_ATTRIBUTE, SOLO_MODE_ATTRIBUTE,
+  AbsentTag, absentTags, analyzeCard, compareSnapshots, CssDuplicate, findCssDuplicates, findSourceTag, HIDDEN_ATTRIBUTE, HOVER_CLASS,
+  LayerAnalysis, LayerIssue, LayerNode, layerElements, PaintEntry, paintTopFirst, SELECTED_CLASS, snapshotCard, SOLO_ATTRIBUTE,
+  SOLO_MODE_ATTRIBUTE, VariantDiff,
 } from './template-layers';
+import { annotateLines } from './template-tools';
+
+/** A card value with a list of choices: each choice is a variant of the template */
+export interface VariantField {
+  /** card field (card.<key>) */
+  key: string;
+  label: string;
+  values: string[];
+}
+
+/** The preview card shown with another value (the card itself is not changed) */
+export interface PreviewOverride {
+  key: string;
+  label: string;
+  value: string;
+}
+
+/** Attributes to change on a tag of the HTML code */
+export interface TagEdit {
+  line: number;
+  tag: string;
+  index: number;
+  changes: Record<string, string | null>;
+}
+
+interface VariantRow {
+  value: string;
+  /** the value of the card itself */
+  current: boolean;
+  diff: VariantDiff;
+}
+
+interface FoilDraft {
+  key: string;
+  line: number;
+  tag: string;
+  index: number;
+  /** value written in the code holds {{handlebars}}: edited as text */
+  raw: boolean;
+  value: string;
+  /** 0 to 100 */
+  force: number;
+}
+
+/** Effects of data-foil: reflections, then gildings (the metal replaces the ink) */
+export const FOIL_CHOICES: string[] = [...FOIL_EFFECTS,
+  ...GILDING_EFFECTS.flatMap(metal => [`dorure-${metal}`, `dorure-${metal}-mat`])];
 
 /** delay before the panel reads the preview again after it changed (it changes in bursts: images, fonts, foils) */
 const REFRESH_DELAY_MS = 200;
@@ -20,13 +74,15 @@ const REFRESH_DELAY_MS = 200;
   selector: 'app-template-layers-panel',
   templateUrl: './template-layers-panel.component.html',
   styleUrls: ['./template-layers-panel.component.scss'],
-  imports: [NgTemplateOutlet, TranslatePipe, Tooltip],
+  imports: [NgTemplateOutlet, TranslatePipe, Tooltip, FormsModule],
 })
 export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestroy {
   private readonly zone = inject(NgZone);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly translate = inject(TranslateService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly cardToHtml = inject(CardToHtmlPipe);
+  private readonly assets = inject(AssetsService);
 
   /** template source, for the tags this card does not render and the CSS written twice */
   @Input() html = '';
@@ -35,10 +91,24 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
   @Input() renderKey: unknown;
   /** where the previews are (this page, the separate window) */
   @Input() roots: () => HTMLElement[] = () => [];
+  /** the preview card as it is (without the variant shown) */
+  @Input() card: Card | null = null;
+  /** card values with choices (rarity, foil...) */
+  @Input() variantFields: VariantField[] = [];
+  @Input() override: PreviewOverride | null = null;
+  @Output() overrideChange = new EventEmitter<PreviewOverride | null>();
   @Output() goToTag = new EventEmitter<{ line: number; tag: string }>();
   @Output() goToCss = new EventEmitter<number>();
+  @Output() editTag = new EventEmitter<TagEdit>();
 
-  view: 'tree' | 'paint' = 'tree';
+  view: 'tree' | 'paint' | 'variants' = 'tree';
+  variantKey = '';
+  variants: VariantRow[] = [];
+  openVariant: string | null = null;
+  foilDraft: FoilDraft | null = null;
+  readonly foilChoices = FOIL_CHOICES;
+  private variantTimer: ReturnType<typeof setTimeout> | undefined;
+  private static renders = 0;
   analysis: LayerAnalysis | null = null;
   /** painting order from the top (painted last) to the bottom */
   paintTopFirst: PaintEntry[] = [];
@@ -65,10 +135,20 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
     if (changes['html'] || changes['renderKey']) {
       this.schedule();
     }
+    if (changes['variantFields'] && !this.variantFields.some(field => field.key === this.variantKey)) {
+      // a field the template reads (card.<key>), else the first one
+      const code = `${this.html ?? ''}\n${this.css ?? ''}`;
+      const used = this.variantFields.find(field => new RegExp(`card\\.${field.key.replace(/[-]/g, '\\-')}(?![\\w-])`).test(code));
+      this.variantKey = this.override?.key ?? used?.key ?? this.variantFields[0]?.key ?? '';
+    }
+    if (changes['html'] || changes['css'] || changes['card'] || changes['variantFields']) {
+      this.scheduleVariants();
+    }
   }
 
   ngOnDestroy(): void {
     clearTimeout(this.timer);
+    clearTimeout(this.variantTimer);
     this.observer?.disconnect();
     // the preview goes back to normal
     this.hidden.clear();
@@ -285,6 +365,148 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
     path(this.analysis?.roots ?? [])?.forEach(node => this.collapsed.delete(node.key));
     this.changeDetector.detectChanges();
     this.host.nativeElement.querySelector(`[data-layer-key="${key}"]`)?.scrollIntoView({ block: 'nearest' });
+  }
+
+  /*********************************************************************
+   * Variants: the card with each value of a field, compared with itself
+   *********************************************************************/
+
+  public setView(view: 'tree' | 'paint' | 'variants'): void {
+    this.view = view;
+    if (view === 'variants') {
+      this.scheduleVariants(0);
+    }
+  }
+
+  public selectVariantField(key: string): void {
+    this.variantKey = key;
+    this.openVariant = null;
+    this.scheduleVariants(0);
+  }
+
+  private scheduleVariants(delay = REFRESH_DELAY_MS): void {
+    clearTimeout(this.variantTimer);
+    if (this.view !== 'variants') {
+      return;
+    }
+    this.zone.runOutsideAngular(() => {
+      this.variantTimer = setTimeout(() => this.zone.run(() => this.computeVariants()), delay);
+    });
+  }
+
+  /** Renders the template with the card, then with each value of the field, out of sight, and compares */
+  public computeVariants(): void {
+    const field = this.variantFields.find(candidate => candidate.key === this.variantKey);
+    const card = this.card;
+    if (!field || !card || !this.html) {
+      this.variants = [];
+      return;
+    }
+    const current = String((card as unknown as Record<string, unknown>)[field.key] ?? '');
+    const base = this.renderOffscreen(card);
+    try {
+      const baseSnapshot = snapshotCard(base.card, this.css ?? '');
+      const values = field.values.includes(current) ? field.values : [current, ...field.values];
+      this.variants = values.map(value => {
+        if (value === current) {
+          return { value, current: true, diff: compareSnapshots(baseSnapshot, baseSnapshot) };
+        }
+        const other = this.renderOffscreen({ ...card, [field.key]: value } as Card);
+        try {
+          return { value, current: false, diff: compareSnapshots(baseSnapshot, snapshotCard(other.card, this.css ?? '')) };
+        } finally {
+          other.host.remove();
+        }
+      });
+    } finally {
+      base.host.remove();
+    }
+    this.changeDetector.markForCheck();
+  }
+
+  /** The template rendered with a card in a hidden element of the page, the way the preview renders it */
+  private renderOffscreen(card: Card): { host: HTMLElement; card: HTMLElement } {
+    const uuid = `layers-${++TemplateLayersPanelComponent.renders}`;
+    const host = document.createElement('div');
+    host.className = `card-preview card-${uuid}`;
+    host.setAttribute('aria-hidden', 'true');
+    host.style.cssText = 'position: fixed; left: -30000px; top: 0; pointer-events: none;';
+    const element = document.createElement('div');
+    element.className = 'card-element';
+    const template = { html: annotateLines(this.html ?? ''), css: this.css ?? '' } as CardTemplate;
+    const html = this.cardToHtml.transform(template, card, this.assets.urlsFor(card.deckId), uuid);
+    element.innerHTML = (html as unknown as { changingThisBreaksApplicationSecurity?: string }).changingThisBreaksApplicationSecurity ?? '';
+    host.appendChild(element);
+    document.body.appendChild(host);
+    return { host, card: element };
+  }
+
+  public toggleVariantPreview(row: VariantRow, event: Event): void {
+    event.stopPropagation();
+    const field = this.variantFields.find(candidate => candidate.key === this.variantKey);
+    if (!field) {
+      return;
+    }
+    const active = this.override?.key === field.key && this.override.value === row.value;
+    this.overrideChange.emit(active || row.current ? null : { key: field.key, label: field.label, value: row.value });
+  }
+
+  public isPreviewed(row: VariantRow): boolean {
+    return this.override?.key === this.variantKey && this.override.value === row.value;
+  }
+
+  public variantSummary(diff: VariantDiff): string {
+    if (!diff.size) {
+      return this.translate.instant('template-editor.layers.variant.same');
+    }
+    const parts: string[] = [];
+    const add = (count: number, key: string) => count && parts.push(this.translate.instant('template-editor.layers.variant.' + key, { count }));
+    add(diff.shown.length, 'shown');
+    add(diff.hidden.length, 'hidden');
+    add(diff.variables.length, 'variables');
+    add(diff.rulesOn.length + diff.rulesOff.length, 'rules');
+    add(diff.foils.length, 'foils');
+    return parts.join(' · ');
+  }
+
+  /*********************************************************************
+   * Foil of a layer: data-foil and data-foil-force, written in the code
+   *********************************************************************/
+
+  public editFoil(node: LayerNode, event: Event): void {
+    event.stopPropagation();
+    if (this.foilDraft?.key === node.key) {
+      this.foilDraft = null;
+      return;
+    }
+    if (!node.line) {
+      return;
+    }
+    const index = Number(node.key.split(':')[2]) || 0;
+    const tag = findSourceTag(this.html ?? '', node.line, node.tag, index);
+    const attribute = (name: string) => tag?.attributes.find(candidate => candidate.name === name)?.value ?? '';
+    const value = attribute('data-foil');
+    const forceText = attribute('data-foil-force').trim();
+    const forceNumber = parseFloat(forceText.replace(',', '.'));
+    const force = !forceText || !Number.isFinite(forceNumber) ? 100
+      : Math.round(forceText.endsWith('%') || forceNumber > 1 ? forceNumber : forceNumber * 100);
+    this.foilDraft = { key: node.key, line: node.line, tag: node.tag, index, raw: value.includes('{{'), value, force };
+  }
+
+  public applyFoil(remove = false): void {
+    const draft = this.foilDraft;
+    if (!draft) {
+      return;
+    }
+    const value = remove ? '' : draft.value.trim();
+    this.editTag.emit({
+      line: draft.line, tag: draft.tag, index: draft.index,
+      changes: {
+        'data-foil': value || null,
+        'data-foil-force': value && draft.force < 100 ? String(Math.max(0, draft.force) / 100) : null,
+      },
+    });
+    this.foilDraft = null;
   }
 
   /*********************************************************************

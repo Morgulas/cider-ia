@@ -774,3 +774,19 @@ textarea {
     }
 }
 
+
+/* preview shown with a variant of the card (layers panel) */
+.preview-variant {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 2px 4px 2px 10px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--p-primary-color) 18%, transparent);
+    font-size: 0.85rem;
+
+    span {
+        flex: 1;
+    }
+}

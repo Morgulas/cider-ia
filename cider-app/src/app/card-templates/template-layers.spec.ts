@@ -1,4 +1,5 @@
-import { absentTags, analyzeCard, findCssDuplicates, inheritedFromContainer, LayerNode, paintTopFirst, sourceTags } from './template-layers';
+import { absentTags, analyzeCard, compareSnapshots, findCssDuplicates, findSourceTag, inheritedFromContainer, LayerNode, paintTopFirst, setTagAttributes,
+  snapshotCard, sourceTags } from './template-layers';
 import { annotateLines } from './template-tools';
 
 /** Renders a template the way the preview does (lines annotated, CSS in a <style>), in a container of the page */
@@ -133,4 +134,36 @@ describe('template layers', () => {
       { kind: 'rule', selector: '.a', line: 1, repeatLine: 9 },
     ]);
   });
+
+  it('compares two renders of a template (variant)', () => {
+    const html = '<div id="c" class="{{v}}">\n<div class="crown" data-foil="{{f}}"></div>\n{{#if x}}\n<b class="extra"></b>\n{{/if}}\n</div>';
+    const css = '#c { --haut: 10px; }\n#c.leg { --haut: 0px; }\n.leg .crown { color: red; }';
+    const base = use('<div id="c" class="">\n<div class="crown" data-foil=""></div>\n\n\n\n</div>', css);
+    const leg = use('<div id="c" class="leg">\n<div class="crown" data-foil="or"></div>\n\n<b class="extra"></b>\n\n</div>', css);
+    const diff = compareSnapshots(snapshotCard(base, css), snapshotCard(leg, css));
+    expect(diff.shown).toEqual(['b.extra']);
+    expect(diff.hidden).toEqual([]);
+    expect(diff.variables).toEqual([{ name: '--haut', from: '10px', to: '0px' }]);
+    expect(diff.rulesOn.map(rule => rule.line)).toEqual([2, 3]);
+    expect(diff.foils).toEqual([{ label: 'div.crown', from: '', to: 'or' }]);
+    expect(diff.size).toBe(5);
+    expect(html).toContain('{{#if x}}');
+  });
+
+  it('finds an opening tag of the source and changes its attributes', () => {
+    const html = '<div id="c">\n  <div class="a" data-foil="{{selon card.raret "Légendaire" "or" ""}}">x</div><img src="{{u}}" />\n</div>';
+    const tag = findSourceTag(html, 2, 'div')!;
+    expect(tag.attributes.map(attribute => [attribute.name, attribute.value])).toEqual([
+      ['class', 'a'], ['data-foil', '{{selon card.raret "Légendaire" "or" ""}}']]);
+    expect(setTagAttributes(html, tag, { 'data-foil': 'holo', 'data-foil-force': '0.5' }))
+      .toBe('<div class="a" data-foil="holo" data-foil-force="0.5">');
+    expect(setTagAttributes(html, tag, { 'data-foil': null })).toBe('<div class="a">');
+    // a value with quotes inside {{ }} keeps double quotes
+    expect(setTagAttributes(html, tag, { 'data-foil': '{{selon card.x "a" "b"}}' }))
+      .toBe('<div class="a" data-foil="{{selon card.x "a" "b"}}">');
+    const img = findSourceTag(html, 2, 'img')!;
+    expect(setTagAttributes(html, img, { 'data-foil': 'argent' })).toBe('<img src="{{u}}" data-foil="argent" />');
+    expect(findSourceTag(html, 3, 'div')).toBeNull();
+  });
 });
+

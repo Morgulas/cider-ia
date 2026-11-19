@@ -52,6 +52,14 @@
             }
           </div>
           }
+          @if (previewOverride) {
+          <div class="preview-variant">
+            <i class="pi pi-objects-column"></i>
+            <span>{{ 'template-editor.layers.variant.previewing' | translate: { label: previewOverride.label, value: previewOverride.value } }}</span>
+            <button type="button" class="p-button-text p-button-sm" pButton icon="pi pi-times" (click)="setPreviewOverride(null)"
+              [pTooltip]="'template-editor.layers.variant.reset' | translate"></button>
+          </div>
+          }
           @if (hasIssue()) {
           <div class="preview-frozen" role="button" tabindex="0" (click)="goToIssue()" (keydown.enter)="goToIssue()">
             <i class="pi pi-exclamation-triangle"></i> {{ 'template-editor.preview-frozen' | translate }}
@@ -249,7 +257,9 @@
               </div>
               } @else if (sideTab === 'layers') {
               <app-template-layers-panel [html]="selectedTemplate.html" [css]="selectedTemplate.css" [roots]="previewRootsFn"
-                [renderKey]="templateVersion + ':' + selectedCard.id + ':' + viewMode + ':' + popoutOpen"
+                [renderKey]="templateVersion + ':' + selectedCard.id + ':' + viewMode + ':' + popoutOpen + ':' + (previewOverride?.value ?? '')"
+                [card]="selectedCard" [variantFields]="variantFields" [override]="previewOverride"
+                (overrideChange)="setPreviewOverride($event)" (editTag)="applyTagEdit($event)"
                 (goToTag)="goToTag($event.line, $event.tag)" (goToCss)="goToCssLine($event)"></app-template-layers-panel>
               } @else {
               @for (variable of cssVariables; track variable.name) {
@@ -361,7 +371,7 @@
                   @for (side of pairSides; track side) {
                   <figure class="preview-item" [attr.data-preview-card]="selectedCard.id"
                     [attr.data-preview-edited]="pair[side].id === selectedTemplate.id ? '' : null">
-                    <app-card-preview [foils]="true" [card]="selectedCard"
+                    <app-card-preview [foils]="true" [card]="previewCard()"
                       [template]="pair[side].id === selectedTemplate.id ? inspectTemplate : pair[side]" [scale]="1.0"
                       [cache]="false" [version]="templateVersion"></app-card-preview>
                     <figcaption>{{ 'template-editor.side-' + side | translate }} — {{ pair[side].name }}</figcaption>
@@ -396,7 +406,7 @@
                   @default {
                   @if (selectedCard) {
                   <div class="preview-item" [attr.data-preview-card]="selectedCard.id" data-preview-edited>
-                    <app-card-preview [foils]="true" [card]="selectedCard" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
+                    <app-card-preview [foils]="true" [card]="previewCard()" [template]="inspectTemplate" [scale]="1.0" [cache]="false"
                       [tiltable]="previewSettings.tiltEnabled && !inspecting" [showTrimLines]="previewSettings.trimLinesEnabled"
                       [trimOffsetPx]="getTrimOffsetPx()" [showSafeLines]="previewSettings.safeLinesEnabled"
                       [safeOffsetPx]="getSafeOffsetPx()" [version]="templateVersion"></app-card-preview>
@@ -407,6 +417,6 @@
 </ng-template>
 
 @if (viewer3dOpen && selectedCard) {
-<app-card-viewer-3d [card]="selectedCard" [front]="viewer3dSide('front')" [back]="viewer3dSide('back')"
+<app-card-viewer-3d [card]="previewCard()" [front]="viewer3dSide('front')" [back]="viewer3dSide('back')"
   [title]="selectedTemplate.name" (closed)="viewer3dOpen = false" />
 }

@@ -1,17 +1,31 @@
 <div class="layers-toolbar">
   <div class="view-switch" role="tablist">
-    <button type="button" role="tab" [class.active]="view === 'tree'" (click)="view = 'tree'"
+    <button type="button" role="tab" [class.active]="view === 'tree'" (click)="setView('tree')"
       [pTooltip]="'template-editor.layers.view-tree-help' | translate">
       <i class="pi pi-sitemap"></i> {{ 'template-editor.layers.view-tree' | translate }}</button>
-    <button type="button" role="tab" [class.active]="view === 'paint'" (click)="view = 'paint'"
+    <button type="button" role="tab" [class.active]="view === 'paint'" (click)="setView('paint')"
       [pTooltip]="'template-editor.layers.view-paint-help' | translate">
       <i class="pi pi-sort-amount-down"></i> {{ 'template-editor.layers.view-paint' | translate }}</button>
+    <button type="button" role="tab" [class.active]="view === 'variants'" (click)="setView('variants')"
+      [pTooltip]="'template-editor.layers.view-variants-help' | translate">
+      <i class="pi pi-objects-column"></i> {{ 'template-editor.layers.view-variants' | translate }}</button>
   </div>
   <button type="button" class="icon-button" (click)="refresh()" [pTooltip]="'template-editor.layers.refresh' | translate">
     <i class="pi pi-refresh"></i></button>
 </div>
 
-@if (!analysis) {
+@if (override) {
+<div class="override-banner">
+  <i class="pi pi-objects-column"></i>
+  <span>{{ 'template-editor.layers.variant.previewing' | translate: { label: override.label, value: override.value } }}</span>
+  <button type="button" class="icon-button" (click)="overrideChange.emit(null)" [pTooltip]="'template-editor.layers.variant.reset' | translate">
+    <i class="pi pi-times"></i></button>
+</div>
+}
+
+@if (view === 'variants') {
+<ng-container *ngTemplateOutlet="variantsView"></ng-container>
+} @else if (!analysis) {
 <p class="layers-help">{{ 'template-editor.layers.empty' | translate }}</p>
 } @else {
 <div class="layers-summary">
@@ -98,13 +112,17 @@
       <span class="chip calque" [pTooltip]="'template-editor.layers.calque-help' | translate"><i class="pi pi-clone"></i> {{ node.calque }}</span>
       }
       @if (node.foil) {
-      <span class="chip foil" [pTooltip]="'template-editor.layers.foil-help' | translate">✦ {{ node.foil }}</span>
+      <button type="button" class="chip foil" (click)="editFoil(node, $event)" [pTooltip]="'template-editor.layers.foil-help' | translate">✦ {{ node.foil }}</button>
       }
       @if (node.hidden) {
       <span class="chip muted">{{ 'template-editor.layers.hidden-' + node.hidden | translate }}</span>
       }
     </span>
     <span class="actions">
+      @if (node.line) {
+      <button type="button" class="icon-button" [class.on]="foilDraft?.key === node.key" (click)="editFoil(node, $event)"
+        [pTooltip]="'template-editor.layers.foil.edit' | translate"><i class="pi pi-sparkles"></i></button>
+      }
       <button type="button" class="icon-button" [class.on]="solo === node.key" (click)="toggleSolo(node, $event)"
         [pTooltip]="'template-editor.layers.solo' | translate"><i class="pi pi-bullseye"></i></button>
       <button type="button" class="icon-button" [class.on]="hidden.has(node.key)" (click)="toggleHidden(node, $event)"
@@ -112,6 +130,39 @@
         <i class="pi" [class.pi-eye]="!hidden.has(node.key)" [class.pi-eye-slash]="hidden.has(node.key)"></i></button>
     </span>
   </div>
+  @if (foilDraft && foilDraft.key === node.key) {
+  <div class="foil-editor" [style.--depth]="depth">
+    <div class="foil-title">{{ 'template-editor.layers.foil.title' | translate: { label: node.label } }}</div>
+    @if (foilDraft.raw) {
+    <input type="text" class="foil-raw" [(ngModel)]="foilDraft.value" [attr.aria-label]="'template-editor.layers.foil.effect' | translate" />
+    <p class="layers-help">{{ 'template-editor.layers.foil.raw-help' | translate }}
+      <button type="button" class="link-button inline" (click)="foilDraft.raw = false; foilDraft.value = ''">{{ 'template-editor.layers.foil.use-list' | translate }}</button></p>
+    } @else {
+    <select class="field-select" [(ngModel)]="foilDraft.value" [attr.aria-label]="'template-editor.layers.foil.effect' | translate">
+      <option value="">{{ 'template-editor.layers.foil.none' | translate }}</option>
+      @for (effect of foilChoices; track effect) {
+      <option [value]="effect">{{ effect }}</option>
+      }
+      @if (foilDraft.value && !foilChoices.includes(foilDraft.value)) {
+      <option [value]="foilDraft.value">{{ foilDraft.value }}</option>
+      }
+    </select>
+    }
+    <div class="force-row">
+      <span>{{ 'template-editor.layers.foil.force' | translate }}</span>
+      <input type="range" min="0" max="100" step="5" [(ngModel)]="foilDraft.force" [attr.aria-label]="'template-editor.layers.foil.force' | translate" />
+      <span class="force-value">{{ foilDraft.force }} %</span>
+    </div>
+    <div class="foil-actions">
+      <button type="button" class="preview-button on" (click)="applyFoil()">{{ 'template-editor.layers.foil.apply' | translate }}</button>
+      @if (node.foil) {
+      <button type="button" class="preview-button" (click)="applyFoil(true)">{{ 'template-editor.layers.foil.remove' | translate }}</button>
+      }
+      <button type="button" class="link-button" (click)="foilDraft = null">{{ 'template-editor.layers.foil.cancel' | translate }}</button>
+    </div>
+    <p class="layers-help">{{ 'template-editor.layers.foil.code-help' | translate: { line: foilDraft.line } }}</p>
+  </div>
+  }
   @for (issue of node.issues; track issue.code) {
   <div class="issue-row" [class.warning]="issue.severity === 'warning'" [style.--depth]="depth">
     <i class="pi" [class.pi-exclamation-triangle]="issue.severity === 'warning'" [class.pi-info-circle]="issue.severity === 'info'"></i>
@@ -122,5 +173,74 @@
   @for (child of node.children; track child.key) {
   <ng-container *ngTemplateOutlet="row; context: { $implicit: child, depth: child.depth, step: null }"></ng-container>
   }
+  }
+</ng-template>
+
+<ng-template #variantsView>
+  @if (!variantFields.length) {
+  <p class="layers-help">{{ 'template-editor.layers.variant.no-fields' | translate }}</p>
+  } @else {
+  <label class="field-label" for="variant-field">{{ 'template-editor.layers.variant.field' | translate }}</label>
+  <select id="variant-field" class="field-select" [ngModel]="variantKey" (ngModelChange)="selectVariantField($event)">
+    @for (field of variantFields; track field.key) {
+    <option [value]="field.key">{{ field.label }}</option>
+    }
+  </select>
+  <p class="layers-help">{{ 'template-editor.layers.variant.help' | translate }}</p>
+  <div class="layer-list">
+    @for (row of variants; track row.value) {
+    <div class="variant-row" [class.previewed]="isPreviewed(row)" [class.open]="openVariant === row.value" role="button" tabindex="0"
+      (click)="openVariant = openVariant === row.value ? null : row.value"
+      (keydown.enter)="openVariant = openVariant === row.value ? null : row.value">
+      <div class="variant-head">
+        <i class="pi caret-icon" [class.pi-chevron-right]="openVariant !== row.value" [class.pi-chevron-down]="openVariant === row.value"></i>
+        <b>{{ row.value || '—' }}</b>
+        @if (row.current) {
+        <span class="chip muted">{{ 'template-editor.layers.variant.current' | translate }}</span>
+        }
+        <span class="spacer"></span>
+        @if (!row.current) {
+        <button type="button" class="preview-button" [class.on]="isPreviewed(row)" (click)="toggleVariantPreview(row, $event)">
+          <i class="pi pi-eye"></i> {{ (isPreviewed(row) ? 'template-editor.layers.variant.previewed' : 'template-editor.layers.variant.preview') | translate }}
+        </button>
+        }
+      </div>
+      <div class="variant-summary">{{ row.current ? ('template-editor.layers.variant.reference' | translate) : variantSummary(row.diff) }}</div>
+      @if (openVariant === row.value && row.diff.size) {
+      <div class="variant-details">
+        @if (row.diff.shown.length) {
+        <div><span class="detail-title">{{ 'template-editor.layers.variant.shown-list' | translate }}</span>
+          @for (label of row.diff.shown; track label) {<code class="added">{{ label }}</code>}</div>
+        }
+        @if (row.diff.hidden.length) {
+        <div><span class="detail-title">{{ 'template-editor.layers.variant.hidden-list' | translate }}</span>
+          @for (label of row.diff.hidden; track label) {<code class="removed">{{ label }}</code>}</div>
+        }
+        @if (row.diff.variables.length) {
+        <div><span class="detail-title">{{ 'template-editor.layers.variant.variables-list' | translate }}</span>
+          @for (variable of row.diff.variables; track variable.name) {
+          <code>{{ variable.name }}: {{ variable.from || '—' }} → {{ variable.to || '—' }}</code>
+          }</div>
+        }
+        @if (row.diff.rulesOn.length || row.diff.rulesOff.length) {
+        <div><span class="detail-title">{{ 'template-editor.layers.variant.rules-list' | translate }}</span>
+          @for (rule of row.diff.rulesOn; track rule.line) {
+          <button type="button" class="rule-link added" (click)="$event.stopPropagation(); goToCss.emit(rule.line)">+ {{ rule.selector }} <span>l. {{ rule.line }}</span></button>
+          }
+          @for (rule of row.diff.rulesOff; track rule.line) {
+          <button type="button" class="rule-link removed" (click)="$event.stopPropagation(); goToCss.emit(rule.line)">− {{ rule.selector }} <span>l. {{ rule.line }}</span></button>
+          }</div>
+        }
+        @if (row.diff.foils.length) {
+        <div><span class="detail-title">{{ 'template-editor.layers.variant.foils-list' | translate }}</span>
+          @for (foil of row.diff.foils; track foil.label) {
+          <code>{{ foil.label }} : {{ foil.from || '—' }} → {{ foil.to || '—' }}</code>
+          }</div>
+        }
+      </div>
+      }
+    </div>
+    }
+  </div>
   }
 </ng-template>

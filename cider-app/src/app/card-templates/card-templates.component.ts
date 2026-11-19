@@ -45,8 +45,8 @@ import { TemplateChatbotDialogComponent } from './template-chatbot-dialog.compon
 import { annotateLines, CssRule, CssVariable, findCssVariables, formatColorLike, formatCss, LINE_ATTRIBUTE, matchableSelector, OverflowCandidate, parseCssRules, pickOverflowCards, sliderRange, splitSelectorList } from './template-tools';
 import { CurrentProjectService } from '../server/current-project.service';
 import { CardViewer3dComponent } from './card-viewer-3d/card-viewer-3d.component';
-import { findOverflowing, HOVER_CLASS, SELECTED_CLASS } from './template-layers';
-import { TemplateLayersPanelComponent } from './template-layers-panel.component';
+import { findOverflowing, findSourceTag, HOVER_CLASS, SELECTED_CLASS, setTagAttributes } from './template-layers';
+import { PreviewOverride, TagEdit, TemplateLayersPanelComponent, VariantField } from './template-layers-panel.component';
 
 type ViewMode = 'card' | 'pair' | 'overflow';
 type Side = 'front' | 'back';
@@ -253,6 +253,11 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
   sideTab: 'insert' | 'settings' | 'layers' = 'insert';
   /** where the previews are, for the layers panel */
   readonly previewRootsFn = () => this.previewRoots();
+  /** card values with choices: variants of the template (layers panel) */
+  variantFields: VariantField[] = [];
+  /** preview card shown with another value of a field (the card itself is not changed) */
+  previewOverride: PreviewOverride | null = null;
+  private previewCardCache: { card: Card; override: PreviewOverride; result: Card } | null = null;
   cssVariables: CssVariable[] = [];
   chatbotRequest = '';
   popoutOpen = false;
@@ -797,6 +802,8 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
         } as TemplateVariable;
       }),
     ];
+    this.variantFields = this.variables.filter(variable => variable.options?.length && variable.token.startsWith('{{card.'))
+      .map(variable => ({ key: variable.token.slice('{{card.'.length, -2), label: variable.label, values: variable.options ?? [] }));
     const first = this.variables[1]?.token.slice(2, -2) ?? 'card.name';
     const choice = this.variables.find(variable => variable.options)?.token.slice(2, -2) ?? first;
     const option = this.variables.find(variable => variable.options)?.options?.[0] ?? 'valeur';
@@ -959,6 +966,61 @@ export class CardTemplatesComponent implements OnInit, AfterViewInit, OnDestroy 
     this.zoom = Math.min(space.clientWidth / content.offsetWidth, space.clientHeight / content.offsetHeight) * 0.92;
     this.clampZoom();
     setTimeout(() => this.centerPreview(), 50);
+  }
+
+  /*********************************************************************
+   * Variants and foils (layers panel)
+   *********************************************************************/
+
+  /** The card shown in the preview: the preview card, with the variant chosen in the layers panel */
+  public previewCard(): Card {
+    const override = this.previewOverride;
+    if (!override || !this.selectedCard) {
+      return this.selectedCard;
+    }
+    const cache = this.previewCardCache;
+    if (cache?.card === this.selectedCard && cache.override === override) {
+      return cache.result;
+    }
+    const result = { ...this.selectedCard, [override.key]: override.value } as Card;
+    this.previewCardCache = { card: this.selectedCard, override, result };
+    return result;
+  }
+
+  public setPreviewOverride(override: PreviewOverride | null) {
+    this.previewOverride = override;
+    this.scheduleOverflowScan();
+  }
+
+  /** Changes attributes of a tag in the HTML editor (one undo step) */
+  public applyTagEdit(edit: TagEdit) {
+    const editor = this.editors.html;
+    const model = editor?.getModel();
+    const html: string = model ? model.getValue() : this.selectedTemplate.html ?? '';
+    const tag = findSourceTag(html, edit.line, edit.tag, edit.index);
+    if (!tag) {
+      this.messageService.add({ severity: 'warn', life: 5000,
+        summary: this.translate.instant('template-editor.layers.foil.not-found', { line: edit.line }) });
+      return;
+    }
+    const text = setTagAttributes(html, tag, edit.changes);
+    if (text === html.slice(tag.start, tag.end)) {
+      return;
+    }
+    if (model) {
+      const start = model.getPositionAt(tag.start);
+      const end = model.getPositionAt(tag.end);
+      editor.pushUndoStop();
+      editor.executeEdits('cider-layers', [{
+        range: { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column },
+        text,
+      }]);
+      editor.pushUndoStop();
+    } else {
+      this.selectedTemplate.html = html.slice(0, tag.start) + text + html.slice(tag.end);
+      this.debounceSave();
+    }
+    this.runCheck();
   }
 
   /*********************************************************************

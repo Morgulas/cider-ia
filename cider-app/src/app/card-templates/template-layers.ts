@@ -14,7 +14,7 @@
  */
 import { LAYER_NAME, layerGroups } from '../card-preview/card-preview.component';
 import { PIECE_CLASS } from '../card-preview/foil-zones';
-import { LINE_ATTRIBUTE } from './template-tools';
+import { findCssVariables, LINE_ATTRIBUTE, matchableSelector, parseCssRules, splitSelectorList } from './template-tools';
 
 /*********************************************************************
  * Marks put on elements of the rendered card (styles in styles.scss)
@@ -680,4 +680,254 @@ function propertyDuplicates(text: string, from: number, to: number, selector: st
   }
   check(to);
   return out;
+}
+
+/*********************************************************************
+ * Variants: the same card with another value (rarity, foil...)
+ *********************************************************************/
+
+/** What a rendered card is made of, to compare two renders of a template */
+export interface VariantSnapshot {
+  /** rendered tags: "<line>:<tag>" → label */
+  elements: Map<string, string>;
+  /** CSS variables of the template, computed on the card root */
+  variables: Map<string, string>;
+  /** CSS rules (by line) that style at least one element */
+  rules: Map<number, string>;
+  /** foil zones: "<line>:<tag>" → effect */
+  foils: Map<string, string>;
+}
+
+export interface VariantDiff {
+  shown: string[];
+  hidden: string[];
+  variables: { name: string; from: string; to: string }[];
+  rulesOn: { line: number; selector: string }[];
+  rulesOff: { line: number; selector: string }[];
+  foils: { label: string; from: string; to: string }[];
+  /** number of differences */
+  size: number;
+}
+
+/** Reads a rendered card for comparison (`css`: the template CSS, as written) */
+export function snapshotCard(cardElement: HTMLElement, css: string): VariantSnapshot {
+  const view = cardElement.ownerDocument.defaultView ?? window;
+  const elements = new Map<string, string>();
+  const foils = new Map<string, string>();
+  layerElements(cardElement).forEach(element => {
+    const id = `${element.getAttribute(LINE_ATTRIBUTE) ?? '?'}:${element.tagName.toLowerCase()}`;
+    if (!elements.has(id)) {
+      elements.set(id, describeElement(element));
+    }
+    const foil = element.getAttribute('data-foil')?.trim();
+    if (foil && !foils.has(id)) {
+      foils.set(id, foil);
+    }
+  });
+  const root = Array.from(cardElement.children).find(isShown);
+  const variables = new Map<string, string>();
+  if (root) {
+    const style = view.getComputedStyle(root);
+    findCssVariables(css).forEach(variable => variables.set(variable.name, style.getPropertyValue(variable.name).trim()));
+  }
+  const rules = new Map<number, string>();
+  for (const rule of parseCssRules(css)) {
+    const used = splitSelectorList(rule.selector).some(selector => {
+      const matchable = matchableSelector(selector);
+      try {
+        return !!matchable && !!cardElement.querySelector(matchable);
+      } catch {
+        return false;
+      }
+    });
+    if (used) {
+      rules.set(rule.line, rule.selector);
+    }
+  }
+  return { elements, variables, rules, foils };
+}
+
+/** What changes from `base` to `other` */
+export function compareSnapshots(base: VariantSnapshot, other: VariantSnapshot): VariantDiff {
+  const shown = [...other.elements].filter(([id]) => !base.elements.has(id)).map(([, label]) => label);
+  const hidden = [...base.elements].filter(([id]) => !other.elements.has(id)).map(([, label]) => label);
+  const variables = [...other.variables].filter(([name, value]) => base.variables.get(name) !== value)
+    .map(([name, to]) => ({ name, from: base.variables.get(name) ?? '', to }));
+  const rulesOn = [...other.rules].filter(([line]) => !base.rules.has(line)).map(([line, selector]) => ({ line, selector }));
+  const rulesOff = [...base.rules].filter(([line]) => !other.rules.has(line)).map(([line, selector]) => ({ line, selector }));
+  const ids = new Set([...base.foils.keys(), ...other.foils.keys()]);
+  const foils = [...ids].filter(id => (base.foils.get(id) ?? '') !== (other.foils.get(id) ?? ''))
+    .map(id => ({ label: other.elements.get(id) ?? base.elements.get(id) ?? id, from: base.foils.get(id) ?? '', to: other.foils.get(id) ?? '' }));
+  return { shown, hidden, variables, rulesOn, rulesOff, foils,
+    size: shown.length + hidden.length + variables.length + rulesOn.length + rulesOff.length + foils.length };
+}
+
+/*********************************************************************
+ * Source: the attributes of one opening tag, to change them in the code
+ *********************************************************************/
+
+export interface SourceAttribute {
+  name: string;
+  /** as written, {{handlebars}} included; null for an attribute without value */
+  value: string | null;
+  /** offsets of the whole attribute (name="value") in the source */
+  start: number;
+  end: number;
+}
+
+export interface SourceTag {
+  tag: string;
+  /** offsets of the opening tag, from "<" to ">" included */
+  start: number;
+  end: number;
+  /** offset of the ">" (or "/>") that closes it */
+  closeAt: number;
+  attributes: SourceAttribute[];
+}
+
+/** End of the {{ }} (or {{{ }}}) block starting at `index` */
+function handlebarsEnd(html: string, index: number): number {
+  const triple = html.startsWith('{{{', index);
+  const end = html.indexOf(triple ? '}}}' : '}}', index + 2);
+  return end < 0 ? html.length : end + (triple ? 3 : 2);
+}
+
+/** Reads the opening tag whose "<" is at `start` */
+function readTag(html: string, start: number): SourceTag | null {
+  const name = /^<([a-zA-Z][\w-]*)/.exec(html.slice(start, start + 64));
+  if (!name) {
+    return null;
+  }
+  const attributes: SourceAttribute[] = [];
+  let i = start + name[0].length;
+  while (i < html.length) {
+    while (i < html.length && /\s/.test(html[i])) {
+      i++;
+    }
+    if (html.startsWith('{{', i)) {
+      i = handlebarsEnd(html, i);
+      continue;
+    }
+    if (html[i] === '>' || html.startsWith('/>', i)) {
+      const end = html[i] === '>' ? i + 1 : i + 2;
+      return { tag: name[1].toLowerCase(), start, end, closeAt: i, attributes };
+    }
+    const attributeStart = i;
+    while (i < html.length && !/[\s=>/]/.test(html[i]) && !html.startsWith('{{', i)) {
+      i++;
+    }
+    const attributeName = html.slice(attributeStart, i);
+    if (!attributeName) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < html.length && /\s/.test(html[j])) {
+      j++;
+    }
+    let value: string | null = null;
+    if (html[j] === '=') {
+      j++;
+      while (j < html.length && /\s/.test(html[j])) {
+        j++;
+      }
+      const quote = html[j];
+      if (quote === '"' || quote === "'") {
+        let k = j + 1;
+        while (k < html.length && html[k] !== quote) {
+          k = html.startsWith('{{', k) ? handlebarsEnd(html, k) : k + 1;
+        }
+        value = html.slice(j + 1, k);
+        i = Math.min(k + 1, html.length);
+      } else {
+        let k = j;
+        while (k < html.length && !/[\s>]/.test(html[k])) {
+          k = html.startsWith('{{', k) ? handlebarsEnd(html, k) : k + 1;
+        }
+        value = html.slice(j, k);
+        i = k;
+      }
+    }
+    attributes.push({ name: attributeName.toLowerCase(), value, start: attributeStart, end: i });
+  }
+  return null;
+}
+
+/**
+ * The opening tag written on `line` (1-based) with this tag name; `index`:
+ * which one when the line holds several (code order). Tags inside comments
+ * are skipped.
+ */
+export function findSourceTag(html: string, line: number, tag: string, index = 0): SourceTag | null {
+  const source = html ?? '';
+  const found: SourceTag[] = [];
+  let currentLine = 1;
+  let last = 0;
+  const pattern = /<!--[\s\S]*?-->|\{\{!--[\s\S]*?--\}\}|\{\{[\s\S]*?\}\}|<[a-zA-Z]/g;
+  for (const match of source.matchAll(pattern)) {
+    const offset = match.index ?? 0;
+    for (let i = last; i < offset; i++) {
+      if (source.charCodeAt(i) === 10) {
+        currentLine++;
+      }
+    }
+    last = offset;
+    if (currentLine > line) {
+      break;
+    }
+    if (match[0][0] !== '<' || match[0].startsWith('<!--') || currentLine !== line) {
+      continue;
+    }
+    const read = readTag(source, offset);
+    if (read && read.tag === tag.toLowerCase()) {
+      found.push(read);
+    }
+  }
+  return found[Math.min(index, found.length - 1)] ?? null;
+}
+
+/** Quotes a value: double quotes, single ones if it holds a double quote outside {{ }} */
+function quoteValue(value: string): string {
+  const outside = value.replace(/\{\{[\s\S]*?\}\}/g, '');
+  return outside.includes('"') ? `'${value.replace(/'/g, '&#39;')}'` : `"${value}"`;
+}
+
+/**
+ * The opening tag with these attributes set (null: removed), to put in place
+ * of [tag.start, tag.end). The rest of the tag is kept as written.
+ */
+export function setTagAttributes(html: string, tag: SourceTag, changes: Record<string, string | null>): string {
+  let text = html.slice(tag.start, tag.end);
+  const relative = (offset: number) => offset - tag.start;
+  const edits: { start: number; end: number; text: string }[] = [];
+  const added: string[] = [];
+  for (const [name, value] of Object.entries(changes)) {
+    const existing = tag.attributes.find(attribute => attribute.name === name.toLowerCase());
+    if (existing) {
+      if (value === null) {
+        // with the spaces before it
+        let start = relative(existing.start);
+        while (start > 0 && /[ \t]/.test(text[start - 1])) {
+          start--;
+        }
+        edits.push({ start, end: relative(existing.end), text: '' });
+      } else if (existing.value !== value) {
+        edits.push({ start: relative(existing.start), end: relative(existing.end), text: `${name}=${quoteValue(value)}` });
+      }
+    } else if (value !== null) {
+      added.push(` ${name}=${quoteValue(value)}`);
+    }
+  }
+  if (added.length) {
+    // before ">" or "/>", after the spaces already there
+    let at = relative(tag.closeAt);
+    while (at > 0 && /\s/.test(text[at - 1])) {
+      at--;
+    }
+    edits.push({ start: at, end: at, text: added.join('') });
+  }
+  for (const edit of edits.sort((a, b) => b.start - a.start)) {
+    text = text.slice(0, edit.start) + edit.text + text.slice(edit.end);
+  }
+  return text;
 }
