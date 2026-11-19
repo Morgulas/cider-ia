@@ -425,8 +425,10 @@
             "absent-commented": "in a Handlebars comment",
             "absent-unknown": "not rendered (HTML structure?)",
             "duplicates-title": "CSS written twice ({{count}})",
-            "duplicate-rule": "Rule {{selector}} written twice (l. {{line}} and {{repeat}})",
-            "duplicate-property": "{{property}} declared twice in {{selector}} (l. {{line}} and {{repeat}}): only the second counts",
+            "duplicate": {
+                "rule": "Rule {{selector}} written twice (l. {{line}} and {{repeat}})",
+                "property": "{{property}} declared twice in {{selector}} (l. {{line}} and {{repeat}}): only the second counts"
+            },
             "step": {
                 "flow": "flow",
                 "positioned": "positioned"

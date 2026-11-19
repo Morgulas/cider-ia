@@ -332,7 +332,7 @@ export class TemplateLayersPanelComponent implements OnInit, OnChanges, OnDestro
   }
 
   public duplicateText(duplicate: CssDuplicate): string {
-    return this.translate.instant('template-editor.layers.duplicate-' + duplicate.kind, {
+    return this.translate.instant('template-editor.layers.duplicate.' + duplicate.kind, {
       selector: duplicate.selector, property: duplicate.property ?? '', line: duplicate.line, repeat: duplicate.repeatLine,
     });
   }
